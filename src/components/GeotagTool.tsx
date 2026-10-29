@@ -12,7 +12,11 @@ interface Photo {
   meta: PhotoMeta;
 }
 
-const ACCEPTED = ["image/jpeg", "image/png"];
+const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
+
+function isHeic(file: File): boolean {
+  return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
+}
 
 function suggestMeta(fileName: string, place: string, niche: string): PhotoMeta {
   const city = place.split(",")[0]?.trim() || place;
@@ -37,6 +41,7 @@ export default function GeotagTool() {
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState("");
+  const [uploadNotice, setUploadNotice] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = useCallback(async () => {
@@ -59,8 +64,14 @@ export default function GeotagTool() {
     (files: FileList | File[]) => {
       const place = selected?.label ?? "";
       const next: Photo[] = [];
+      let heicCount = 0;
+      let otherRejected = 0;
       for (const file of Array.from(files)) {
-        if (!ACCEPTED.includes(file.type)) continue;
+        if (!ACCEPTED.includes(file.type)) {
+          if (isHeic(file)) heicCount++;
+          else otherRejected++;
+          continue;
+        }
         next.push({
           id: `${file.name}-${file.size}-${crypto.randomUUID()}`,
           file,
@@ -69,6 +80,17 @@ export default function GeotagTool() {
         });
       }
       if (next.length) setPhotos((p) => [...p, ...next]);
+
+      const msgs: string[] = [];
+      if (heicCount > 0) {
+        msgs.push(
+          `${heicCount} foto(s) em HEIC (formato do iPhone) não puderam ser lidas. No iPhone, ative Ajustes → Câmera → Formatos → "Mais compatível", ou converta para JPG antes de subir.`,
+        );
+      }
+      if (otherRejected > 0) {
+        msgs.push(`${otherRejected} arquivo(s) ignorado(s): aceita apenas JPG, PNG ou WEBP.`);
+      }
+      setUploadNotice(msgs.join(" "));
     },
     [selected, niche],
   );
@@ -191,16 +213,26 @@ export default function GeotagTool() {
           }`}
         >
           <p className="text-sm font-medium">Arraste as fotos aqui ou toque para selecionar</p>
-          <p className="mt-1 text-xs text-muted">Aceita JPG e PNG — em lote</p>
+          <p className="mt-1 text-xs text-muted">Aceita JPG, PNG e WEBP — em lote</p>
+          {photos.length > 0 && (
+            <p className="mt-3 inline-block rounded-full bg-brand-2/15 px-3 py-1 text-xs font-medium text-brand-2">
+              ✓ {photos.length} foto{photos.length > 1 ? "s" : ""} carregada{photos.length > 1 ? "s" : ""} — role para baixo
+            </p>
+          )}
           <input
             ref={inputRef}
             type="file"
-            accept="image/jpeg,image/png"
+            accept="image/jpeg,image/png,image/webp"
             multiple
             hidden
             onChange={(e) => e.target.files && addFiles(e.target.files)}
           />
         </div>
+        {uploadNotice && (
+          <p className="mt-3 rounded-lg border border-accent/40 bg-accent/10 px-3 py-2 text-xs text-accent">
+            {uploadNotice}
+          </p>
+        )}
       </Step>
 
       {/* Passo 3 — metadados */}
