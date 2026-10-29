@@ -3,13 +3,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import { geocode, type GeoResult } from "@/lib/geocode";
-import { geotagPhoto, toJpgName, type PhotoMeta } from "@/lib/geotag";
+import { geotagPhoto, slugJpgName, type PhotoMeta } from "@/lib/geotag";
 
 interface Photo {
   id: string;
   file: File;
   preview: string;
   meta: PhotoMeta;
+  blob?: Blob;
+  ready: boolean;
 }
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
@@ -41,6 +43,7 @@ export default function GeotagTool() {
   const [dragOver, setDragOver] = useState(false);
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState("");
+  const [done, setDone] = useState(false);
   const [uploadNotice, setUploadNotice] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,9 +80,14 @@ export default function GeotagTool() {
           file,
           preview: URL.createObjectURL(file),
           meta: suggestMeta(file.name, place, niche),
+          ready: false,
         });
       }
-      if (next.length) setPhotos((p) => [...p, ...next]);
+      if (next.length) {
+        setPhotos((p) => [...p, ...next]);
+        setDone(false);
+        setProgress("");
+      }
 
       const msgs: string[] = [];
       if (heicCount > 0) {
@@ -97,9 +105,7 @@ export default function GeotagTool() {
 
   // Impede o navegador de abrir a imagem quando ela é solta fora da área exata.
   useEffect(() => {
-    const prevent = (e: DragEvent) => {
-      e.preventDefault();
-    };
+    const prevent = (e: DragEvent) => e.preventDefault();
     window.addEventListener("dragover", prevent);
     window.addEventListener("drop", prevent);
     return () => {
@@ -110,8 +116,11 @@ export default function GeotagTool() {
 
   const updateMeta = (id: string, field: keyof PhotoMeta, value: string) => {
     setPhotos((p) =>
-      p.map((ph) => (ph.id === id ? { ...ph, meta: { ...ph.meta, [field]: value } } : ph)),
+      p.map((ph) =>
+        ph.id === id ? { ...ph, meta: { ...ph.meta, [field]: value }, blob: undefined, ready: false } : ph,
+      ),
     );
+    setDone(false);
   };
 
   const removePhoto = (id: string) => {
@@ -122,36 +131,70 @@ export default function GeotagTool() {
     });
   };
 
-  const handleDownload = useCallback(async () => {
+  const bake = useCallback(
+    async (photo: Photo): Promise<Blob> => {
+      const point = { lat: selected!.lat, lng: selected!.lng };
+      const blob = await geotagPhoto(photo.file, point, photo.meta);
+      setPhotos((p) => p.map((ph) => (ph.id === photo.id ? { ...ph, blob, ready: true } : ph)));
+      return blob;
+    },
+    [selected],
+  );
+
+  const processAll = useCallback(async () => {
     if (!selected || photos.length === 0) return;
     setProcessing(true);
-    setProgress("");
+    setDone(false);
     try {
-      const point = { lat: selected.lat, lng: selected.lng };
-
-      if (photos.length === 1) {
-        const blob = await geotagPhoto(photos[0].file, point, photos[0].meta);
-        triggerDownload(blob, toJpgName(photos[0].file.name));
-      } else {
-        const zip = new JSZip();
-        for (let i = 0; i < photos.length; i++) {
-          setProgress(`Processando ${i + 1} de ${photos.length}…`);
-          const ph = photos[i];
-          const blob = await geotagPhoto(ph.file, point, ph.meta);
-          zip.file(toJpgName(ph.file.name), blob);
-        }
-        setProgress("Gerando arquivo ZIP…");
-        const zipBlob = await zip.generateAsync({ type: "blob" });
-        triggerDownload(zipBlob, "fotos-geotag-gmn-pro.zip");
+      for (let i = 0; i < photos.length; i++) {
+        setProgress(`Processando ${i + 1} de ${photos.length}…`);
+        await bake(photos[i]);
       }
+      setProgress("");
+      setDone(true);
     } catch {
-      setProgress("Algo deu errado ao processar as fotos. Tente de novo.");
+      setProgress("Algo deu errado ao processar. Tente de novo.");
+    } finally {
       setProcessing(false);
-      return;
     }
-    setProgress("Pronto! Download iniciado.");
-    setProcessing(false);
-  }, [selected, photos]);
+  }, [selected, photos, bake]);
+
+  const downloadOne = useCallback(
+    async (photo: Photo) => {
+      if (!selected) return;
+      const blob = photo.blob ?? (await bake(photo));
+      triggerDownload(blob, slugJpgName(photo.meta.title, photo.file.name));
+    },
+    [selected, bake],
+  );
+
+  const downloadZip = useCallback(async () => {
+    if (!selected || photos.length === 0) return;
+    setProcessing(true);
+    try {
+      const zip = new JSZip();
+      const used = new Set<string>();
+      for (let i = 0; i < photos.length; i++) {
+        setProgress(`Preparando ${i + 1} de ${photos.length}…`);
+        const ph = photos[i];
+        const blob = ph.blob ?? (await bake(ph));
+        let name = slugJpgName(ph.meta.title, ph.file.name);
+        let n = 2;
+        while (used.has(name)) name = name.replace(/\.jpg$/, `-${n++}.jpg`);
+        used.add(name);
+        zip.file(name, blob);
+      }
+      setProgress("Gerando ZIP…");
+      const zipBlob = await zip.generateAsync({ type: "blob" });
+      triggerDownload(zipBlob, "fotos-geotag-gmn-pro.zip");
+      setProgress("");
+      setDone(true);
+    } catch {
+      setProgress("Algo deu errado ao gerar o ZIP. Tente de novo.");
+    } finally {
+      setProcessing(false);
+    }
+  }, [selected, photos, bake]);
 
   return (
     <div className="space-y-8">
@@ -166,7 +209,7 @@ export default function GeotagTool() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            placeholder="Ex.: Londrina, PR"
+            placeholder="Ex.: Sorocaba, SP"
             className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
           />
           <button
@@ -205,6 +248,11 @@ export default function GeotagTool() {
             ))}
           </ul>
         )}
+        {selected && (
+          <p className="mt-3 text-xs text-brand-2">
+            ✓ Local definido: {selected.label}
+          </p>
+        )}
       </Step>
 
       {/* Passo 2 — upload */}
@@ -227,7 +275,10 @@ export default function GeotagTool() {
             e.preventDefault();
             setDragOver(false);
             if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
-            else setUploadNotice("Não consegui ler o que foi solto. Arraste um arquivo de imagem do seu computador, ou clique para selecionar.");
+            else
+              setUploadNotice(
+                "Não consegui ler o que foi solto. Arraste um arquivo de imagem do seu computador, ou clique para selecionar.",
+              );
           }}
           onClick={() => inputRef.current?.click()}
           className={`cursor-pointer rounded-xl border-2 border-dashed px-6 py-10 text-center transition ${
@@ -257,82 +308,103 @@ export default function GeotagTool() {
         )}
       </Step>
 
-      {/* Passo 3 — metadados */}
+      {/* Passo 3 — metadados por foto */}
       {photos.length > 0 && (
-        <Step n={3} title="Preencha os metadados" done={false}>
+        <Step n={3} title="Metadados de cada foto" done={done}>
           <p className="mb-4 text-sm text-muted">
             Para cada foto, confira título, descrição e palavras-chave. A
             ferramenta já sugere automaticamente — ajuste como quiser.
           </p>
-          <div className="space-y-4">
+          <div className="space-y-5">
             {photos.map((ph) => (
-              <div
-                key={ph.id}
-                className="flex flex-col gap-3 rounded-xl border border-border bg-surface-2 p-3 sm:flex-row"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={ph.preview}
-                  alt=""
-                  className="h-24 w-24 shrink-0 rounded-lg object-cover"
-                />
-                <div className="flex-1 space-y-2">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="truncate text-xs text-muted">{ph.file.name}</span>
-                    <button
-                      onClick={() => removePhoto(ph.id)}
-                      className="text-xs text-red-400 hover:underline"
-                    >
-                      Remover
-                    </button>
-                  </div>
+              <div key={ph.id} className="rounded-xl border border-border bg-surface-2 p-3">
+                <div className="relative mb-3 overflow-hidden rounded-lg bg-black">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={ph.preview} alt="" className="mx-auto max-h-64 w-full object-contain" />
+                  {ph.ready && (
+                    <span className="absolute right-2 top-2 rounded-full bg-brand-2 px-2.5 py-1 text-xs font-semibold text-white">
+                      Pronta
+                    </span>
+                  )}
+                </div>
+                <div className="mb-3 flex items-center justify-between gap-2">
+                  <span className="truncate text-xs text-muted">
+                    {ph.file.name} · {(ph.file.size / 1024 / 1024).toFixed(1)} MB
+                  </span>
+                  <button
+                    onClick={() => removePhoto(ph.id)}
+                    className="shrink-0 text-xs text-red-400 hover:underline"
+                  >
+                    Remover
+                  </button>
+                </div>
+                <p className="mb-3 text-xs text-muted">
+                  Sai como:{" "}
+                  <span className="break-all font-mono text-brand-2">
+                    {slugJpgName(ph.meta.title, ph.file.name)}
+                  </span>
+                </p>
+                <Field label="Título">
                   <input
                     value={ph.meta.title}
                     onChange={(e) => updateMeta(ph.id, "title", e.target.value)}
-                    placeholder="Título"
                     className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
                   />
-                  <input
+                </Field>
+                <Field label="Descrição">
+                  <textarea
                     value={ph.meta.description}
                     onChange={(e) => updateMeta(ph.id, "description", e.target.value)}
-                    placeholder="Descrição"
-                    className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                    rows={2}
+                    className="w-full resize-y rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
                   />
+                </Field>
+                <Field label="Palavras-chave (separadas por vírgula)">
                   <input
                     value={ph.meta.keywords}
                     onChange={(e) => updateMeta(ph.id, "keywords", e.target.value)}
-                    placeholder="Palavras-chave (separadas por vírgula)"
                     className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
                   />
-                </div>
+                </Field>
+                <button
+                  onClick={() => downloadOne(ph)}
+                  disabled={!selected || processing}
+                  className="mt-3 w-full rounded-lg bg-brand-2 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+                >
+                  Baixar esta foto
+                </button>
               </div>
             ))}
           </div>
+
+          <div className="mt-6 flex flex-col gap-3 border-t border-border pt-5 sm:flex-row">
+            <button
+              onClick={processAll}
+              disabled={!selected || processing}
+              className="rounded-lg bg-brand-2 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+            >
+              {processing ? "Processando…" : "Processar fotos"}
+            </button>
+            <button
+              onClick={downloadZip}
+              disabled={!selected || processing}
+              className="rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-semibold transition hover:bg-surface-2 disabled:opacity-40"
+            >
+              Baixar todas (ZIP)
+            </button>
+          </div>
+
+          {!selected && (
+            <p className="mt-3 text-xs text-accent">Defina a cidade no passo 1 primeiro.</p>
+          )}
+          {progress && <p className="mt-3 text-sm text-muted">{progress}</p>}
+          {done && (
+            <p className="mt-3 text-sm font-medium text-brand-2">
+              Pronto. Suas fotos estão geotaggadas e prontas para o GMB.
+            </p>
+          )}
         </Step>
       )}
-
-      {/* Passo 4 — download */}
-      <Step n={4} title="Baixe o resultado" done={false}>
-        <p className="mb-3 text-sm text-muted">
-          As fotos saem no mesmo enquadramento, sem corte, com geotag e EXIF
-          prontas para subir no GMB.
-        </p>
-        <button
-          onClick={handleDownload}
-          disabled={!selected || photos.length === 0 || processing}
-          className="rounded-lg bg-brand-2 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          {processing
-            ? "Processando…"
-            : photos.length > 1
-              ? `Baixar ${photos.length} fotos (ZIP)`
-              : "Baixar foto"}
-        </button>
-        {!selected && (
-          <p className="mt-2 text-xs text-accent">Defina a cidade no passo 1 primeiro.</p>
-        )}
-        {progress && <p className="mt-2 text-sm text-muted">{progress}</p>}
-      </Step>
     </div>
   );
 }
@@ -362,6 +434,15 @@ function Step({
       </div>
       {children}
     </section>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <label className="mb-2 block">
+      <span className="mb-1 block text-xs text-muted">{label}</span>
+      {children}
+    </label>
   );
 }
 

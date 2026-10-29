@@ -128,3 +128,15 @@ export async function geotagPhoto(
 export function toJpgName(name: string): string {
   return name.replace(/\.[^.]+$/, "") + ".jpg";
 }
+
+/** Transforma um texto em um nome de arquivo amigável (slug) + .jpg. */
+export function slugJpgName(title: string, fallbackName: string): string {
+  const slug = title
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 80);
+  return slug ? `${slug}.jpg` : toJpgName(fallbackName);
+}
