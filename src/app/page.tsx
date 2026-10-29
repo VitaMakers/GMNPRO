@@ -26,11 +26,11 @@ const tools = [
     tagClass: "bg-accent/15 text-accent",
   },
   {
-    href: "#",
+    href: "/agendamento",
     title: "Agendamento de Postagens",
-    desc: "Programe postagens, fotos e vídeos do seu perfil num calendário, com publicação automática. (Requer API do Google.)",
-    tag: "Planejado",
-    tagClass: "bg-muted/15 text-muted",
+    desc: "Monte postagens com foto e botão de ação, programe a data e deixe a publicação automática no seu perfil (conexão com o Google em liberação).",
+    tag: "Beta",
+    tagClass: "bg-brand/15 text-brand",
   },
 ];
 

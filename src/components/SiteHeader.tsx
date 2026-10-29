@@ -31,6 +31,12 @@ export default function SiteHeader() {
           >
             Auditoria
           </Link>
+          <Link
+            href="/agendamento"
+            className="rounded-lg bg-brand/10 px-3 py-1.5 font-medium text-brand transition hover:bg-brand/20"
+          >
+            Agendar
+          </Link>
         </nav>
       </div>
     </header>
