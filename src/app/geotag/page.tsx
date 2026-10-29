@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import GeotagTool from "@/components/GeotagTool";
+import CtaSection from "@/components/CtaSection";
+import Faq from "@/components/Faq";
 
 export const metadata: Metadata = {
   title: "Geotag de Fotos — GMN PRO",
@@ -76,10 +79,33 @@ export default function GeotagPage() {
             ))}
           </div>
         </section>
+
+        <Faq items={faq} />
+        <CtaSection />
       </main>
+      <SiteFooter />
     </div>
   );
 }
+
+const faq = [
+  {
+    q: "O que é geotag em foto?",
+    a: "Geotag é a inclusão de coordenadas geográficas (latitude e longitude) nos metadados EXIF de uma foto. Aqui, além do GPS, otimizamos a imagem e gravamos título, descrição e palavras-chave.",
+  },
+  {
+    q: "Esta ferramenta envia minha foto para algum servidor?",
+    a: "Não. Todo o processamento acontece no seu navegador. Sua foto nunca é enviada para nenhum servidor — os arquivos são gerados no seu próprio dispositivo.",
+  },
+  {
+    q: "O Google usa o GPS gravado na foto?",
+    a: "Sejamos transparentes: o Google remove boa parte dos metadados ao subir a foto no perfil. O que realmente ajuda — e esta ferramenta entrega — é a otimização da imagem, a qualidade e o nome de arquivo descritivo.",
+  },
+  {
+    q: "Posso processar várias fotos de uma vez?",
+    a: "Sim. A ferramenta processa em lote: suba várias fotos, ajuste os metadados e baixe todas em um único arquivo ZIP.",
+  },
+];
 
 const realBenefits = [
   "Resolução e proporção ajustadas às specs recomendadas pelo Google (foto exibida melhor, sem recorte feio).",

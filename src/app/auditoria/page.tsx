@@ -1,6 +1,9 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
 import AuditTool from "@/components/AuditTool";
+import CtaSection from "@/components/CtaSection";
 
 export const metadata: Metadata = {
   title: "Auditoria do Perfil — GMN PRO",
@@ -21,8 +24,22 @@ export default function AuditoriaPage() {
             análise lê apenas dados públicos do Google Maps.
           </p>
         </div>
+
+        <div className="mb-6 rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm">
+          <p className="font-medium">A auditoria automática está em fase final de configuração.</p>
+          <p className="mt-1 text-muted">
+            Enquanto isso, use o{" "}
+            <Link href="/checklist" className="font-medium text-brand hover:underline">
+              Checklist do Google Meu Negócio
+            </Link>{" "}
+            — a auto-avaliação gratuita que já entrega sua nota e as prioridades.
+          </p>
+        </div>
+
         <AuditTool />
+        <CtaSection />
       </main>
+      <SiteFooter />
     </div>
   );
 }

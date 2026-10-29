@@ -1,5 +1,7 @@
 import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
+import SiteFooter from "@/components/SiteFooter";
+import CtaSection from "@/components/CtaSection";
 
 const tools = [
   {
@@ -10,11 +12,18 @@ const tools = [
     tagClass: "bg-brand-2/15 text-brand-2",
   },
   {
+    href: "/checklist",
+    title: "Checklist GMB",
+    desc: "Auto-avaliação gratuita: marque o que já faz no seu perfil e receba uma nota com as prioridades do que melhorar.",
+    tag: "Pronto",
+    tagClass: "bg-brand-2/15 text-brand-2",
+  },
+  {
     href: "/auditoria",
     title: "Auditoria do Perfil",
     desc: "Analise como sua empresa aparece no Google Maps e veja o que melhorar na ficha, com nota e lista de prioridades.",
-    tag: "Pronto",
-    tagClass: "bg-brand-2/15 text-brand-2",
+    tag: "Em breve",
+    tagClass: "bg-accent/15 text-accent",
   },
   {
     href: "#",
@@ -66,7 +75,10 @@ export default function Home() {
             </Link>
           ))}
         </div>
+
+        <CtaSection />
       </main>
+      <SiteFooter />
     </div>
   );
 }

@@ -20,6 +20,12 @@ export default function SiteHeader() {
             Geotag
           </Link>
           <Link
+            href="/checklist"
+            className="rounded-lg px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground"
+          >
+            Checklist
+          </Link>
+          <Link
             href="/auditoria"
             className="rounded-lg px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground"
           >
