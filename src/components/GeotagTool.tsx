@@ -3,7 +3,12 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import { geocode, type GeoResult } from "@/lib/geocode";
-import { geotagPhoto, slugJpgName, type PhotoMeta } from "@/lib/geotag";
+import {
+  geotagPhoto,
+  isLowResolution,
+  slugJpgName,
+  type PhotoMeta,
+} from "@/lib/geotag";
 
 interface Photo {
   id: string;
@@ -11,6 +16,8 @@ interface Photo {
   preview: string;
   meta: PhotoMeta;
   blob?: Blob;
+  outW?: number;
+  outH?: number;
   ready: boolean;
 }
 
@@ -45,6 +52,8 @@ export default function GeotagTool() {
   const [progress, setProgress] = useState("");
   const [done, setDone] = useState(false);
   const [uploadNotice, setUploadNotice] = useState("");
+  const [optimize, setOptimize] = useState(true);
+  const [enhance, setEnhance] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const handleSearch = useCallback(async () => {
@@ -123,6 +132,11 @@ export default function GeotagTool() {
     setDone(false);
   };
 
+  const resetProcessed = () => {
+    setPhotos((p) => p.map((ph) => ({ ...ph, blob: undefined, ready: false })));
+    setDone(false);
+  };
+
   const removePhoto = (id: string) => {
     setPhotos((p) => {
       const found = p.find((ph) => ph.id === id);
@@ -134,11 +148,18 @@ export default function GeotagTool() {
   const bake = useCallback(
     async (photo: Photo): Promise<Blob> => {
       const point = { lat: selected!.lat, lng: selected!.lng };
-      const blob = await geotagPhoto(photo.file, point, photo.meta);
-      setPhotos((p) => p.map((ph) => (ph.id === photo.id ? { ...ph, blob, ready: true } : ph)));
+      const { blob, width, height } = await geotagPhoto(photo.file, point, photo.meta, {
+        optimize,
+        enhance,
+      });
+      setPhotos((p) =>
+        p.map((ph) =>
+          ph.id === photo.id ? { ...ph, blob, outW: width, outH: height, ready: true } : ph,
+        ),
+      );
       return blob;
     },
-    [selected],
+    [selected, optimize, enhance],
   );
 
   const processAll = useCallback(async () => {
@@ -313,6 +334,27 @@ export default function GeotagTool() {
       {/* Passo 3 — metadados por foto */}
       {photos.length > 0 && (
         <Step n={3} title="Metadados de cada foto" done={done}>
+          <div className="mb-4 space-y-2 rounded-xl border border-border bg-surface-2 p-3">
+            <p className="text-xs font-medium text-muted">Otimização da imagem</p>
+            <Toggle
+              checked={optimize}
+              onChange={(v) => {
+                setOptimize(v);
+                resetProcessed();
+              }}
+              label="Otimizar para o Google (recomendado)"
+              hint="Ajusta a resolução e gera um JPEG de alta qualidade nas specs do GMB."
+            />
+            <Toggle
+              checked={enhance}
+              onChange={(v) => {
+                setEnhance(v);
+                resetProcessed();
+              }}
+              label="Melhorar automaticamente"
+              hint="Brilho, contraste e nitidez leves para a foto ficar mais profissional."
+            />
+          </div>
           <p className="mb-4 text-sm text-muted">
             Para cada foto, confira título, descrição e palavras-chave. A
             ferramenta já sugere automaticamente — ajuste como quiser.
@@ -340,12 +382,21 @@ export default function GeotagTool() {
                     Remover
                   </button>
                 </div>
-                <p className="mb-3 text-xs text-muted">
+                <p className="mb-1 text-xs text-muted">
                   Sai como:{" "}
                   <span className="break-all font-mono text-brand-2">
                     {slugJpgName(ph.meta.title, ph.file.name)}
                   </span>
                 </p>
+                {ph.ready && ph.blob && (
+                  <p className="mb-3 text-xs text-muted">
+                    Otimizada: {ph.outW && ph.outH ? `${ph.outW}×${ph.outH}px · ` : ""}
+                    {(ph.blob.size / 1024 / 1024).toFixed(2)} MB
+                    {isLowResolution(ph.outW ?? 0, ph.outH ?? 0) && (
+                      <span className="text-accent"> · resolução baixa — ideal usar fotos maiores</span>
+                    )}
+                  </p>
+                )}
                 <Field label="Título">
                   <input
                     value={ph.meta.title}
@@ -442,6 +493,42 @@ function Step({
       </div>
       {children}
     </section>
+  );
+}
+
+function Toggle({
+  checked,
+  onChange,
+  label,
+  hint,
+}: {
+  checked: boolean;
+  onChange: (v: boolean) => void;
+  label: string;
+  hint: string;
+}) {
+  return (
+    <label className="flex cursor-pointer items-start gap-3">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={checked}
+        onClick={() => onChange(!checked)}
+        className={`mt-0.5 h-5 w-9 shrink-0 rounded-full transition ${
+          checked ? "bg-brand-2" : "bg-border"
+        }`}
+      >
+        <span
+          className={`block h-4 w-4 rounded-full bg-white transition ${
+            checked ? "translate-x-4" : "translate-x-0.5"
+          }`}
+        />
+      </button>
+      <span>
+        <span className="block text-sm font-medium">{label}</span>
+        <span className="block text-xs text-muted">{hint}</span>
+      </span>
+    </label>
   );
 }
 

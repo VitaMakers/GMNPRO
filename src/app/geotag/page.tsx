@@ -14,16 +14,50 @@ export default function GeotagPage() {
       <SiteHeader />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Geotag de Fotos</h1>
+          <h1 className="text-3xl font-bold tracking-tight">
+            Prepare suas fotos para o Google Meu Negócio
+          </h1>
           <p className="mt-2 text-muted">
-            Adicione localização, título e palavras-chave nas fotos do seu GMB em
-            segundos.{" "}
+            Otimize suas fotos nas specs ideais do Google, com título, descrição,
+            palavras-chave e localização — prontas para subir no perfil.{" "}
             <span className="text-foreground">
-              Suas imagens nunca saem do navegador.
+              Tudo no seu navegador: as imagens nunca saem do seu dispositivo.
             </span>
           </p>
         </div>
         <GeotagTool />
+
+        <section className="mt-12 rounded-2xl border border-border bg-surface p-6">
+          <h2 className="text-lg font-bold">O que realmente melhora sua foto no GMB</h2>
+          <p className="mt-2 text-sm text-muted">
+            Sejamos transparentes: o Google remove boa parte dos metadados (como o
+            GPS) ao subir a foto. O que de fato ajuda — e esta ferramenta entrega —
+            é preparar a imagem para performar:
+          </p>
+          <ul className="mt-4 space-y-2 text-sm">
+            {realBenefits.map((b) => (
+              <li key={b} className="flex items-start gap-2">
+                <span className="mt-0.5 text-brand-2">✓</span>
+                <span className="text-muted">{b}</span>
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="mt-8 rounded-2xl border border-border bg-surface p-6">
+          <h2 className="text-lg font-bold">Guia de boa foto</h2>
+          <p className="mt-2 text-sm text-muted">
+            A foto que mais ajuda é a que o Google e o cliente entendem bem:
+          </p>
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            {photoTips.map((t) => (
+              <div key={t.title} className="rounded-xl border border-border bg-surface-2 p-3">
+                <p className="text-sm font-medium">{t.title}</p>
+                <p className="mt-1 text-xs text-muted">{t.desc}</p>
+              </div>
+            ))}
+          </div>
+        </section>
 
         <section className="mt-14">
           <h2 className="mb-6 text-xl font-bold">Como funciona</h2>
@@ -46,6 +80,23 @@ export default function GeotagPage() {
     </div>
   );
 }
+
+const realBenefits = [
+  "Resolução e proporção ajustadas às specs recomendadas pelo Google (foto exibida melhor, sem recorte feio).",
+  "JPEG de alta qualidade e tamanho otimizado — carrega rápido e o Google reprocessa menos.",
+  "Brilho, contraste e nitidez leves: foto mais atraente gera mais cliques, e engajamento é sinal de ranqueamento.",
+  "Nome de arquivo descritivo (ex.: buffet-para-casamentos-em-sorocaba.jpg), que o Google lê e indexa.",
+  "Título, descrição e palavras-chave organizados para você reaproveitar na legenda ao postar.",
+];
+
+const photoTips = [
+  { title: "Mostre a fachada com a placa", desc: "Ajuda o Google a confirmar o local e o cliente a reconhecer a empresa." },
+  { title: "Boa iluminação", desc: "Prefira luz natural; evite fotos escuras ou estouradas." },
+  { title: "Foco no que importa", desc: "Produto, ambiente ou equipe nítidos e centralizados." },
+  { title: "Fotos novas com frequência", desc: "Perfis que recebem fotos novas regularmente performam melhor." },
+  { title: "Horizontal quando possível", desc: "A maioria dos espaços do GMB favorece fotos em paisagem." },
+  { title: "Evite marcas d'água pesadas", desc: "O Google pode penalizar; prefira a imagem limpa." },
+];
 
 const steps = [
   {
