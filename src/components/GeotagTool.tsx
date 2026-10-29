@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
 import { geocode, type GeoResult } from "@/lib/geocode";
 import { geotagPhoto, toJpgName, type PhotoMeta } from "@/lib/geotag";
@@ -94,6 +94,19 @@ export default function GeotagTool() {
     },
     [selected, niche],
   );
+
+  // Impede o navegador de abrir a imagem quando ela é solta fora da área exata.
+  useEffect(() => {
+    const prevent = (e: DragEvent) => {
+      e.preventDefault();
+    };
+    window.addEventListener("dragover", prevent);
+    window.addEventListener("drop", prevent);
+    return () => {
+      window.removeEventListener("dragover", prevent);
+      window.removeEventListener("drop", prevent);
+    };
+  }, []);
 
   const updateMeta = (id: string, field: keyof PhotoMeta, value: string) => {
     setPhotos((p) =>
@@ -197,15 +210,24 @@ export default function GeotagTool() {
       {/* Passo 2 — upload */}
       <Step n={2} title="Suba suas fotos" done={photos.length > 0}>
         <div
-          onDragOver={(e) => {
+          onDragEnter={(e) => {
             e.preventDefault();
             setDragOver(true);
           }}
-          onDragLeave={() => setDragOver(false)}
+          onDragOver={(e) => {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = "copy";
+            setDragOver(true);
+          }}
+          onDragLeave={(e) => {
+            e.preventDefault();
+            setDragOver(false);
+          }}
           onDrop={(e) => {
             e.preventDefault();
             setDragOver(false);
-            addFiles(e.dataTransfer.files);
+            if (e.dataTransfer.files?.length) addFiles(e.dataTransfer.files);
+            else setUploadNotice("Não consegui ler o que foi solto. Arraste um arquivo de imagem do seu computador, ou clique para selecionar.");
           }}
           onClick={() => inputRef.current?.click()}
           className={`cursor-pointer rounded-xl border-2 border-dashed px-6 py-10 text-center transition ${
