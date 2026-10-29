@@ -215,9 +215,11 @@ export default function GeotagTool() {
           <button
             onClick={handleSearch}
             disabled={searching || !query.trim()}
-            className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+            className={`rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50 ${
+              selected ? "bg-brand-2" : "bg-brand"
+            }`}
           >
-            {searching ? "Buscando…" : "Buscar"}
+            {selected ? "✓ Local definido" : searching ? "Buscando…" : "Buscar"}
           </button>
         </div>
         <input
@@ -369,9 +371,11 @@ export default function GeotagTool() {
                 <button
                   onClick={() => downloadOne(ph)}
                   disabled={!selected || processing}
-                  className="mt-3 w-full rounded-lg bg-brand-2 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+                  className={`mt-3 w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40 ${
+                    ph.ready ? "bg-brand-2" : "bg-brand"
+                  }`}
                 >
-                  Baixar esta foto
+                  {ph.ready ? "✓ Baixar esta foto" : "Baixar esta foto"}
                 </button>
               </div>
             ))}
@@ -381,14 +385,18 @@ export default function GeotagTool() {
             <button
               onClick={processAll}
               disabled={!selected || processing}
-              className="rounded-lg bg-brand-2 px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40"
+              className={`rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40 ${
+                done ? "bg-brand-2" : "bg-brand"
+              }`}
             >
-              {processing ? "Processando…" : "Processar fotos"}
+              {processing ? "Processando…" : done ? "✓ Fotos processadas" : "Processar fotos"}
             </button>
             <button
               onClick={downloadZip}
               disabled={!selected || processing}
-              className="rounded-lg border border-border bg-surface px-5 py-2.5 text-sm font-semibold transition hover:bg-surface-2 disabled:opacity-40"
+              className={`rounded-lg px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40 ${
+                done ? "bg-brand-2" : "bg-brand"
+              }`}
             >
               Baixar todas (ZIP)
             </button>
