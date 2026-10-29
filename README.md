@@ -9,8 +9,10 @@ perfil e (em breve) agendamento de postagens.
   descrição e palavras-chave no EXIF das fotos. Roda 100% no navegador: as
   imagens nunca são enviadas para nenhum servidor. Aceita JPG e PNG, processa
   em lote e baixa tudo em um ZIP.
-- **Auditoria do Perfil** (`/auditoria`) — _em construção_. Lê dados públicos do
-  Google Maps e aponta o que melhorar na ficha, com nota e prioridades.
+- **Auditoria do Perfil** (`/auditoria`) — busca a empresa pelo nome, lê dados
+  públicos do Google Maps (Places API) e devolve uma nota de 0 a 100 com um
+  checklist e as prioridades. Exige a variável `GOOGLE_PLACES_API_KEY`
+  (ver `.env.example`); sem ela, a página avisa que falta configurar a chave.
 - **Agendamento de Postagens** — _planejado_. Calendário de postagens, fotos e
   vídeos com publicação automática. Depende da aprovação da API do Google
   Business Profile.

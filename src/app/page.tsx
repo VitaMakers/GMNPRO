@@ -13,8 +13,8 @@ const tools = [
     href: "/auditoria",
     title: "Auditoria do Perfil",
     desc: "Analise como sua empresa aparece no Google Maps e veja o que melhorar na ficha, com nota e lista de prioridades.",
-    tag: "Em breve",
-    tagClass: "bg-accent/15 text-accent",
+    tag: "Pronto",
+    tagClass: "bg-brand-2/15 text-brand-2",
   },
   {
     href: "#",
