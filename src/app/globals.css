@@ -2,14 +2,15 @@
 
 :root {
   --background: #0a0a0b;
-  --surface: #141417;
-  --surface-2: #1c1c21;
-  --border: #2a2a31;
-  --foreground: #ededed;
-  --muted: #9a9aa6;
-  --brand: #4285f4;
-  --brand-2: #34a853;
-  --accent: #fbbc05;
+  --surface: #121214;
+  --surface-2: #1a1a1d;
+  --border: #26262b;
+  --foreground: #fafafa;
+  --muted: #8a8a93;
+  /* Acento único (verde esmeralda premium) + tons para estados. */
+  --brand: #059669;    /* ações primárias (contraste bom com texto branco) */
+  --brand-2: #34d399;  /* sucesso / concluído / destaque em texto */
+  --accent: #f5b941;   /* avisos */
 }
 
 @theme inline {
@@ -22,7 +23,8 @@
   --color-brand: var(--brand);
   --color-brand-2: var(--brand-2);
   --color-accent: var(--accent);
-  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-display: var(--font-display), var(--font-inter), sans-serif;
 }
 
 * {
@@ -38,11 +40,51 @@ body {
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans);
+  font-family: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+h1,
+h2,
+h3,
+h4,
+.font-display {
+  font-family: var(--font-display), var(--font-inter), sans-serif;
+  letter-spacing: -0.02em;
 }
 
 a {
   color: inherit;
   text-decoration: none;
+}
+
+/* Brilho radial sutil para heros e destaques. */
+.glow {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(60% 50% at 50% 0%, color-mix(in oklab, var(--brand) 18%, transparent), transparent 70%);
+}
+
+/* Grade sutil de fundo. */
+.grid-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(to right, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px),
+    linear-gradient(to bottom, color-mix(in oklab, var(--border) 60%, transparent) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(70% 60% at 50% 0%, #000 30%, transparent 75%);
+}
+
+/* Borda em gradiente para cards de destaque. */
+.ring-glow {
+  box-shadow: 0 0 0 1px var(--border), 0 20px 60px -20px color-mix(in oklab, var(--brand) 25%, transparent);
+}
+
+::selection {
+  background: color-mix(in oklab, var(--brand) 35%, transparent);
 }
