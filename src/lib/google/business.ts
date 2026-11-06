@@ -55,6 +55,52 @@ export interface LocalPostInput {
 }
 
 /**
+ * Envia uma foto para a GALERIA do perfil (aba "Fotos"), associada ao local.
+ * A imagem vai por URL pública. `accountLocation` = accounts/{acc}/locations/{loc}.
+ */
+export async function createMediaItem(
+  accessToken: string,
+  accountLocation: string,
+  sourceUrl: string,
+): Promise<{ name: string }> {
+  const body = {
+    mediaFormat: "PHOTO",
+    locationAssociation: { category: "ADDITIONAL" },
+    sourceUrl,
+  };
+  const res = await fetch(`${LEGACY_V4}/${accountLocation}/media`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`createMediaItem ${res.status}: ${await res.text()}`);
+  return res.json();
+}
+
+/** Coordenadas (lat/lng) de um local do perfil, se disponíveis. */
+export async function getLocationLatLng(
+  accessToken: string,
+  locationOnly: string,
+): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const url = `${BUSINESS_INFO}/${locationOnly}?readMask=latlng`;
+    const data = await getJson<{ latlng?: { latitude?: number; longitude?: number } }>(
+      url,
+      accessToken,
+    );
+    if (data.latlng?.latitude != null && data.latlng?.longitude != null) {
+      return { lat: data.latlng.latitude, lng: data.latlng.longitude };
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Cria uma postagem local (localPost) via API legada v4.
  * `accountLocation` deve ser no formato accounts/{acc}/locations/{loc}.
  */

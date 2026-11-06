@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
-import { createLocalPost } from "@/lib/google/business";
+import { createLocalPost, createMediaItem } from "@/lib/google/business";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -10,8 +10,9 @@ interface DuePost {
   id: string;
   user_id: string;
   location_name: string;
+  kind: string;
   topic: "STANDARD" | "EVENT" | "OFFER";
-  summary: string;
+  summary: string | null;
   cta_type: string | null;
   cta_url: string | null;
   media_url: string | null;
@@ -40,7 +41,7 @@ export async function GET(request: Request) {
   const { data: due, error } = await admin
     .from("scheduled_posts")
     .select(
-      "id,user_id,location_name,topic,summary,cta_type,cta_url,media_url,event_title,event_start,event_end",
+      "id,user_id,location_name,kind,topic,summary,cta_type,cta_url,media_url,event_title,event_start,event_end",
     )
     .eq("status", "scheduled")
     .lte("scheduled_at", nowIso)
@@ -56,16 +57,23 @@ export async function GET(request: Request) {
   for (const post of posts) {
     try {
       const accessToken = await getValidAccessToken(admin, post.user_id);
-      const created = await createLocalPost(accessToken, post.location_name, {
-        summary: post.summary,
-        topicType: post.topic,
-        mediaUrl: post.media_url,
-        ctaType: post.cta_type,
-        ctaUrl: post.cta_url,
-        eventTitle: post.event_title,
-        eventStart: post.event_start,
-        eventEnd: post.event_end,
-      });
+      let created: { name: string };
+
+      if (post.kind === "photo") {
+        if (!post.media_url) throw new Error("Foto sem imagem.");
+        created = await createMediaItem(accessToken, post.location_name, post.media_url);
+      } else {
+        created = await createLocalPost(accessToken, post.location_name, {
+          summary: post.summary ?? "",
+          topicType: post.topic,
+          mediaUrl: post.media_url,
+          ctaType: post.cta_type,
+          ctaUrl: post.cta_url,
+          eventTitle: post.event_title,
+          eventStart: post.event_start,
+          eventEnd: post.event_end,
+        });
+      }
 
       await admin
         .from("scheduled_posts")

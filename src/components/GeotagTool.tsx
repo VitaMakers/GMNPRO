@@ -2,13 +2,20 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import JSZip from "jszip";
+import Link from "next/link";
 import { geocode, type GeoResult } from "@/lib/geocode";
+import { createClient } from "@/lib/supabase/client";
 import {
   geotagPhoto,
   isLowResolution,
   slugJpgName,
   type PhotoMeta,
 } from "@/lib/geotag";
+
+interface GmbLocation {
+  location_name: string;
+  title: string | null;
+}
 
 interface Photo {
   id: string;
@@ -19,6 +26,7 @@ interface Photo {
   outW?: number;
   outH?: number;
   ready: boolean;
+  scheduleWhen?: string;
 }
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
@@ -55,6 +63,51 @@ export default function GeotagTool() {
   const [optimize, setOptimize] = useState(true);
   const [enhance, setEnhance] = useState(true);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  // Integração com a conta (publicar/programar na galeria do GMB)
+  const [loggedIn, setLoggedIn] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [locations, setLocations] = useState<GmbLocation[]>([]);
+  const [gmbLocation, setGmbLocation] = useState("");
+  const [busyId, setBusyId] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    (async () => {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user) return;
+      setLoggedIn(true);
+      const { data: conn } = await supabase
+        .from("google_connections")
+        .select("access_token")
+        .maybeSingle();
+      setConnected(!!conn?.access_token);
+      const { data: locs } = await supabase
+        .from("gmb_locations")
+        .select("location_name, title")
+        .order("title", { ascending: true });
+      const list = (locs as GmbLocation[]) ?? [];
+      setLocations(list);
+      if (list.length > 0) setGmbLocation(list[0].location_name);
+    })();
+  }, []);
+
+  const uploadToStorage = useCallback(async (blob: Blob, name: string): Promise<string> => {
+    const supabase = createClient();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) throw new Error("Sessão expirada. Entre novamente.");
+    const path = `${user.id}/${crypto.randomUUID()}-${name}`;
+    const { error } = await supabase.storage.from("post-media").upload(path, blob, {
+      contentType: "image/jpeg",
+    });
+    if (error) throw error;
+    return supabase.storage.from("post-media").getPublicUrl(path).data.publicUrl;
+  }, []);
 
   const handleSearch = useCallback(async () => {
     setSearchError("");
@@ -160,6 +213,75 @@ export default function GeotagTool() {
       return blob;
     },
     [selected, optimize, enhance],
+  );
+
+  const publishNow = useCallback(
+    async (photo: Photo) => {
+      if (!gmbLocation) {
+        setActionMsg({ type: "err", text: "Nenhum local do GMB selecionado." });
+        return;
+      }
+      setBusyId(photo.id);
+      setActionMsg(null);
+      try {
+        const blob = photo.blob ?? (await bake(photo));
+        const mediaUrl = await uploadToStorage(blob, slugJpgName(photo.meta.title, photo.file.name));
+        const res = await fetch("/api/google/publish-media", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ locationName: gmbLocation, mediaUrl }),
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error ?? "falha");
+        setActionMsg({ type: "ok", text: "Foto publicada na galeria! Pode levar alguns minutos para aparecer." });
+      } catch (e) {
+        setActionMsg({ type: "err", text: `Não foi possível publicar: ${e instanceof Error ? e.message : "erro"}` });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [gmbLocation, bake, uploadToStorage],
+  );
+
+  const schedulePhoto = useCallback(
+    async (photo: Photo, when: string) => {
+      if (!gmbLocation) {
+        setActionMsg({ type: "err", text: "Nenhum local do GMB selecionado." });
+        return;
+      }
+      if (!when) {
+        setActionMsg({ type: "err", text: "Escolha a data e a hora." });
+        return;
+      }
+      setBusyId(photo.id);
+      setActionMsg(null);
+      try {
+        const supabase = createClient();
+        const {
+          data: { user },
+        } = await supabase.auth.getUser();
+        if (!user) throw new Error("Sessão expirada.");
+        const blob = photo.blob ?? (await bake(photo));
+        const mediaUrl = await uploadToStorage(blob, slugJpgName(photo.meta.title, photo.file.name));
+        const { error } = await supabase.from("scheduled_posts").insert({
+          user_id: user.id,
+          location_name: gmbLocation,
+          kind: "photo",
+          topic: "STANDARD",
+          summary: photo.meta.title || null,
+          media_url: mediaUrl,
+          scheduled_at: new Date(when).toISOString(),
+          status: "scheduled",
+        });
+        if (error) throw error;
+        setActionMsg({ type: "ok", text: "Foto agendada! Ela entra na galeria no horário escolhido." });
+      } catch (e) {
+        setActionMsg({ type: "err", text: `Não foi possível agendar: ${e instanceof Error ? e.message : "erro"}` });
+      } finally {
+        setBusyId(null);
+      }
+    },
+    [gmbLocation, bake, uploadToStorage],
   );
 
   const processAll = useCallback(async () => {
@@ -355,6 +477,44 @@ export default function GeotagTool() {
               hint="Brilho, contraste e nitidez leves para a foto ficar mais profissional."
             />
           </div>
+          {connected && locations.length > 0 && (
+            <div className="mb-4 rounded-xl border border-brand/30 bg-brand/5 p-3">
+              <label className="block">
+                <span className="mb-1 block text-xs font-medium text-brand-2">
+                  Publicar/agendar na galeria do perfil
+                </span>
+                <select
+                  value={gmbLocation}
+                  onChange={(e) => setGmbLocation(e.target.value)}
+                  className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+                >
+                  {locations.map((l) => (
+                    <option key={l.location_name} value={l.location_name}>
+                      {l.title ?? l.location_name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          )}
+          {loggedIn && !connected && (
+            <div className="mb-4 rounded-xl border border-accent/30 bg-accent/5 p-3 text-xs text-muted">
+              Conecte o Google em{" "}
+              <Link href="/agendamento" className="font-medium text-brand">Agendamento</Link>{" "}
+              para publicar ou agendar fotos direto na galeria do seu perfil.
+            </div>
+          )}
+          {actionMsg && (
+            <div
+              className={`mb-4 rounded-xl border p-3 text-sm ${
+                actionMsg.type === "ok"
+                  ? "border-brand-2/40 bg-brand-2/10 text-brand-2"
+                  : "border-red-400/40 bg-red-400/10 text-red-400"
+              }`}
+            >
+              {actionMsg.text}
+            </div>
+          )}
           <p className="mb-4 text-sm text-muted">
             Para cada foto, confira título, descrição e palavras-chave. A
             ferramenta já sugere automaticamente — ajuste como quiser.
@@ -428,6 +588,37 @@ export default function GeotagTool() {
                 >
                   {ph.ready ? "✓ Baixar esta foto" : "Baixar esta foto"}
                 </button>
+
+                {connected && locations.length > 0 && (
+                  <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                    <button
+                      onClick={() => publishNow(ph)}
+                      disabled={!selected || busyId === ph.id}
+                      className="w-full rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                    >
+                      {busyId === ph.id ? "Enviando…" : "Publicar agora na galeria"}
+                    </button>
+                    <div className="flex gap-2">
+                      <input
+                        type="datetime-local"
+                        value={ph.scheduleWhen ?? ""}
+                        onChange={(e) =>
+                          setPhotos((p) =>
+                            p.map((x) => (x.id === ph.id ? { ...x, scheduleWhen: e.target.value } : x)),
+                          )
+                        }
+                        className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                      />
+                      <button
+                        onClick={() => schedulePhoto(ph, ph.scheduleWhen ?? "")}
+                        disabled={!selected || busyId === ph.id}
+                        className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition hover:bg-surface disabled:opacity-50"
+                      >
+                        Programar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
             ))}
           </div>
