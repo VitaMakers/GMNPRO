@@ -17,8 +17,10 @@ export default async function AgendamentoPage() {
 
   const { data: connection } = await supabase
     .from("google_connections")
-    .select("google_email")
+    .select("google_email, access_token")
     .maybeSingle();
+
+  const connected = !!connection?.access_token;
 
   return (
     <div className="min-h-screen">
@@ -36,6 +38,7 @@ export default async function AgendamentoPage() {
         <AgendamentoDashboard
           userEmail={user.email ?? ""}
           googleEmail={connection?.google_email ?? null}
+          connected={connected}
         />
       </main>
     </div>

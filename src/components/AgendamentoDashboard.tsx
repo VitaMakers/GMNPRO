@@ -43,15 +43,40 @@ const STATUS_LABEL: Record<Status, { label: string; cls: string }> = {
   failed: { label: "Falhou", cls: "bg-red-400/15 text-red-400" },
 };
 
+const ERROR_LABELS: Record<string, string> = {
+  oauth_nao_configurado: "A conexão com o Google não está configurada no servidor (variáveis OAuth).",
+  sem_codigo: "O Google não retornou o código de autorização. Tente de novo.",
+  estado_invalido: "Sessão de segurança expirou. Tente conectar de novo.",
+  falha_na_troca: "Falha ao trocar o código por um token. Verifique o Client ID/Secret e a URL de redirecionamento.",
+  access_denied: "Você cancelou ou negou a autorização no Google.",
+};
+
 export default function AgendamentoDashboard({
   userEmail,
   googleEmail,
+  connected,
 }: {
   userEmail: string;
   googleEmail: string | null;
+  connected: boolean;
 }) {
   const router = useRouter();
   const supabase = createClient();
+  const [flash, setFlash] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const err = params.get("error");
+    const ok = params.get("conectado");
+    if (err) {
+      setFlash({ type: "err", text: ERROR_LABELS[err] ?? `Erro na conexão: ${err}` });
+    } else if (ok) {
+      setFlash({ type: "ok", text: "Google conectado com sucesso!" });
+    }
+    if (err || ok) {
+      window.history.replaceState({}, "", "/agendamento");
+    }
+  }, []);
 
   const [posts, setPosts] = useState<Post[]>([]);
   const [locations, setLocations] = useState<{ location_name: string; title: string | null }[]>([]);
@@ -156,6 +181,18 @@ export default function AgendamentoDashboard({
 
   return (
     <div className="space-y-6">
+      {flash && (
+        <div
+          className={`rounded-xl border p-3 text-sm ${
+            flash.type === "ok"
+              ? "border-brand-2/40 bg-brand-2/10 text-brand-2"
+              : "border-red-400/40 bg-red-400/10 text-red-400"
+          }`}
+        >
+          {flash.text}
+        </div>
+      )}
+
       {/* Conta + Google */}
       <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm">
@@ -166,9 +203,9 @@ export default function AgendamentoDashboard({
           </button>
         </div>
         <div className="text-sm">
-          {googleEmail ? (
+          {connected ? (
             <span className="rounded-full bg-brand-2/15 px-3 py-1 text-xs font-medium text-brand-2">
-              Google conectado: {googleEmail}
+              Google conectado{googleEmail ? `: ${googleEmail}` : ""}
             </span>
           ) : (
             <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent">
@@ -178,7 +215,7 @@ export default function AgendamentoDashboard({
         </div>
       </div>
 
-      {!googleEmail && (
+      {!connected && (
         <div className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">
           <p className="font-medium">Conecte sua conta do Google</p>
           <p className="mt-1 text-muted">
