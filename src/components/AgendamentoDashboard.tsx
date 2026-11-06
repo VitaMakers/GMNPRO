@@ -67,9 +67,11 @@ export default function AgendamentoDashboard({
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const err = params.get("error");
+    const detail = params.get("detalhe");
     const ok = params.get("conectado");
     if (err) {
-      setFlash({ type: "err", text: ERROR_LABELS[err] ?? `Erro na conexão: ${err}` });
+      const base = ERROR_LABELS[err] ?? `Erro na conexão: ${err}`;
+      setFlash({ type: "err", text: detail ? `${base} (Google: ${detail})` : base });
     } else if (ok) {
       setFlash({ type: "ok", text: "Google conectado com sucesso!" });
     }

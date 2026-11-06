@@ -72,7 +72,8 @@ export async function GET(request: Request) {
     }
 
     return back("/agendamento?conectado=1");
-  } catch {
-    return back("/agendamento?error=falha_na_troca");
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : "desconhecido";
+    return back(`/agendamento?error=falha_na_troca&detalhe=${encodeURIComponent(detail)}`);
   }
 }

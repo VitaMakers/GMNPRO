@@ -53,7 +53,17 @@ export async function exchangeCode(code: string): Promise<TokenResponse> {
       grant_type: "authorization_code",
     }),
   });
-  if (!res.ok) throw new Error(`token exchange ${res.status}: ${await res.text()}`);
+  if (!res.ok) {
+    const text = await res.text();
+    let code = `http_${res.status}`;
+    try {
+      const j = JSON.parse(text) as { error?: string };
+      if (j.error) code = j.error;
+    } catch {
+      /* corpo não-JSON */
+    }
+    throw new Error(code);
+  }
   return res.json();
 }
 
