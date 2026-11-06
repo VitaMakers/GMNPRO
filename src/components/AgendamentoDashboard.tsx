@@ -54,6 +54,7 @@ export default function AgendamentoDashboard({
   const supabase = createClient();
 
   const [posts, setPosts] = useState<Post[]>([]);
+  const [locations, setLocations] = useState<{ location_name: string; title: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
 
   // Form
@@ -78,9 +79,20 @@ export default function AgendamentoDashboard({
     setLoading(false);
   }, [supabase]);
 
+  const loadLocations = useCallback(async () => {
+    const { data } = await supabase
+      .from("gmb_locations")
+      .select("location_name, title")
+      .order("title", { ascending: true });
+    const locs = (data as { location_name: string; title: string | null }[]) ?? [];
+    setLocations(locs);
+    if (locs.length > 0) setProfile((cur) => cur || locs[0].location_name);
+  }, [supabase]);
+
   useEffect(() => {
     loadPosts();
-  }, [loadPosts]);
+    loadLocations();
+  }, [loadPosts, loadLocations]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -167,14 +179,18 @@ export default function AgendamentoDashboard({
       </div>
 
       {!googleEmail && (
-        <div className="rounded-xl border border-accent/40 bg-accent/10 p-4 text-sm">
-          <p className="font-medium text-accent">Conexão com o Google em preparação</p>
+        <div className="rounded-xl border border-brand/40 bg-brand/10 p-4 text-sm">
+          <p className="font-medium">Conecte sua conta do Google</p>
           <p className="mt-1 text-muted">
-            A API de postagens do Google está em análise de acesso (7-10 dias úteis).
-            Enquanto isso, você já pode <strong>montar e agendar</strong> suas postagens
-            aqui — assim que a conexão for liberada, elas começam a ser publicadas
-            automaticamente no horário programado.
+            Autorize o acesso ao seu perfil para publicar as postagens automaticamente
+            no horário agendado.
           </p>
+          <a
+            href="/api/google/connect"
+            className="mt-3 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Conectar Google
+          </a>
         </div>
       )}
 
@@ -184,12 +200,26 @@ export default function AgendamentoDashboard({
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Perfil / empresa</span>
-            <input
-              value={profile}
-              onChange={(e) => setProfile(e.target.value)}
-              placeholder="Ex.: Buffet Sorocaba"
-              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
-            />
+            {locations.length > 0 ? (
+              <select
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+              >
+                {locations.map((l) => (
+                  <option key={l.location_name} value={l.location_name}>
+                    {l.title ?? l.location_name}
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <input
+                value={profile}
+                onChange={(e) => setProfile(e.target.value)}
+                placeholder="Ex.: Buffet Sorocaba"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+              />
+            )}
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Tipo</span>
