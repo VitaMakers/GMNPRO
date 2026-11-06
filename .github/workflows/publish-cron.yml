@@ -1,0 +1,18 @@
+name: Publicar postagens agendadas
+
+# Chama o publicador do GMN PRO a cada 5 minutos para enviar as postagens
+# que chegaram no horário agendado. Também pode ser disparado manualmente.
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Chamar o publicador
+        run: |
+          curl -sS -X GET "https://gmnpro-ten.vercel.app/api/cron/publish" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            --max-time 60 -w "\nHTTP %{http_code}\n"
