@@ -106,6 +106,8 @@ export default function AgendamentoDashboard({
     setLoading(false);
   }, [supabase]);
 
+  const [syncing, setSyncing] = useState(false);
+
   const loadLocations = useCallback(async () => {
     const { data } = await supabase
       .from("gmb_locations")
@@ -115,6 +117,27 @@ export default function AgendamentoDashboard({
     setLocations(locs);
     if (locs.length > 0) setProfile((cur) => cur || locs[0].location_name);
   }, [supabase]);
+
+  const syncLocations = useCallback(async () => {
+    setSyncing(true);
+    setFlash(null);
+    try {
+      const res = await fetch("/api/google/sync-locations", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setFlash({ type: "err", text: `Não foi possível buscar os locais: ${data.error ?? res.status}` });
+      } else if (data.count === 0) {
+        setFlash({ type: "err", text: "Conectado, mas nenhum local foi encontrado nesta conta. Confira se o perfil está nela." });
+      } else {
+        setFlash({ type: "ok", text: `${data.count} local(is) sincronizado(s)!` });
+        await loadLocations();
+      }
+    } catch {
+      setFlash({ type: "err", text: "Falha ao sincronizar. Tente de novo." });
+    } finally {
+      setSyncing(false);
+    }
+  }, [loadLocations]);
 
   useEffect(() => {
     loadPosts();
@@ -204,11 +227,20 @@ export default function AgendamentoDashboard({
             Sair
           </button>
         </div>
-        <div className="text-sm">
+        <div className="flex items-center gap-2 text-sm">
           {connected ? (
-            <span className="rounded-full bg-brand-2/15 px-3 py-1 text-xs font-medium text-brand-2">
-              Google conectado{googleEmail ? `: ${googleEmail}` : ""}
-            </span>
+            <>
+              <span className="rounded-full bg-brand-2/15 px-3 py-1 text-xs font-medium text-brand-2">
+                Google conectado{googleEmail ? `: ${googleEmail}` : ""}
+              </span>
+              <button
+                onClick={syncLocations}
+                disabled={syncing}
+                className="rounded-lg border border-border px-2.5 py-1 text-xs text-muted transition hover:bg-surface-2 disabled:opacity-50"
+              >
+                {syncing ? "Sincronizando…" : "Sincronizar locais"}
+              </button>
+            </>
           ) : (
             <span className="rounded-full bg-accent/15 px-3 py-1 text-xs font-medium text-accent">
               Google ainda não conectado
