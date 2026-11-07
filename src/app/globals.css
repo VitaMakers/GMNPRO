@@ -88,3 +88,13 @@ a {
 ::selection {
   background: color-mix(in oklab, var(--brand) 35%, transparent);
 }
+
+/* Barra de progresso dentro do botão (enviando…). */
+@keyframes fill-progress {
+  0% { width: 8%; }
+  80% { width: 88%; }
+  100% { width: 92%; }
+}
+.progress-fill {
+  animation: fill-progress 3.5s ease-out forwards;
+}

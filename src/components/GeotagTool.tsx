@@ -27,6 +27,8 @@ interface Photo {
   outH?: number;
   ready: boolean;
   scheduleWhen?: string;
+  act?: "sending" | "published" | "scheduled" | "error";
+  actKind?: "publish" | "schedule";
 }
 
 const ACCEPTED = ["image/jpeg", "image/png", "image/webp"];
@@ -239,6 +241,10 @@ export default function GeotagTool() {
     [selected, optimize, enhance],
   );
 
+  const setAct = useCallback((id: string, act: Photo["act"]) => {
+    setPhotos((p) => p.map((x) => (x.id === id ? { ...x, act } : x)));
+  }, []);
+
   const publishNow = useCallback(
     async (photo: Photo) => {
       if (!gmbLocation) {
@@ -246,6 +252,7 @@ export default function GeotagTool() {
         return;
       }
       setBusyId(photo.id);
+      setPhotos((p) => p.map((x) => (x.id === photo.id ? { ...x, act: "sending", actKind: "publish" } : x)));
       setActionMsg(null);
       try {
         const blob = photo.blob ?? (await bake(photo));
@@ -257,14 +264,17 @@ export default function GeotagTool() {
         });
         const data = await res.json();
         if (!res.ok) throw new Error(data.error ?? "falha");
+        setAct(photo.id, "published");
         setActionMsg({ type: "ok", text: "Foto publicada na galeria! Pode levar alguns minutos para aparecer." });
+        setTimeout(() => removePhoto(photo.id), 1400);
       } catch (e) {
+        setAct(photo.id, "error");
         setActionMsg({ type: "err", text: `Não foi possível publicar: ${e instanceof Error ? e.message : "erro"}` });
       } finally {
         setBusyId(null);
       }
     },
-    [gmbLocation, bake, uploadToStorage],
+    [gmbLocation, bake, uploadToStorage, setAct],
   );
 
   const schedulePhoto = useCallback(
@@ -278,6 +288,7 @@ export default function GeotagTool() {
         return;
       }
       setBusyId(photo.id);
+      setPhotos((p) => p.map((x) => (x.id === photo.id ? { ...x, act: "sending", actKind: "schedule" } : x)));
       setActionMsg(null);
       try {
         const supabase = createClient();
@@ -298,14 +309,20 @@ export default function GeotagTool() {
           status: "scheduled",
         });
         if (error) throw error;
-        setActionMsg({ type: "ok", text: "Foto agendada! Ela entra na galeria no horário escolhido." });
+        setAct(photo.id, "scheduled");
+        setActionMsg({
+          type: "ok",
+          text: `Post agendado para ${new Date(when).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}. Veja no calendário de postagens.`,
+        });
+        setTimeout(() => removePhoto(photo.id), 1400);
       } catch (e) {
+        setAct(photo.id, "error");
         setActionMsg({ type: "err", text: `Não foi possível agendar: ${e instanceof Error ? e.message : "erro"}` });
       } finally {
         setBusyId(null);
       }
     },
-    [gmbLocation, bake, uploadToStorage],
+    [gmbLocation, bake, uploadToStorage, setAct],
   );
 
   const processAll = useCallback(async () => {
@@ -519,6 +536,12 @@ export default function GeotagTool() {
                   ))}
                 </select>
               </label>
+              <Link
+                href="/agendamento"
+                className="mt-3 inline-flex items-center gap-1.5 rounded-lg border border-border bg-surface px-3 py-1.5 text-xs font-medium transition hover:bg-surface-2"
+              >
+                📅 Olhar calendário de postagens
+              </Link>
             </div>
           )}
           {loggedIn && !connected && (
@@ -622,13 +645,14 @@ export default function GeotagTool() {
                     {ph.ready ? "✓ Baixar" : "Baixar"}
                   </button>
                   {connected && locations.length > 0 && (
-                    <button
+                    <ActionButton
                       onClick={() => publishNow(ph)}
                       disabled={!selected || busyId === ph.id}
-                      className="flex-1 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
-                    >
-                      {busyId === ph.id ? "Enviando…" : "Publicar agora"}
-                    </button>
+                      sending={ph.act === "sending" && ph.actKind === "publish"}
+                      done={ph.act === "published"}
+                      idleLabel="Publicar agora"
+                      doneLabel="✓ Publicado"
+                    />
                   )}
                 </div>
 
@@ -644,13 +668,16 @@ export default function GeotagTool() {
                       }
                       className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
                     />
-                    <button
-                      onClick={() => schedulePhoto(ph, ph.scheduleWhen ?? "")}
-                      disabled={!selected || busyId === ph.id}
-                      className="shrink-0 rounded-lg border border-border px-4 py-1.5 text-sm font-medium transition hover:bg-surface disabled:opacity-50"
-                    >
-                      Programar
-                    </button>
+                    <div className="w-36 shrink-0">
+                      <ActionButton
+                        onClick={() => schedulePhoto(ph, ph.scheduleWhen ?? "")}
+                        disabled={!selected || busyId === ph.id}
+                        sending={ph.act === "sending" && ph.actKind === "schedule"}
+                        done={ph.act === "scheduled"}
+                        idleLabel="Agendar post"
+                        doneLabel="✓ Agendado"
+                      />
+                    </div>
                   </div>
                 )}
               </div>
@@ -754,6 +781,39 @@ function Toggle({
         <span className="block text-xs text-muted">{hint}</span>
       </span>
     </label>
+  );
+}
+
+function ActionButton({
+  onClick,
+  disabled,
+  sending,
+  done,
+  idleLabel,
+  doneLabel,
+}: {
+  onClick: () => void;
+  disabled: boolean;
+  sending: boolean;
+  done: boolean;
+  idleLabel: string;
+  doneLabel: string;
+}) {
+  return (
+    <button
+      onClick={onClick}
+      disabled={disabled}
+      className={`relative w-full overflow-hidden rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60 ${
+        done ? "bg-brand-2" : "bg-brand"
+      }`}
+    >
+      {sending && (
+        <span className="progress-fill absolute inset-y-0 left-0 bg-white/25" aria-hidden />
+      )}
+      <span className="relative">
+        {sending ? "Enviando…" : done ? doneLabel : idleLabel}
+      </span>
+    </button>
   );
 }
 
