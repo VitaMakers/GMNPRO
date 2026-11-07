@@ -84,8 +84,8 @@ export default function EntrarPage() {
         {/* Marca */}
         <div className="flex items-center gap-6 text-white">
           <div className="text-center lg:text-left">
-            <span className="font-serif text-3xl font-medium tracking-wide text-white/85">
-              vita
+            <span className="font-serif text-2xl font-medium tracking-wide text-white/85 sm:text-3xl">
+              Grupo Vita
             </span>
             <h1 className="-mt-1 font-display text-6xl font-bold tracking-tight sm:text-7xl">
               GMN<span className="text-white/80">PRO</span>
