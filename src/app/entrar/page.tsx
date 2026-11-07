@@ -83,9 +83,14 @@ export default function EntrarPage() {
       <div className="relative mx-auto flex min-h-screen max-w-6xl flex-col items-center justify-center gap-10 px-6 lg:flex-row lg:gap-16">
         {/* Marca */}
         <div className="flex items-center gap-6 text-white">
-          <h1 className="font-display text-6xl font-bold tracking-tight sm:text-7xl">
-            GMN<span className="text-white/80">PRO</span>
-          </h1>
+          <div className="text-center lg:text-left">
+            <span className="font-serif text-3xl font-medium tracking-wide text-white/85">
+              vita
+            </span>
+            <h1 className="-mt-1 font-display text-6xl font-bold tracking-tight sm:text-7xl">
+              GMN<span className="text-white/80">PRO</span>
+            </h1>
+          </div>
           <span className="hidden h-20 w-px bg-white/30 lg:block" />
           <span className="hidden text-2xl font-light text-white/90 lg:block">
             {mode === "login" ? "entrar" : "criar conta"}
