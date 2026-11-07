@@ -5,13 +5,8 @@ export default function SiteFooter() {
     <footer className="mt-16 border-t border-border bg-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
         <div>
-          <div className="flex items-center gap-2 font-semibold">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-brand text-sm font-bold text-white">
-              G
-            </span>
-            <span>
-              GMN <span className="text-brand">PRO</span>
-            </span>
+          <div className="font-display font-semibold">
+            GMN <span className="text-brand-2">PRO</span>
           </div>
           <p className="mt-3 text-sm text-muted">
             Ferramentas gratuitas para otimizar o seu Google Meu Negócio.
