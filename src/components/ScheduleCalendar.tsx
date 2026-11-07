@@ -116,11 +116,11 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
           return (
             <div
               key={i}
-              className={`min-h-28 rounded-xl border p-1.5 transition ${
-                isToday ? "border-brand-2 bg-brand-2/5" : "border-border bg-surface-2"
+              className={`min-h-28 rounded-xl border bg-surface-2 p-1.5 transition ${
+                isToday ? "border-foreground/40 ring-1 ring-foreground/20" : "border-border"
               }`}
             >
-              <div className={`mb-1 text-right text-xs ${isToday ? "font-bold text-brand-2" : "text-muted"}`}>
+              <div className={`mb-1 text-right text-xs ${isToday ? "font-bold text-foreground" : "text-muted"}`}>
                 {day}
               </div>
               <div className="space-y-1">
