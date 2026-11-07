@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import ScheduleCalendar from "@/components/ScheduleCalendar";
 
 type Topic = "STANDARD" | "EVENT" | "OFFER";
 type Status = "draft" | "scheduled" | "published" | "failed";
@@ -10,8 +11,9 @@ type Status = "draft" | "scheduled" | "published" | "failed";
 interface Post {
   id: string;
   location_name: string;
+  kind: string;
   topic: Topic;
-  summary: string;
+  summary: string | null;
   cta_type: string | null;
   cta_url: string | null;
   media_url: string | null;
@@ -376,6 +378,9 @@ export default function AgendamentoDashboard({
         {formError && <p className="mt-3 text-sm text-red-400">{formError}</p>}
         {formMsg && <p className="mt-3 text-sm text-brand-2">{formMsg}</p>}
       </div>
+
+      {/* Calendário */}
+      {posts.length > 0 && <ScheduleCalendar posts={posts} />}
 
       {/* Lista */}
       <div className="rounded-2xl border border-border bg-surface p-5">

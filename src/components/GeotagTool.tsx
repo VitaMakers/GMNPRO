@@ -37,13 +37,30 @@ function isHeic(file: File): boolean {
 
 function suggestMeta(fileName: string, place: string, niche: string): PhotoMeta {
   const city = place.split(",")[0]?.trim() || place;
-  const base = niche.trim() || fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ");
-  const title = city ? `${base} — ${city}` : base;
+  const segment = niche.trim();
+  const base = segment || fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+
+  // Título: palavra-chave principal primeiro (padrão de SEO local).
+  const title = city ? `${base} em ${city}` : base;
+
+  // Descrição rica em palavras-chave, mas natural.
   const description = city
-    ? `${base} em ${city}. Veja no nosso perfil do Google.`
-    : base;
-  const kw = [base, city, "google meu negócio"].filter(Boolean).join(", ");
-  return { title, description, keywords: kw };
+    ? `${base} em ${city}. Conheça nossos serviços, veja fotos e avaliações e fale com a gente pelo nosso perfil no Google. Atendimento em ${city} e região.`
+    : `${base}. Veja fotos, avaliações e contato no nosso perfil do Google Meu Negócio.`;
+
+  // Palavras-chave: variações de busca local, sem repetição.
+  const kwList = [
+    base,
+    city && `${base} em ${city}`,
+    city && `${base} ${city}`,
+    `${base} perto de mim`,
+    city && `melhor ${base} em ${city}`,
+    city,
+    "google meu negócio",
+  ].filter(Boolean) as string[];
+  const keywords = Array.from(new Set(kwList.map((k) => k.toLowerCase()))).join(", ");
+
+  return { title, description, keywords };
 }
 
 export default function GeotagTool() {
@@ -188,6 +205,13 @@ export default function GeotagTool() {
   const resetProcessed = () => {
     setPhotos((p) => p.map((ph) => ({ ...ph, blob: undefined, ready: false })));
     setDone(false);
+  };
+
+  const regenerateSuggestions = () => {
+    const place = selected?.label ?? "";
+    setPhotos((p) =>
+      p.map((ph) => ({ ...ph, meta: suggestMeta(ph.file.name, place, niche) })),
+    );
   };
 
   const removePhoto = (id: string) => {
@@ -515,10 +539,18 @@ export default function GeotagTool() {
               {actionMsg.text}
             </div>
           )}
-          <p className="mb-4 text-sm text-muted">
-            Para cada foto, confira título, descrição e palavras-chave. A
-            ferramenta já sugere automaticamente — ajuste como quiser.
-          </p>
+          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm text-muted">
+              Título, descrição e palavras-chave são gerados para SEO local a partir
+              da cidade e do segmento. Ajuste como quiser.
+            </p>
+            <button
+              onClick={regenerateSuggestions}
+              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-brand-2 transition hover:bg-surface-2"
+            >
+              Gerar sugestões (SEO)
+            </button>
+          </div>
           <div className="space-y-5">
             {photos.map((ph) => (
               <div key={ph.id} className="rounded-xl border border-border bg-surface-2 p-3">
@@ -579,44 +611,46 @@ export default function GeotagTool() {
                     className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
                   />
                 </Field>
-                <button
-                  onClick={() => downloadOne(ph)}
-                  disabled={!selected || processing}
-                  className={`mt-3 w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40 ${
-                    ph.ready ? "bg-brand-2" : "bg-brand"
-                  }`}
-                >
-                  {ph.ready ? "✓ Baixar esta foto" : "Baixar esta foto"}
-                </button>
-
-                {connected && locations.length > 0 && (
-                  <div className="mt-3 flex flex-col gap-2 border-t border-border pt-3">
+                <div className="mt-3 flex gap-2">
+                  <button
+                    onClick={() => downloadOne(ph)}
+                    disabled={!selected || processing}
+                    className={`flex-1 rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-40 ${
+                      ph.ready ? "bg-brand-2" : "bg-brand"
+                    }`}
+                  >
+                    {ph.ready ? "✓ Baixar" : "Baixar"}
+                  </button>
+                  {connected && locations.length > 0 && (
                     <button
                       onClick={() => publishNow(ph)}
                       disabled={!selected || busyId === ph.id}
-                      className="w-full rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                      className="flex-1 rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
                     >
-                      {busyId === ph.id ? "Enviando…" : "Publicar agora na galeria"}
+                      {busyId === ph.id ? "Enviando…" : "Publicar agora"}
                     </button>
-                    <div className="flex gap-2">
-                      <input
-                        type="datetime-local"
-                        value={ph.scheduleWhen ?? ""}
-                        onChange={(e) =>
-                          setPhotos((p) =>
-                            p.map((x) => (x.id === ph.id ? { ...x, scheduleWhen: e.target.value } : x)),
-                          )
-                        }
-                        className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
-                      />
-                      <button
-                        onClick={() => schedulePhoto(ph, ph.scheduleWhen ?? "")}
-                        disabled={!selected || busyId === ph.id}
-                        className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition hover:bg-surface disabled:opacity-50"
-                      >
-                        Programar
-                      </button>
-                    </div>
+                  )}
+                </div>
+
+                {connected && locations.length > 0 && (
+                  <div className="mt-2 flex gap-2">
+                    <input
+                      type="datetime-local"
+                      value={ph.scheduleWhen ?? ""}
+                      onChange={(e) =>
+                        setPhotos((p) =>
+                          p.map((x) => (x.id === ph.id ? { ...x, scheduleWhen: e.target.value } : x)),
+                        )
+                      }
+                      className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                    />
+                    <button
+                      onClick={() => schedulePhoto(ph, ph.scheduleWhen ?? "")}
+                      disabled={!selected || busyId === ph.id}
+                      className="shrink-0 rounded-lg border border-border px-4 py-1.5 text-sm font-medium transition hover:bg-surface disabled:opacity-50"
+                    >
+                      Programar
+                    </button>
                   </div>
                 )}
               </div>
