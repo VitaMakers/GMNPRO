@@ -16,11 +16,11 @@ const MONTHS = [
   "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro",
 ];
 
-const DOT: Record<CalPost["status"], string> = {
-  published: "bg-brand-2",
-  failed: "bg-red-400",
-  scheduled: "bg-brand",
-  draft: "bg-muted",
+const STATUS_META: Record<CalPost["status"], { dot: string; label: string }> = {
+  scheduled: { dot: "bg-brand", label: "Agendada" },
+  published: { dot: "bg-brand-2", label: "Publicada" },
+  failed: { dot: "bg-red-400", label: "Falhou" },
+  draft: { dot: "bg-muted", label: "Rascunho" },
 };
 
 function key(y: number, m: number, d: number) {
@@ -55,6 +55,10 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
   ];
   while (cells.length % 7 !== 0) cells.push(null);
 
+  const goToday = () => {
+    setYear(now.getFullYear());
+    setMonth(now.getMonth());
+  };
   const prev = () => {
     if (month === 0) { setMonth(11); setYear((y) => y - 1); }
     else setMonth((m) => m - 1);
@@ -68,61 +72,79 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
 
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Calendário</h2>
+      {/* Cabeçalho */}
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <h2 className="font-display text-xl font-semibold">
+            {MONTHS[month]} {year}
+          </h2>
+          <button
+            onClick={goToday}
+            className="rounded-lg border border-border px-3 py-1 text-xs text-muted transition hover:bg-surface-2"
+          >
+            Hoje
+          </button>
+        </div>
         <div className="flex items-center gap-2">
-          <button onClick={prev} className="rounded-lg border border-border px-2.5 py-1 text-sm text-muted transition hover:bg-surface-2">‹</button>
-          <span className="min-w-36 text-center text-sm font-medium">{MONTHS[month]} {year}</span>
-          <button onClick={next} className="rounded-lg border border-border px-2.5 py-1 text-sm text-muted transition hover:bg-surface-2">›</button>
+          <button onClick={prev} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted transition hover:bg-surface-2">‹</button>
+          <button onClick={next} className="grid h-8 w-8 place-items-center rounded-lg border border-border text-muted transition hover:bg-surface-2">›</button>
         </div>
       </div>
 
-      <div className="mb-2 grid grid-cols-7 gap-1 text-center text-xs text-muted">
+      {/* Legenda */}
+      <div className="mb-4 flex flex-wrap gap-2">
+        {(["scheduled", "published", "failed"] as const).map((s) => (
+          <span key={s} className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-muted">
+            <span className={`h-2 w-2 rounded-full ${STATUS_META[s].dot}`} />
+            {STATUS_META[s].label}
+          </span>
+        ))}
+      </div>
+
+      {/* Dias da semana */}
+      <div className="mb-1 grid grid-cols-7 gap-1.5 text-center text-xs font-medium text-muted">
         {WEEKDAYS.map((w) => <div key={w}>{w}</div>)}
       </div>
 
-      <div className="grid grid-cols-7 gap-1">
+      {/* Grade */}
+      <div className="grid grid-cols-7 gap-1.5">
         {cells.map((day, i) => {
-          if (day === null) return <div key={i} className="min-h-24 rounded-lg" />;
+          if (day === null) return <div key={i} className="min-h-28 rounded-xl" />;
           const k = key(year, month, day);
           const items = byDay.get(k) ?? [];
-          const hasFailed = items.some((p) => p.status === "failed");
-          const hasPublished = items.some((p) => p.status === "published");
-          const tint = hasFailed
-            ? "border-red-400/40 bg-red-400/5"
-            : hasPublished
-              ? "border-brand-2/40 bg-brand-2/5"
-              : items.length
-                ? "border-brand/40 bg-brand/5"
-                : "border-border bg-surface-2";
+          const isToday = k === todayKey;
           return (
-            <div key={i} className={`min-h-24 rounded-lg border p-1.5 ${tint}`}>
-              <div className={`mb-1 text-right text-xs ${k === todayKey ? "font-bold text-brand-2" : "text-muted"}`}>
+            <div
+              key={i}
+              className={`min-h-28 rounded-xl border p-1.5 transition ${
+                isToday ? "border-brand-2 bg-brand-2/5" : "border-border bg-surface-2"
+              }`}
+            >
+              <div className={`mb-1 text-right text-xs ${isToday ? "font-bold text-brand-2" : "text-muted"}`}>
                 {day}
               </div>
-              <div className="space-y-0.5">
+              <div className="space-y-1">
                 {items.slice(0, 3).map((p) => (
-                  <div key={p.id} className="flex items-center gap-1" title={p.summary ?? ""}>
-                    <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${DOT[p.status]}`} />
-                    <span className="truncate text-[10px] text-muted">
+                  <div
+                    key={p.id}
+                    className="flex items-center gap-1 rounded-md bg-background/60 px-1.5 py-0.5"
+                    title={p.summary ?? ""}
+                  >
+                    <span className={`h-2 w-2 shrink-0 rounded-full ${STATUS_META[p.status].dot}`} />
+                    <span className="truncate text-[11px] text-foreground">
                       {new Date(p.scheduled_at).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}
-                      {p.kind === "photo" ? " 📷" : ""}
+                      {p.kind === "photo" ? " 📷" : " 📝"}{" "}
+                      {p.summary ?? ""}
                     </span>
                   </div>
                 ))}
                 {items.length > 3 && (
-                  <div className="text-[10px] text-muted">+{items.length - 3}</div>
+                  <div className="px-1 text-[11px] text-muted">+{items.length - 3} mais</div>
                 )}
               </div>
             </div>
           );
         })}
-      </div>
-
-      <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted">
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-brand" /> Agendada</span>
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-brand-2" /> Publicada</span>
-        <span className="flex items-center gap-1"><span className="h-2 w-2 rounded-full bg-red-400" /> Falhou</span>
       </div>
     </div>
   );

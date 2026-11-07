@@ -267,6 +267,9 @@ export default function AgendamentoDashboard({
         </div>
       )}
 
+      {/* Calendário (topo) */}
+      {posts.length > 0 && <ScheduleCalendar posts={posts} />}
+
       {/* Compositor */}
       <div className="rounded-2xl border border-border bg-surface p-5">
         <h2 className="mb-4 text-lg font-semibold">Nova postagem</h2>
@@ -378,9 +381,6 @@ export default function AgendamentoDashboard({
         {formError && <p className="mt-3 text-sm text-red-400">{formError}</p>}
         {formMsg && <p className="mt-3 text-sm text-brand-2">{formMsg}</p>}
       </div>
-
-      {/* Calendário */}
-      {posts.length > 0 && <ScheduleCalendar posts={posts} />}
 
       {/* Lista */}
       <div className="rounded-2xl border border-border bg-surface p-5">
