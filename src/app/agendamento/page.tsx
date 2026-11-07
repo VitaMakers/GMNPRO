@@ -25,7 +25,7 @@ export default async function AgendamentoPage() {
   return (
     <div className="min-h-screen">
       <SiteHeader />
-      <main className="mx-auto max-w-4xl px-4 py-10">
+      <main className="mx-auto max-w-5xl px-4 py-10">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Agendamento de Postagens</h1>

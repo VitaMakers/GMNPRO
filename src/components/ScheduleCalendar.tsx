@@ -83,7 +83,7 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
 
       <div className="grid grid-cols-7 gap-1">
         {cells.map((day, i) => {
-          if (day === null) return <div key={i} className="min-h-16 rounded-lg" />;
+          if (day === null) return <div key={i} className="min-h-24 rounded-lg" />;
           const k = key(year, month, day);
           const items = byDay.get(k) ?? [];
           const hasFailed = items.some((p) => p.status === "failed");
@@ -96,7 +96,7 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
                 ? "border-brand/40 bg-brand/5"
                 : "border-border bg-surface-2";
           return (
-            <div key={i} className={`min-h-16 rounded-lg border p-1 ${tint}`}>
+            <div key={i} className={`min-h-24 rounded-lg border p-1.5 ${tint}`}>
               <div className={`mb-1 text-right text-xs ${k === todayKey ? "font-bold text-brand-2" : "text-muted"}`}>
                 {day}
               </div>
