@@ -40,7 +40,7 @@ const TOPIC_LABEL: Record<Topic, string> = {
 
 const STATUS_LABEL: Record<Status, { label: string; cls: string }> = {
   draft: { label: "Rascunho", cls: "bg-muted/15 text-muted" },
-  scheduled: { label: "Agendada", cls: "bg-brand/15 text-brand" },
+  scheduled: { label: "Agendada", cls: "bg-accent/15 text-accent" },
   published: { label: "Publicada", cls: "bg-brand-2/15 text-brand-2" },
   failed: { label: "Falhou", cls: "bg-red-400/15 text-red-400" },
 };

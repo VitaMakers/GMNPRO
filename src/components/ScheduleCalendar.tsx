@@ -17,7 +17,7 @@ const MONTHS = [
 ];
 
 const STATUS_META: Record<CalPost["status"], { dot: string; label: string }> = {
-  scheduled: { dot: "bg-brand", label: "Agendada" },
+  scheduled: { dot: "bg-accent", label: "Agendada" },
   published: { dot: "bg-brand-2", label: "Publicada" },
   failed: { dot: "bg-red-400", label: "Falhou" },
   draft: { dot: "bg-muted", label: "Rascunho" },
