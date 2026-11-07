@@ -21,18 +21,20 @@ export default function SiteFooter() {
           </ul>
         </div>
         <div>
-          <p className="mb-3 text-sm font-semibold">Contato</p>
+          <p className="mb-3 text-sm font-semibold">Contato &amp; Legal</p>
           <ul className="space-y-2 text-sm text-muted">
             <li>
               <a href="mailto:contato@vitamakers.com.br" className="hover:text-foreground">
                 contato@vitamakers.com.br
               </a>
             </li>
+            <li><Link href="/privacidade" className="hover:text-foreground">Política de Privacidade</Link></li>
+            <li><Link href="/termos" className="hover:text-foreground">Termos de Uso</Link></li>
           </ul>
         </div>
       </div>
       <div className="border-t border-border px-4 py-4 text-center text-xs text-muted">
-        © {new Date().getFullYear()} VitaMakers · GMN PRO
+        © {new Date().getFullYear()} Grupo Vita · GMN PRO
       </div>
     </footer>
   );

@@ -26,12 +26,6 @@ export default function SiteHeader() {
               {l.label}
             </Link>
           ))}
-          <Link
-            href="/agendamento"
-            className="ml-1 rounded-lg bg-brand px-3.5 py-1.5 font-medium text-white transition hover:opacity-90"
-          >
-            Agendar
-          </Link>
         </nav>
       </div>
     </header>
