@@ -80,6 +80,25 @@ export async function createMediaItem(
   return res.json();
 }
 
+export interface GalleryMedia {
+  name: string;
+  googleUrl?: string;
+  thumbnailUrl?: string;
+  createTime?: string;
+}
+
+/** Lista as fotos da galeria do perfil (via v4). Para confirmar o que subiu. */
+export async function listMedia(
+  accessToken: string,
+  accountLocation: string,
+): Promise<GalleryMedia[]> {
+  const data = await getJson<{ mediaItems?: GalleryMedia[] }>(
+    `${LEGACY_V4}/${accountLocation}/media?pageSize=50`,
+    accessToken,
+  );
+  return data.mediaItems ?? [];
+}
+
 /** Coordenadas (lat/lng) de um local do perfil, se disponíveis. */
 export async function getLocationLatLng(
   accessToken: string,

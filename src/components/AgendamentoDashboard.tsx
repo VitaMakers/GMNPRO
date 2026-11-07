@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ScheduleCalendar from "@/components/ScheduleCalendar";
+import GalleryVerifier from "@/components/GalleryVerifier";
 
 type Topic = "STANDARD" | "EVENT" | "OFFER";
 type Status = "draft" | "scheduled" | "published" | "failed";
@@ -206,6 +207,28 @@ export default function AgendamentoDashboard({
     await loadPosts();
   }
 
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editWhen, setEditWhen] = useState("");
+
+  async function saveReschedule(id: string) {
+    if (!editWhen) return;
+    await supabase
+      .from("scheduled_posts")
+      .update({ scheduled_at: new Date(editWhen).toISOString() })
+      .eq("id", id);
+    setEditingId(null);
+    await loadPosts();
+  }
+
+  const locationTitle = (name: string) =>
+    locations.find((l) => l.location_name === name)?.title ?? name;
+
+  function toLocalInput(iso: string) {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  }
+
   return (
     <div className="space-y-6">
       {flash && (
@@ -402,16 +425,46 @@ export default function AgendamentoDashboard({
                   <div className="flex-1">
                     <div className="flex flex-wrap items-center gap-2">
                       <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}>{st.label}</span>
-                      <span className="text-xs text-muted">{TOPIC_LABEL[p.topic]}</span>
-                      <span className="text-xs text-muted">· {p.location_name}</span>
+                      <span className="text-xs text-muted">{p.kind === "photo" ? "Foto" : TOPIC_LABEL[p.topic]}</span>
+                      <span className="rounded bg-background px-1.5 py-0.5 text-xs font-medium text-foreground">
+                        {locationTitle(p.location_name)}
+                      </span>
                       <span className="text-xs text-muted">
                         · {new Date(p.scheduled_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}
                       </span>
                     </div>
                     <p className="mt-1 line-clamp-2 text-sm">{p.summary}</p>
                     {p.error && <p className="mt-1 text-xs text-red-400">{p.error}</p>}
+                    {editingId === p.id && (
+                      <div className="mt-2 flex gap-2">
+                        <input
+                          type="datetime-local"
+                          value={editWhen}
+                          onChange={(e) => setEditWhen(e.target.value)}
+                          className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                        />
+                        <button onClick={() => saveReschedule(p.id)} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">Salvar</button>
+                        <button onClick={() => setEditingId(null)} className="text-sm text-muted hover:underline">Cancelar</button>
+                      </div>
+                    )}
                   </div>
-                  {p.status !== "published" && (
+                  {p.status === "scheduled" && (
+                    <div className="flex shrink-0 flex-col items-end gap-1">
+                      <button
+                        onClick={() => { setEditingId(p.id); setEditWhen(toLocalInput(p.scheduled_at)); }}
+                        className="text-xs text-brand-2 hover:underline"
+                      >
+                        Editar horário
+                      </button>
+                      <button
+                        onClick={() => removePost(p.id)}
+                        className="text-xs text-red-400 hover:underline"
+                      >
+                        Excluir
+                      </button>
+                    </div>
+                  )}
+                  {p.status === "failed" && (
                     <button
                       onClick={() => removePost(p.id)}
                       className="shrink-0 self-start text-xs text-red-400 hover:underline"
@@ -425,6 +478,8 @@ export default function AgendamentoDashboard({
           </ul>
         )}
       </div>
+
+      {connected && locations.length > 0 && <GalleryVerifier locations={locations} />}
     </div>
   );
 }
