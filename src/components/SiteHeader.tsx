@@ -1,6 +1,7 @@
 import Link from "next/link";
 
 const links = [
+  { href: "/recursos", label: "Recursos" },
   { href: "/geotag", label: "Geotag" },
   { href: "/agendamento", label: "Agendamentos" },
   { href: "/desempenho", label: "Desempenho" },
