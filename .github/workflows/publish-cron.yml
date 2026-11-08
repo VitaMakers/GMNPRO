@@ -13,6 +13,6 @@ jobs:
     steps:
       - name: Chamar o publicador
         run: |
-          curl -sS -X GET "https://gmnpro-ten.vercel.app/api/cron/publish" \
+          curl -sS -X GET "https://app.vitamakers.com.br/api/cron/publish" \
             -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
             --max-time 60 -w "\nHTTP %{http_code}\n"
