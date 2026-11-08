@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import SiteHeader from "@/components/SiteHeader";
+import { redirect } from "next/navigation";
+import AppHeader from "@/components/AppHeader";
 import SiteFooter from "@/components/SiteFooter";
+import { createClient } from "@/lib/supabase/server";
 import AuditTool from "@/components/AuditTool";
 import CtaSection from "@/components/CtaSection";
 
@@ -11,10 +13,16 @@ export const metadata: Metadata = {
     "Analise como sua empresa aparece no Google Maps e veja o que melhorar na ficha do Google Meu Negócio.",
 };
 
-export default function AuditoriaPage() {
+export default async function AuditoriaPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) redirect("/entrar");
+
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <AppHeader />
       <main className="mx-auto max-w-3xl px-4 py-10">
         <div className="mb-8">
           <h1 className="text-3xl font-bold tracking-tight">Auditoria do Perfil</h1>

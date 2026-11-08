@@ -1,5 +1,5 @@
 import Link from "next/link";
-import SiteHeader from "@/components/SiteHeader";
+import MarketingHeader from "@/components/MarketingHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CtaSection from "@/components/CtaSection";
 import NetworkBackground from "@/components/NetworkBackground";
@@ -8,7 +8,7 @@ import { FeaturesShowcase, BenefitsGrid } from "@/components/Showcase";
 export default function Home() {
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <MarketingHeader />
       <section className="relative overflow-hidden border-b border-border">
         <NetworkBackground />
         <div className="glow" />
@@ -33,13 +33,13 @@ export default function Home() {
             o GMB a sério.
           </p>
           <div className="mt-9 flex flex-wrap justify-center gap-3">
-            <a
-              href="#ferramentas"
+            <Link
+              href="/entrar?signup=1"
               className="group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
             >
-              Ver ferramentas
+              Criar conta
               <span className="transition group-hover:translate-x-0.5">→</span>
-            </a>
+            </Link>
             <Link
               href="/recursos"
               className="rounded-xl border border-border bg-surface/70 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-surface-2"

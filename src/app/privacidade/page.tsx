@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import SiteHeader from "@/components/SiteHeader";
+import MarketingHeader from "@/components/MarketingHeader";
 import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function PrivacidadePage() {
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <MarketingHeader />
       <main className="mx-auto max-w-3xl px-4 py-12">
         <h1 className="text-3xl font-bold tracking-tight">Política de Privacidade</h1>
         <p className="mt-2 text-sm text-muted">Última atualização: {new Date().toLocaleDateString("pt-BR")}</p>

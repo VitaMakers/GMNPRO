@@ -9,15 +9,15 @@ export default function SiteFooter() {
             GMN <span className="text-brand-2">PRO</span>
           </div>
           <p className="mt-3 text-sm text-muted">
-            Ferramentas gratuitas para otimizar o seu Google Meu Negócio.
+            A plataforma completa para otimizar e crescer o seu Google Meu Negócio.
           </p>
         </div>
         <div>
-          <p className="mb-3 text-sm font-semibold">Ferramentas</p>
+          <p className="mb-3 text-sm font-semibold">Produto</p>
           <ul className="space-y-2 text-sm text-muted">
-            <li><Link href="/geotag" className="hover:text-foreground">Geotag de Fotos</Link></li>
-            <li><Link href="/checklist" className="hover:text-foreground">Checklist GMB</Link></li>
-            <li><Link href="/auditoria" className="hover:text-foreground">Auditoria do Perfil</Link></li>
+            <li><Link href="/recursos" className="hover:text-foreground">Recursos</Link></li>
+            <li><Link href="/entrar" className="hover:text-foreground">Entrar</Link></li>
+            <li><Link href="/entrar?signup=1" className="hover:text-foreground">Criar conta</Link></li>
           </ul>
         </div>
         <div>

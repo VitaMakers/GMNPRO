@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import SiteHeader from "@/components/SiteHeader";
+import MarketingHeader from "@/components/MarketingHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CtaSection from "@/components/CtaSection";
 import NetworkBackground from "@/components/NetworkBackground";
@@ -20,7 +20,7 @@ const STEPS = [
 export default function RecursosPage() {
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <MarketingHeader />
 
       <section className="relative overflow-hidden border-b border-border">
         <NetworkBackground />

@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation";
-import SiteHeader from "@/components/SiteHeader";
+import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
 import AgendamentoDashboard from "@/components/AgendamentoDashboard";
 
@@ -24,7 +24,7 @@ export default async function AgendamentoPage() {
 
   return (
     <div className="min-h-screen">
-      <SiteHeader />
+      <AppHeader />
       <main className="mx-auto max-w-5xl px-4 py-10">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>

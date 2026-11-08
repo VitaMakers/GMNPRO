@@ -17,6 +17,9 @@ export default function EntrarPage() {
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
+    if (p.get("signup") !== null || p.get("mode") === "signup") {
+      setMode("signup");
+    }
     const err = p.get("error");
     if (err) {
       const d = p.get("d");
