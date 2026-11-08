@@ -2,6 +2,8 @@ import Link from "next/link";
 import SiteHeader from "@/components/SiteHeader";
 import SiteFooter from "@/components/SiteFooter";
 import CtaSection from "@/components/CtaSection";
+import NetworkBackground from "@/components/NetworkBackground";
+import GmbPhoneMockup from "@/components/GmbPhoneMockup";
 
 const tools = [
   {
@@ -39,37 +41,48 @@ export default function Home() {
     <div className="min-h-screen">
       <SiteHeader />
       <section className="relative overflow-hidden border-b border-border">
-        <div className="grid-bg" />
+        <NetworkBackground />
         <div className="glow" />
-        <div className="relative mx-auto max-w-6xl px-4 py-24 sm:py-32">
-          <div className="max-w-3xl">
-            <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted backdrop-blur">
-              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
-              Plataforma para Google Meu Negócio
-            </span>
-            <h1 className="mt-6 text-5xl font-semibold leading-[1.05] tracking-tight sm:text-7xl">
+        <div className="relative mx-auto grid max-w-6xl items-center gap-10 px-4 py-20 sm:py-28 lg:grid-cols-2">
+          <div>
+            <div className="flex flex-wrap gap-2">
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-brand-2" />
+                Plataforma para Google Meu Negócio
+              </span>
+              <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted backdrop-blur">
+                <span className="h-1.5 w-1.5 rounded-full bg-accent" />
+                Mais alcance, mais clientes
+              </span>
+            </div>
+            <h1 className="mt-6 font-display text-5xl font-extrabold leading-[1.02] tracking-tight sm:text-6xl">
               Domine o seu
               <br />
-              <span className="text-brand">Google Meu Negócio</span>
+              <span className="text-brand-2">Google Meu Negócio</span>
             </h1>
             <p className="mt-6 max-w-xl text-lg text-muted">
-              Otimize fotos, avalie seu perfil e agende postagens — numa
-              plataforma única, rápida e feita para quem leva o GMB a sério.
+              Otimize fotos, agende postagens, acompanhe o desempenho e cresça no
+              Google — numa plataforma única, feita para quem leva o GMB a sério.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href="#ferramentas"
-                className="rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
+                className="group inline-flex items-center gap-2 rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90"
               >
                 Ver ferramentas
+                <span className="transition group-hover:translate-x-0.5">→</span>
               </a>
-              <a
-                href="/agendamento"
-                className="rounded-xl border border-border bg-surface px-6 py-3 text-sm font-semibold transition hover:bg-surface-2"
+              <Link
+                href="/entrar"
+                className="rounded-xl border border-border bg-surface/70 px-6 py-3 text-sm font-semibold backdrop-blur transition hover:bg-surface-2"
               >
-                Agendar postagens
-              </a>
+                Entrar / Criar conta
+              </Link>
             </div>
+          </div>
+
+          <div className="relative hidden lg:block">
+            <GmbPhoneMockup />
           </div>
         </div>
       </section>

@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Inter, Space_Grotesk, Playfair_Display } from "next/font/google";
+import { Inter, Bricolage_Grotesque, Playfair_Display } from "next/font/google";
 import "./globals.css";
 
 const sans = Inter({
@@ -8,9 +8,9 @@ const sans = Inter({
   display: "swap",
 });
 
-const display = Space_Grotesk({
+const display = Bricolage_Grotesque({
   subsets: ["latin"],
-  weight: ["500", "600", "700"],
+  weight: ["500", "600", "700", "800"],
   variable: "--font-display",
   display: "swap",
 });
