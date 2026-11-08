@@ -1,28 +1,45 @@
-import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 import { listAccounts, listLocations } from "@/lib/google/business";
 
 export const dynamic = "force-dynamic";
 
-function back(path: string) {
-  return NextResponse.redirect(new URL(path, process.env.APP_BASE_URL));
-}
+export async function GET(request: NextRequest) {
+  const base = process.env.APP_BASE_URL ?? request.nextUrl.origin;
+  const code = request.nextUrl.searchParams.get("code");
+  if (!code) return NextResponse.redirect(new URL("/entrar?error=sem_codigo", base));
 
-export async function GET(request: Request) {
-  const { searchParams } = new URL(request.url);
-  const code = searchParams.get("code");
-  if (!code) return back("/entrar?error=sem_codigo");
+  // A resposta de redirecionamento recebe os cookies da sessão.
+  const response = NextResponse.redirect(new URL("/agendamento?conectado=1", base));
 
-  const supabase = await createClient();
+  const supabase = createServerClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        getAll() {
+          return request.cookies.getAll();
+        },
+        setAll(cookiesToSet) {
+          cookiesToSet.forEach(({ name, value, options }) =>
+            response.cookies.set(name, value, options),
+          );
+        },
+      },
+    },
+  );
+
   const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-  if (error || !data.session) return back("/entrar?error=login_google");
+  if (error || !data.session) {
+    const d = encodeURIComponent(error?.message ?? "sem_sessao");
+    return NextResponse.redirect(new URL(`/entrar?error=login_google&d=${d}`, base));
+  }
 
-  const session = data.session;
+  const { session } = data;
   const user = session.user;
   const providerToken = session.provider_token;
   const providerRefresh = session.provider_refresh_token;
 
-  // Se veio token do Google (login com permissão do GMB), guarda a conexão.
   if (providerToken) {
     const expiry = new Date(Date.now() + 3300 * 1000).toISOString();
     await supabase.from("google_connections").upsert({
@@ -53,9 +70,9 @@ export async function GET(request: Request) {
         }
       }
     } catch {
-      // conexão salva; sincronização de locais pode ser refeita depois
+      // conexão salva; locais podem ser sincronizados depois
     }
   }
 
-  return back("/agendamento?conectado=1");
+  return response;
 }

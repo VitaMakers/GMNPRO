@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 
@@ -14,6 +14,20 @@ export default function EntrarPage() {
   const [googleLoading, setGoogleLoading] = useState(false);
   const [msg, setMsg] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const err = p.get("error");
+    if (err) {
+      const d = p.get("d");
+      const label =
+        err === "login_google"
+          ? "Não foi possível concluir o login com o Google."
+          : `Erro no login: ${err}`;
+      setError(d ? `${label} (${decodeURIComponent(d)})` : label);
+      window.history.replaceState({}, "", "/entrar");
+    }
+  }, []);
 
   async function loginWithGoogle() {
     setError("");
