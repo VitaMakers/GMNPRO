@@ -35,14 +35,28 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const location = searchParams.get("location");
-  const periodDays = Math.min(Math.max(parseInt(searchParams.get("period") ?? "30", 10), 7), 180);
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
-  // Janela atual termina ontem (dados do Google têm atraso de ~1-2 dias).
-  const end = new Date();
-  end.setUTCDate(end.getUTCDate() - 1);
-  const start = new Date(end);
-  start.setUTCDate(start.getUTCDate() - (periodDays - 1));
+  const startParam = searchParams.get("start");
+  const endParam = searchParams.get("end");
+
+  let start: Date;
+  let end: Date;
+  if (startParam && endParam) {
+    start = new Date(`${startParam}T00:00:00Z`);
+    end = new Date(`${endParam}T00:00:00Z`);
+    const yesterday = new Date();
+    yesterday.setUTCDate(yesterday.getUTCDate() - 1);
+    if (end > yesterday) end = yesterday;
+  } else {
+    const period = Math.min(Math.max(parseInt(searchParams.get("period") ?? "30", 10), 7), 540);
+    end = new Date();
+    end.setUTCDate(end.getUTCDate() - 1);
+    start = new Date(end);
+    start.setUTCDate(start.getUTCDate() - (period - 1));
+  }
+
+  const periodDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
   const prevEnd = new Date(start);
   prevEnd.setUTCDate(prevEnd.getUTCDate() - 1);
   const prevStart = new Date(prevEnd);
@@ -81,15 +95,18 @@ export async function GET(request: Request) {
 
     const series = curDays.map((d) => ({ date: dayKey(d), value: impDay(d) }));
 
-    // Como as pessoas descobriram (divisão por plataforma/dispositivo).
+    // Como as pessoas descobriram (ordem fixa para cores consistentes).
     const sources = [
-      { label: "Busca · celular", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_SEARCH"], curDays) },
-      { label: "Busca · computador", value: sumWindow(data["BUSINESS_IMPRESSIONS_DESKTOP_SEARCH"], curDays) },
-      { label: "Maps · celular", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_MAPS"], curDays) },
-      { label: "Maps · computador", value: sumWindow(data["BUSINESS_IMPRESSIONS_DESKTOP_MAPS"], curDays) },
-    ].sort((a, b) => b.value - a.value);
+      { key: "search_mobile", label: "Pesquisa Google – dispositivos móveis", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_SEARCH"], curDays) },
+      { key: "search_desktop", label: "Pesquisa Google – computadores", value: sumWindow(data["BUSINESS_IMPRESSIONS_DESKTOP_SEARCH"], curDays) },
+      { key: "maps_mobile", label: "Google Maps – dispositivos móveis", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_MAPS"], curDays) },
+      { key: "maps_desktop", label: "Google Maps – computadores", value: sumWindow(data["BUSINESS_IMPRESSIONS_DESKTOP_MAPS"], curDays) },
+    ];
 
-    const monthsBack = periodDays <= 30 ? 1 : periodDays <= 90 ? 3 : 6;
+    const monthsBack = Math.min(
+      18,
+      (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + (end.getUTCMonth() - start.getUTCMonth()) + 1,
+    );
     const [reviews, keywords, reviewLink] = await Promise.all([
       fetchReviewStats(accessToken, location).catch(() => null),
       fetchSearchKeywords(accessToken, location, monthsBack).catch(() => []),

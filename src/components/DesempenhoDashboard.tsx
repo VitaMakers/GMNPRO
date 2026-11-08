@@ -29,12 +29,6 @@ interface Report {
   reviewLink: string | null;
 }
 
-const PERIODS = [
-  { days: 30, label: "30 dias" },
-  { days: 90, label: "3 meses" },
-  { days: 180, label: "6 meses" },
-];
-
 const KPI_LABELS: { key: keyof Report["kpis"]; label: string }[] = [
   { key: "impressions", label: "Visualizações" },
   { key: "website", label: "Cliques no site" },
@@ -49,7 +43,14 @@ export default function DesempenhoDashboard({
   locations: { location_name: string; title: string | null }[];
 }) {
   const [location, setLocation] = useState(locations[0]?.location_name ?? "");
-  const [period, setPeriod] = useState(30);
+  const [mode, setMode] = useState<"30" | "90" | "custom">("30");
+  const now = new Date();
+  const defEnd = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const sixAgo = new Date(now.getFullYear(), now.getMonth() - 5, 1);
+  const defStart = `${sixAgo.getFullYear()}-${String(sixAgo.getMonth() + 1).padStart(2, "0")}`;
+  const [customStart, setCustomStart] = useState(defStart);
+  const [customEnd, setCustomEnd] = useState(defEnd);
+  const [appliedRange, setAppliedRange] = useState<{ start: string; end: string } | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [report, setReport] = useState<Report | null>(null);
@@ -59,7 +60,13 @@ export default function DesempenhoDashboard({
     setLoading(true);
     setError("");
     try {
-      const res = await fetch(`/api/google/performance?location=${encodeURIComponent(location)}&period=${period}`);
+      let qs = `location=${encodeURIComponent(location)}`;
+      if (mode === "custom" && appliedRange) {
+        qs += `&start=${appliedRange.start}&end=${appliedRange.end}`;
+      } else {
+        qs += `&period=${mode === "90" ? 90 : 30}`;
+      }
+      const res = await fetch(`/api/google/performance?${qs}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "falha");
       setReport(data);
@@ -69,11 +76,20 @@ export default function DesempenhoDashboard({
     } finally {
       setLoading(false);
     }
-  }, [location, period]);
+  }, [location, mode, appliedRange]);
 
   useEffect(() => {
     load();
   }, [load]);
+
+  function applyCustom() {
+    const [sy, sm] = customStart.split("-").map(Number);
+    const [ey, em] = customEnd.split("-").map(Number);
+    const start = `${sy}-${String(sm).padStart(2, "0")}-01`;
+    const lastDay = new Date(Date.UTC(ey, em, 0)).getUTCDate();
+    const end = `${ey}-${String(em).padStart(2, "0")}-${String(lastDay).padStart(2, "0")}`;
+    setAppliedRange({ start, end });
+  }
 
   const insights = report ? buildInsights(report) : [];
 
@@ -90,18 +106,41 @@ export default function DesempenhoDashboard({
             <option key={l.location_name} value={l.location_name}>{l.title ?? l.location_name}</option>
           ))}
         </select>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-2">
           <div className="flex rounded-lg border border-border bg-surface-2 p-0.5">
-            {PERIODS.map((p) => (
+            {([["30", "30 dias"], ["90", "3 meses"], ["custom", "Personalizado"]] as const).map(([m, label]) => (
               <button
-                key={p.days}
-                onClick={() => setPeriod(p.days)}
-                className={`rounded-md px-3 py-1.5 text-sm transition ${period === p.days ? "bg-brand text-white" : "text-muted hover:text-foreground"}`}
+                key={m}
+                onClick={() => setMode(m)}
+                className={`rounded-md px-3 py-1.5 text-sm transition ${mode === m ? "bg-brand text-white" : "text-muted hover:text-foreground"}`}
               >
-                {p.label}
+                {label}
               </button>
             ))}
           </div>
+          {mode === "custom" && (
+            <div className="flex items-center gap-1.5">
+              <input
+                type="month"
+                value={customStart}
+                onChange={(e) => setCustomStart(e.target.value)}
+                className="rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-sm outline-none focus:border-brand"
+              />
+              <span className="text-muted">–</span>
+              <input
+                type="month"
+                value={customEnd}
+                onChange={(e) => setCustomEnd(e.target.value)}
+                className="rounded-lg border border-border bg-surface-2 px-2 py-1.5 text-sm outline-none focus:border-brand"
+              />
+              <button
+                onClick={applyCustom}
+                className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90"
+              >
+                Aplicar
+              </button>
+            </div>
+          )}
           <button
             onClick={() => window.print()}
             className="rounded-lg border border-border px-3 py-1.5 text-sm text-muted transition hover:bg-surface-2"
@@ -175,38 +214,75 @@ function KpiTile({ label, kpi }: { label: string; kpi: Kpi }) {
   );
 }
 
+const SOURCE_COLORS = ["#FBBC04", "#4285F4", "#EA4335", "#34A853"];
+
 function SourcesPanel({ sources }: { sources: { label: string; value: number }[] }) {
-  const total = sources.reduce((s, x) => s + x.value, 0) || 1;
-  const max = Math.max(1, ...sources.map((s) => s.value));
+  const total = sources.reduce((s, x) => s + x.value, 0);
+  const R = 56;
+  const SW = 20;
+  const C = 2 * Math.PI * R;
+  let offset = 0;
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
-      <h2 className="mb-4 text-lg font-semibold">Como as pessoas descobriram</h2>
-      <ul className="space-y-3">
-        {sources.map((s) => (
-          <li key={s.label}>
-            <div className="mb-1 flex justify-between text-sm">
-              <span className="text-muted">{s.label}</span>
-              <span className="font-medium">
-                {s.value.toLocaleString("pt-BR")}{" "}
-                <span className="text-xs text-muted">({Math.round((s.value / total) * 100)}%)</span>
+      <p className="text-3xl font-semibold">{total.toLocaleString("pt-BR")}</p>
+      <p className="mb-5 text-sm text-muted">Pessoas que viram o Perfil da Empresa</p>
+
+      <div className="flex flex-col items-center gap-5 sm:flex-row">
+        <svg viewBox="0 0 140 140" className="h-36 w-36 shrink-0 -rotate-90">
+          {total === 0 ? (
+            <circle cx="70" cy="70" r={R} fill="none" stroke="var(--surface-2)" strokeWidth={SW} />
+          ) : (
+            sources.map((s, i) => {
+              const len = (s.value / total) * C;
+              const gap = len > 4 ? 2 : 0;
+              const seg = (
+                <circle
+                  key={s.label}
+                  cx="70"
+                  cy="70"
+                  r={R}
+                  fill="none"
+                  stroke={SOURCE_COLORS[i]}
+                  strokeWidth={SW}
+                  strokeDasharray={`${Math.max(0, len - gap)} ${C - Math.max(0, len - gap)}`}
+                  strokeDashoffset={-offset}
+                />
+              );
+              offset += len;
+              return seg;
+            })
+          )}
+        </svg>
+
+        <ul className="flex-1 space-y-2.5">
+          {sources.map((s, i) => (
+            <li key={s.label} className="flex items-start gap-2 text-sm">
+              <span className="mt-1 h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: SOURCE_COLORS[i] }} />
+              <span className="flex-1">
+                <span className="font-medium">
+                  {s.value.toLocaleString("pt-BR")}
+                  <span className="ml-1 text-xs text-muted">· {total ? Math.round((s.value / total) * 100) : 0}%</span>
+                </span>
+                <span className="block text-xs text-muted">{s.label}</span>
               </span>
-            </div>
-            <div className="h-2 overflow-hidden rounded-full bg-surface-2">
-              <div className="h-full rounded-full bg-brand-2" style={{ width: `${(s.value / max) * 100}%` }} />
-            </div>
-          </li>
-        ))}
-      </ul>
+            </li>
+          ))}
+        </ul>
+      </div>
     </div>
   );
 }
 
 function KeywordsPanel({ keywords }: { keywords: { keyword: string; value: number; approx: boolean }[] }) {
   const top = keywords.slice(0, 3).map((k) => k.keyword);
+  const totalSearch = keywords.reduce((s, k) => s + k.value, 0);
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
-      <h2 className="mb-1 text-lg font-semibold">Termos de pesquisa</h2>
-      <p className="mb-4 text-xs text-muted">O que as pessoas buscaram antes de ver o perfil.</p>
+      <p className="text-3xl font-semibold">{totalSearch.toLocaleString("pt-BR")}</p>
+      <p className="mb-4 text-sm text-muted">Pesquisas que mostraram seu perfil</p>
+      <h3 className="mb-1 text-sm font-semibold">Termos de pesquisa</h3>
+      <p className="mb-3 text-xs text-muted">O que as pessoas buscaram antes de ver o perfil.</p>
       <ul className="space-y-1.5">
         {keywords.map((k, i) => (
           <li key={k.keyword} className="flex items-center justify-between text-sm">
