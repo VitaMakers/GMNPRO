@@ -3,6 +3,7 @@ import Link from "next/link";
 const links = [
   { href: "/geotag", label: "Geotag" },
   { href: "/agendamento", label: "Agendamentos" },
+  { href: "/desempenho", label: "Desempenho" },
   { href: "/checklist", label: "Checklist" },
   { href: "/auditoria", label: "Auditoria" },
 ];
