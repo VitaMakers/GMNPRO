@@ -80,6 +80,24 @@ export async function createMediaItem(
   return res.json();
 }
 
+/** Link direto de "escrever avaliação" do perfil (para QR code / compartilhar). */
+export async function getReviewLink(
+  accessToken: string,
+  accountLocation: string,
+): Promise<string | null> {
+  const loc = accountLocation.split("/locations/")[1];
+  if (!loc) return null;
+  try {
+    const data = await getJson<{ metadata?: { newReviewUri?: string } }>(
+      `${BUSINESS_INFO}/locations/${loc}?readMask=metadata`,
+      accessToken,
+    );
+    return data.metadata?.newReviewUri ?? null;
+  } catch {
+    return null;
+  }
+}
+
 export interface GalleryMedia {
   name: string;
   googleUrl?: string;

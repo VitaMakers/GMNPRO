@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import QRCode from "qrcode";
 import MetricChart from "@/components/MetricChart";
 
 interface Kpi { current: number; previous: number; change: number | null }
@@ -22,7 +23,10 @@ interface Report {
     conversations: Kpi;
   };
   series: { date: string; value: number }[];
+  sources: { label: string; value: number }[];
+  keywords: { keyword: string; value: number; approx: boolean }[];
   reviews: Review | null;
+  reviewLink: string | null;
 }
 
 const PERIODS = [
@@ -129,8 +133,13 @@ export default function DesempenhoDashboard({
             <MetricChart data={report.series} label="Visualizações por dia" />
           </div>
 
+          <div className="grid gap-4 lg:grid-cols-2">
+            {report.sources?.length > 0 && <SourcesPanel sources={report.sources} />}
+            {report.keywords?.length > 0 && <KeywordsPanel keywords={report.keywords} />}
+          </div>
+
           {/* Avaliações */}
-          {report.reviews && <ReviewsPanel r={report.reviews} />}
+          {report.reviews && <ReviewsPanel r={report.reviews} link={report.reviewLink} />}
 
           {/* Insights */}
           {insights.length > 0 && (
@@ -166,8 +175,74 @@ function KpiTile({ label, kpi }: { label: string; kpi: Kpi }) {
   );
 }
 
-function ReviewsPanel({ r }: { r: Review }) {
+function SourcesPanel({ sources }: { sources: { label: string; value: number }[] }) {
+  const total = sources.reduce((s, x) => s + x.value, 0) || 1;
+  const max = Math.max(1, ...sources.map((s) => s.value));
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5">
+      <h2 className="mb-4 text-lg font-semibold">Como as pessoas descobriram</h2>
+      <ul className="space-y-3">
+        {sources.map((s) => (
+          <li key={s.label}>
+            <div className="mb-1 flex justify-between text-sm">
+              <span className="text-muted">{s.label}</span>
+              <span className="font-medium">
+                {s.value.toLocaleString("pt-BR")}{" "}
+                <span className="text-xs text-muted">({Math.round((s.value / total) * 100)}%)</span>
+              </span>
+            </div>
+            <div className="h-2 overflow-hidden rounded-full bg-surface-2">
+              <div className="h-full rounded-full bg-brand-2" style={{ width: `${(s.value / max) * 100}%` }} />
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function KeywordsPanel({ keywords }: { keywords: { keyword: string; value: number; approx: boolean }[] }) {
+  const top = keywords.slice(0, 3).map((k) => k.keyword);
+  return (
+    <div className="rounded-2xl border border-border bg-surface p-5">
+      <h2 className="mb-1 text-lg font-semibold">Termos de pesquisa</h2>
+      <p className="mb-4 text-xs text-muted">O que as pessoas buscaram antes de ver o perfil.</p>
+      <ul className="space-y-1.5">
+        {keywords.map((k, i) => (
+          <li key={k.keyword} className="flex items-center justify-between text-sm">
+            <span className="truncate">
+              <span className="mr-2 text-muted">{i + 1}.</span>
+              {k.keyword}
+            </span>
+            <span className="shrink-0 font-medium text-muted">
+              {k.approx ? "<" : ""}
+              {k.value.toLocaleString("pt-BR")}
+            </span>
+          </li>
+        ))}
+      </ul>
+      {top.length > 0 && (
+        <div className="mt-4 rounded-xl border border-brand/30 bg-brand/5 p-3 text-xs text-muted">
+          <span className="font-medium text-brand-2">Sugestão de palavras-chave:</span> seus termos mais
+          fortes são <strong>{top.join(", ")}</strong>. Inclua eles na <strong>descrição</strong>, nos{" "}
+          <strong>serviços</strong> e nas <strong>postagens</strong> para reforçar o alcance nessas buscas.
+        </div>
+      )}
+    </div>
+  );
+}
+
+function ReviewsPanel({ r, link }: { r: Review; link: string | null }) {
   const stale = r.daysSinceLast !== null && r.daysSinceLast > 30;
+  const [qr, setQr] = useState<string>("");
+
+  useEffect(() => {
+    if (!link) return;
+    QRCode.toDataURL(link, { width: 256, margin: 1 })
+      .then(setQr)
+      .catch(() => setQr(""));
+  }, [link]);
+
   return (
     <div className="rounded-2xl border border-border bg-surface p-5">
       <h2 className="mb-4 text-lg font-semibold">Avaliações</h2>
@@ -181,9 +256,41 @@ function ReviewsPanel({ r }: { r: Review }) {
           warn={stale}
         />
       </div>
+
+      {link && (
+        <div className="mt-4 flex flex-col items-center gap-4 rounded-xl border border-border bg-surface-2 p-4 sm:flex-row">
+          {qr && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={qr} alt="QR code para avaliar" className="h-28 w-28 rounded-lg bg-white p-1" />
+          )}
+          <div className="flex-1 text-center sm:text-left">
+            <p className="text-sm font-medium">Peça avaliações aos clientes</p>
+            <p className="mt-1 text-xs text-muted">
+              Compartilhe este link ou o QR code para o cliente avaliar em segundos.
+            </p>
+            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
+              <a
+                href={link}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="rounded-lg bg-brand px-3 py-1.5 text-center text-xs font-semibold text-white transition hover:opacity-90"
+              >
+                Abrir link de avaliação
+              </a>
+              <button
+                onClick={() => navigator.clipboard?.writeText(link)}
+                className="rounded-lg border border-border px-3 py-1.5 text-xs transition hover:bg-surface"
+              >
+                Copiar link
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {stale && (
         <p className="mt-3 text-xs text-accent">
-          Faz mais de 30 dias sem uma avaliação nova — vale pedir avaliações aos clientes (link e QR code).
+          Faz mais de 30 dias sem uma avaliação nova — use o link/QR acima para pedir avaliações.
         </p>
       )}
     </div>

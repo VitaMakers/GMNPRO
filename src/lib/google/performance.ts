@@ -76,3 +76,57 @@ export async function fetchDailyMetrics(
   }
   return out;
 }
+
+export interface SearchKeyword {
+  keyword: string;
+  value: number;
+  approx: boolean; // true = "menos de {value}"
+}
+
+/**
+ * Termos de pesquisa que mostraram o perfil (searchkeywords, mensal).
+ * Soma os meses do período e devolve os termos ordenados por volume.
+ */
+export async function fetchSearchKeywords(
+  accessToken: string,
+  accountLocation: string,
+  monthsBack: number,
+): Promise<SearchKeyword[]> {
+  const loc = locationId(accountLocation);
+  const now = new Date();
+  const end = { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (monthsBack - 1), 1));
+  const start = { year: startDate.getUTCFullYear(), month: startDate.getUTCMonth() + 1 };
+
+  const q =
+    `monthlyRange.startMonth.year=${start.year}&monthlyRange.startMonth.month=${start.month}` +
+    `&monthlyRange.endMonth.year=${end.year}&monthlyRange.endMonth.month=${end.month}`;
+  const url = `${PERF_BASE}/${loc}/searchkeywords/impressions/monthly?${q}`;
+
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw new Error(`searchkeywords ${res.status}: ${await res.text()}`);
+
+  const data = (await res.json()) as {
+    searchKeywordsCounts?: {
+      searchKeyword?: string;
+      insightsValue?: { value?: string; threshold?: string };
+    }[];
+  };
+
+  const agg = new Map<string, { value: number; approx: boolean }>();
+  for (const k of data.searchKeywordsCounts ?? []) {
+    const kw = (k.searchKeyword ?? "").trim();
+    if (!kw) continue;
+    const exact = k.insightsValue?.value;
+    const thr = k.insightsValue?.threshold;
+    const v = Number(exact ?? thr ?? 0);
+    const approx = exact == null && thr != null;
+    const cur = agg.get(kw) ?? { value: 0, approx: false };
+    agg.set(kw, { value: cur.value + v, approx: cur.approx || approx });
+  }
+
+  return Array.from(agg.entries())
+    .map(([keyword, v]) => ({ keyword, value: v.value, approx: v.approx }))
+    .sort((a, b) => b.value - a.value)
+    .slice(0, 15);
+}

@@ -6,8 +6,10 @@ import {
   IMPRESSION_METRICS,
   dayKey,
   fetchDailyMetrics,
+  fetchSearchKeywords,
 } from "@/lib/google/performance";
 import { fetchReviewStats } from "@/lib/google/reviews";
+import { getReviewLink } from "@/lib/google/business";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -79,12 +81,20 @@ export async function GET(request: Request) {
 
     const series = curDays.map((d) => ({ date: dayKey(d), value: impDay(d) }));
 
-    let reviews = null;
-    try {
-      reviews = await fetchReviewStats(accessToken, location);
-    } catch {
-      reviews = null;
-    }
+    // Como as pessoas descobriram (divisão por plataforma/dispositivo).
+    const sources = [
+      { label: "Busca · celular", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_SEARCH"], curDays) },
+      { label: "Busca · computador", value: sumWindow(data["BUSINESS_IMPRESSIONS_DESKTOP_SEARCH"], curDays) },
+      { label: "Maps · celular", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_MAPS"], curDays) },
+      { label: "Maps · computador", value: sumWindow(data["BUSINESS_IMPRESSIONS_DESKTOP_MAPS"], curDays) },
+    ].sort((a, b) => b.value - a.value);
+
+    const monthsBack = periodDays <= 30 ? 1 : periodDays <= 90 ? 3 : 6;
+    const [reviews, keywords, reviewLink] = await Promise.all([
+      fetchReviewStats(accessToken, location).catch(() => null),
+      fetchSearchKeywords(accessToken, location, monthsBack).catch(() => []),
+      getReviewLink(accessToken, location).catch(() => null),
+    ]);
 
     return NextResponse.json({
       ok: true,
@@ -92,7 +102,10 @@ export async function GET(request: Request) {
       range: { start: dayKey(start), end: dayKey(end) },
       kpis,
       series,
+      sources,
+      keywords,
       reviews,
+      reviewLink,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "erro";
