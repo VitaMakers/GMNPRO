@@ -95,7 +95,8 @@ export async function fetchSearchKeywords(
   const loc = locationId(accountLocation);
   const now = new Date();
   const end = { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
-  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (monthsBack - 1), 1));
+  // Inclui um mês a mais para garantir meses já finalizados pelo Google.
+  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 1));
   const start = { year: startDate.getUTCFullYear(), month: startDate.getUTCMonth() + 1 };
 
   const q =
