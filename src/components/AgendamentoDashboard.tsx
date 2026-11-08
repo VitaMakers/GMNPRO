@@ -290,8 +290,8 @@ export default function AgendamentoDashboard({
         </div>
       )}
 
-      {/* Calendário (topo) */}
-      {posts.length > 0 && <ScheduleCalendar posts={posts} />}
+      {/* Calendário (topo) — sempre visível */}
+      <ScheduleCalendar posts={posts} />
 
       {/* Compositor */}
       <div className="rounded-2xl border border-border bg-surface p-5">
