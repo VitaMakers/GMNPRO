@@ -100,14 +100,16 @@ export default function EntrarPage() {
 
       <div className="relative grid min-h-screen lg:grid-cols-[1.15fr_0.85fr]">
         {/* Esquerda — marca */}
-        <div className="flex flex-col justify-center px-8 py-16 sm:px-16">
-          <span className="font-serif text-2xl text-white/80">Grupo Vita</span>
-          <h1 className="mt-3 whitespace-nowrap font-display text-6xl font-extrabold leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl">
-            GMN PRO
-          </h1>
-          <p className="mt-7 max-w-sm text-muted">
-            Otimize, agende e cresça no seu Google Meu Negócio. Entre para começar.
-          </p>
+        <div className="flex flex-col items-center justify-center px-8 py-16 sm:px-16">
+          <div className="w-fit">
+            <span className="font-serif text-2xl text-white/80">Grupo Vita</span>
+            <h1 className="mt-3 whitespace-nowrap font-display text-6xl font-extrabold leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl">
+              GMN PRO
+            </h1>
+            <p className="mt-7 max-w-sm text-muted">
+              Otimize, agende e cresça no seu Google Meu Negócio. Entre para começar.
+            </p>
+          </div>
         </div>
 
         {/* Direita — card */}
