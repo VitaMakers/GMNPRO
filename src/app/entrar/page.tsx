@@ -102,10 +102,8 @@ export default function EntrarPage() {
         {/* Esquerda — marca */}
         <div className="flex flex-col justify-center px-8 py-16 sm:px-16">
           <span className="font-serif text-2xl text-white/80">Grupo Vita</span>
-          <h1 className="mt-3 font-display text-8xl font-extrabold leading-[0.9] tracking-tight lg:text-9xl">
-            GMN
-            <br />
-            PRO
+          <h1 className="mt-3 whitespace-nowrap font-display text-6xl font-extrabold leading-[0.95] tracking-tight sm:text-7xl lg:text-8xl">
+            GMN PRO
           </h1>
           <p className="mt-7 max-w-sm text-muted">
             Otimize, agende e cresça no seu Google Meu Negócio. Entre para começar.
