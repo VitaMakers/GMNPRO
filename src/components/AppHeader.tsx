@@ -8,6 +8,7 @@ const links = [
   { href: "/geotag", label: "Geotag" },
   { href: "/agendamento", label: "Agendamentos" },
   { href: "/desempenho", label: "Desempenho" },
+  { href: "/avaliacoes", label: "Avaliações" },
   { href: "/checklist", label: "Checklist" },
   { href: "/auditoria", label: "Auditoria" },
 ];

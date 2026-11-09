@@ -61,3 +61,59 @@ export async function fetchReviewStats(
     latest,
   };
 }
+
+export interface FullReview {
+  name: string; // accounts/.../locations/.../reviews/{id}
+  reviewer: string;
+  rating: number; // 1 a 5
+  comment: string;
+  createTime: string;
+  replied: boolean;
+  replyComment: string | null;
+}
+
+/** Lista as avaliações com dados completos para a tela de resposta com IA. */
+export async function listReviewsFull(
+  accessToken: string,
+  accountLocation: string,
+): Promise<FullReview[]> {
+  const url = `${LEGACY_V4}/${accountLocation}/reviews?pageSize=50&orderBy=updateTime%20desc`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${accessToken}` } });
+  if (!res.ok) throw new Error(`reviews ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as {
+    reviews?: {
+      name?: string;
+      starRating?: string;
+      comment?: string;
+      createTime?: string;
+      reviewer?: { displayName?: string };
+      reviewReply?: { comment?: string };
+    }[];
+  };
+  return (data.reviews ?? []).map((r) => ({
+    name: r.name ?? "",
+    reviewer: r.reviewer?.displayName ?? "Cliente",
+    rating: STAR[r.starRating ?? ""] ?? 0,
+    comment: r.comment ?? "",
+    createTime: r.createTime ?? "",
+    replied: !!r.reviewReply?.comment,
+    replyComment: r.reviewReply?.comment ?? null,
+  }));
+}
+
+/** Publica (ou atualiza) a resposta do dono em uma avaliação. */
+export async function postReviewReply(
+  accessToken: string,
+  reviewName: string,
+  comment: string,
+): Promise<void> {
+  const res = await fetch(`${LEGACY_V4}/${reviewName}/reply`, {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ comment }),
+  });
+  if (!res.ok) throw new Error(`reply ${res.status}: ${await res.text()}`);
+}
