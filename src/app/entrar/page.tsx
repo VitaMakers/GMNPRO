@@ -123,9 +123,9 @@ export default function EntrarPage() {
         <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-background via-background/85 to-transparent" />
       </div>
 
-      <div className="relative z-10 flex min-h-screen flex-col lg:flex-row lg:items-center">
+      <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-6 lg:flex-row lg:items-center lg:gap-12 lg:px-8">
         {/* Esquerda — marca */}
-        <div className="flex flex-1 items-center px-10 pb-6 pt-16 sm:px-16 lg:py-16">
+        <div className="flex flex-1 items-center pb-6 pt-16 lg:py-16">
           <div>
             <span className="font-serif text-2xl text-white/80">Grupo Vita</span>
             <h1 className="mt-3 whitespace-nowrap font-display text-6xl font-extrabold leading-[0.9] tracking-tight sm:text-7xl lg:text-8xl">
@@ -138,8 +138,11 @@ export default function EntrarPage() {
         </div>
 
         {/* Direita — card */}
-        <div className="w-full px-6 pb-12 lg:w-auto lg:px-0 lg:pb-0 lg:pr-8">
-          <div className="mx-auto w-full max-w-sm rounded-3xl border border-white/5 bg-gradient-to-b from-[#15171a] to-[#0a0b0c] p-8 shadow-2xl shadow-black/50">
+        <div className="mx-auto w-full max-w-sm pb-12 lg:mx-0 lg:w-[400px] lg:max-w-none lg:flex-none lg:pb-0">
+          <div
+            className="w-full rounded-3xl border border-white/10 p-8 shadow-2xl shadow-black/50 backdrop-blur-xl"
+            style={{ background: "linear-gradient(180deg, rgba(16,185,129,0.20) 0%, rgba(18,22,20,0.80) 42%, rgba(10,11,12,0.92) 100%)" }}
+          >
             {/* E-mail */}
             <label className="block">
               <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">E-mail</span>
