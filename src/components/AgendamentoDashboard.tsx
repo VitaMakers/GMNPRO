@@ -118,7 +118,8 @@ export default function AgendamentoDashboard({
       .order("title", { ascending: true });
     const locs = (data as { location_name: string; title: string | null }[]) ?? [];
     setLocations(locs);
-    if (locs.length > 0) setProfile((cur) => cur || locs[0].location_name);
+    // Só pré-seleciona quando há UM único perfil. Com vários, força a escolha.
+    if (locs.length === 1) setProfile((cur) => cur || locs[0].location_name);
   }, [supabase]);
 
   const syncLocations = useCallback(async () => {
@@ -188,7 +189,14 @@ export default function AgendamentoDashboard({
       });
       if (error) throw error;
 
-      setFormMsg("Postagem agendada! Ela será publicada no horário escolhido quando a conexão com o Google estiver ativa.");
+      const perfilNome = locations.find((l) => l.location_name === profile.trim())?.title ?? profile.trim();
+      const quando = new Date(when).toLocaleString("pt-BR", {
+        day: "2-digit",
+        month: "2-digit",
+        hour: "2-digit",
+        minute: "2-digit",
+      });
+      setFormMsg(`Postagem agendada para "${perfilNome}" em ${quando}. Será publicada automaticamente no horário.`);
       setSummary("");
       setCtaType("");
       setCtaUrl("");
@@ -296,6 +304,23 @@ export default function AgendamentoDashboard({
       {/* Compositor */}
       <div className="rounded-2xl border border-border bg-surface p-5">
         <h2 className="mb-4 text-lg font-semibold">Nova postagem</h2>
+
+        {/* Aviso em destaque do perfil escolhido — evita publicar no perfil errado */}
+        {locations.length > 0 &&
+          (profile ? (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-brand/40 bg-brand/10 px-4 py-2.5 text-sm">
+              <span aria-hidden>📍</span>
+              <span className="text-muted">Agendando para:</span>
+              <span className="font-semibold text-brand-2">
+                {locations.find((l) => l.location_name === profile)?.title ?? profile}
+              </span>
+            </div>
+          ) : (
+            <div className="mb-4 flex items-center gap-2 rounded-xl border border-accent/50 bg-accent/10 px-4 py-2.5 text-sm text-accent">
+              <span aria-hidden>⚠️</span> Escolha o perfil antes de agendar.
+            </div>
+          ))}
+
         <div className="grid gap-4 sm:grid-cols-2">
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Perfil / empresa</span>
@@ -305,6 +330,11 @@ export default function AgendamentoDashboard({
                 onChange={(e) => setProfile(e.target.value)}
                 className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
               >
+                {!profile && (
+                  <option value="" disabled>
+                    Selecione o perfil…
+                  </option>
+                )}
                 {locations.map((l) => (
                   <option key={l.location_name} value={l.location_name}>
                     {l.title ?? l.location_name}
