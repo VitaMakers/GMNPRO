@@ -91,11 +91,36 @@ export default function EntrarPage() {
 
   return (
     <div className="relative min-h-screen overflow-hidden bg-background text-white">
-      {/* Aurora verde (topo-esquerda) */}
+      {/* Aurora verde luminosa */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -top-32 left-[12%] h-[34rem] w-[42rem] rounded-full bg-brand-2/35 blur-[130px]" />
-        <div className="absolute -top-24 -left-10 h-[28rem] w-[28rem] rounded-full bg-brand/45 blur-[120px]" />
-        <div className="absolute top-8 left-[30%] h-80 w-80 rounded-full bg-brand-2/25 blur-[110px]" />
+        {/* brilho amplo no topo, some para o preto embaixo */}
+        <div
+          className="absolute inset-x-0 -top-1/4 h-[85%]"
+          style={{
+            background:
+              "radial-gradient(78% 95% at 40% 0%, rgba(16,185,129,0.72) 0%, rgba(5,150,105,0.42) 30%, rgba(5,150,105,0) 66%)",
+          }}
+        />
+        {/* núcleo mais brilhante */}
+        <div
+          className="absolute -top-16 left-[28%] h-80 w-[34rem] rounded-full blur-[90px]"
+          style={{ background: "radial-gradient(closest-side, rgba(110,231,183,0.80), transparent)" }}
+        />
+        {/* faixas diagonais (ribbons) */}
+        <div
+          className="absolute -top-32 left-[-4%] h-[44rem] w-[26rem] rotate-[24deg] rounded-full blur-[95px]"
+          style={{ background: "radial-gradient(closest-side, rgba(52,211,153,0.65), transparent)" }}
+        />
+        <div
+          className="absolute -top-36 left-[38%] h-[46rem] w-[22rem] -rotate-[16deg] rounded-full blur-[100px]"
+          style={{ background: "radial-gradient(closest-side, rgba(74,222,128,0.55), transparent)" }}
+        />
+        <div
+          className="absolute -top-20 left-[58%] h-[34rem] w-[20rem] rotate-[12deg] rounded-full blur-[110px]"
+          style={{ background: "radial-gradient(closest-side, rgba(16,185,129,0.45), transparent)" }}
+        />
+        {/* escurece a base para preto */}
+        <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-background via-background/85 to-transparent" />
       </div>
 
       <div className="relative z-10 flex min-h-screen flex-col lg:flex-row lg:items-center">
