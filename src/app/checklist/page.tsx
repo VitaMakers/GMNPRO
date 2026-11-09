@@ -15,20 +15,20 @@ export const metadata: Metadata = {
 
 const faq = [
   {
-    q: "Preciso de login ou cadastro?",
-    a: "Não. O checklist é 100% gratuito e funciona direto no navegador. Suas respostas ficam salvas só no seu dispositivo.",
+    q: "Como funciona a análise automática?",
+    a: "Escolha um perfil conectado e o sistema lê o seu Google Meu Negócio (informações, fotos, postagens e avaliações) e marca sozinho os itens que já estão feitos, com a nota e o que falta.",
   },
   {
     q: "Como a nota é calculada?",
-    a: "Cada item tem um peso conforme o impacto no ranqueamento local. A nota é a soma dos itens que você marcou em relação ao total.",
+    a: "Cada item tem um peso conforme o impacto no ranqueamento local. A nota é a soma dos itens concluídos em relação ao total.",
   },
   {
-    q: "Qual a diferença para a auditoria?",
-    a: "O checklist é uma auto-avaliação: você responde sobre o seu perfil. A auditoria lê os dados públicos do Google automaticamente (em breve).",
+    q: "Todos os itens são automáticos?",
+    a: "A maioria sim. Alguns dependem de hábito (como pedir avaliações) ou não são expostos pela API do Google e continuam manuais — estão sem o selo ⚡ auto.",
   },
   {
-    q: "O que fazer depois de preencher?",
-    a: "Comece pela lista 'O que fazer primeiro' — são os itens de maior impacto que ainda faltam no seu perfil.",
+    q: "O que fazer depois?",
+    a: "Comece pela lista 'O que falta para concluir' — são os itens de maior impacto que ainda faltam no seu perfil.",
   },
 ];
 
@@ -39,6 +39,18 @@ export default async function ChecklistPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
+  const { data: connection } = await supabase
+    .from("google_connections")
+    .select("access_token")
+    .maybeSingle();
+  const connected = !!connection?.access_token;
+
+  const { data: locs } = await supabase
+    .from("gmb_locations")
+    .select("location_name, title")
+    .order("title", { ascending: true });
+  const locations = (locs as { location_name: string; title: string | null }[]) ?? [];
+
   return (
     <div className="min-h-screen">
       <AppHeader />
@@ -48,11 +60,11 @@ export default async function ChecklistPage() {
             Checklist do Google Meu Negócio
           </h1>
           <p className="mt-2 text-muted">
-            Marque o que você já faz no seu perfil e receba uma nota de 0 a 100 com
-            as prioridades do que melhorar — de graça, sem cadastro.
+            O sistema analisa o seu perfil automaticamente, dá a nota de 0 a 100 e mostra
+            o que falta para concluir a otimização.
           </p>
         </div>
-        <ChecklistTool />
+        <ChecklistTool locations={locations} connected={connected} />
         <CtaSection />
         <Faq items={faq} />
       </main>

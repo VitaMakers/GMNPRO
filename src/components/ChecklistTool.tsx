@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import {
+  AUTO_ITEM_IDS,
   CHECKLIST,
   priorities,
   scoreFrom,
@@ -10,14 +11,30 @@ import {
 
 const STORAGE_KEY = "gmnpro.checklist";
 
-export default function ChecklistTool() {
-  const [checked, setChecked] = useState<Record<string, boolean>>({});
+type AutoResult = Record<string, { done: boolean; detail?: string }>;
+type LocationOption = { location_name: string; title: string | null };
+
+export default function ChecklistTool({
+  locations = [],
+  connected = false,
+}: {
+  locations?: LocationOption[];
+  connected?: boolean;
+}) {
+  const autoEnabled = connected && locations.length > 0;
+
+  const [manual, setManual] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
+  const [auto, setAuto] = useState<AutoResult | null>(null);
+  const [selected, setSelected] = useState(locations[0]?.location_name ?? "");
+  const [analyzing, setAnalyzing] = useState(false);
+  const [analyzedAt, setAnalyzedAt] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
-      if (raw) setChecked(JSON.parse(raw));
+      if (raw) setManual(JSON.parse(raw));
     } catch {
       /* ignora */
     }
@@ -27,25 +44,101 @@ export default function ChecklistTool() {
   useEffect(() => {
     if (!loaded) return;
     try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(checked));
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(manual));
     } catch {
       /* ignora */
     }
-  }, [checked, loaded]);
+  }, [manual, loaded]);
+
+  const isAuto = (id: string) => autoEnabled && AUTO_ITEM_IDS.has(id);
+
+  // Estado combinado: itens automáticos vêm da análise; o resto é manual.
+  const checked = useMemo(() => {
+    const merged: Record<string, boolean> = {};
+    for (const cat of CHECKLIST) {
+      for (const item of cat.items) {
+        merged[item.id] = isAuto(item.id) ? auto?.[item.id]?.done ?? false : !!manual[item.id];
+      }
+    }
+    return merged;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [manual, auto, autoEnabled]);
 
   const score = useMemo(() => scoreFrom(checked), [checked]);
   const top = useMemo(() => priorities(checked).slice(0, 5), [checked]);
   const totalItems = CHECKLIST.reduce((s, c) => s + c.items.length, 0);
   const doneItems = Object.values(checked).filter(Boolean).length;
 
-  const toggle = (id: string) => setChecked((c) => ({ ...c, [id]: !c[id] }));
-  const reset = () => setChecked({});
+  const toggle = (id: string) => setManual((c) => ({ ...c, [id]: !c[id] }));
+  const reset = () => setManual({});
+
+  async function analyze() {
+    if (!selected) return;
+    setAnalyzing(true);
+    setError("");
+    try {
+      const res = await fetch(`/api/google/audit-profile?location=${encodeURIComponent(selected)}`);
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao analisar.");
+      setAuto(data.auto as AutoResult);
+      setAnalyzedAt(new Date().toLocaleString("pt-BR"));
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Não foi possível analisar o perfil.");
+    } finally {
+      setAnalyzing(false);
+    }
+  }
 
   const color = score >= 75 ? "text-brand-2" : score >= 50 ? "text-accent" : "text-red-400";
   const ring = score >= 75 ? "#34a853" : score >= 50 ? "#fbbc05" : "#f87171";
 
   return (
     <div className="space-y-6">
+      {/* Análise automática */}
+      {autoEnabled ? (
+        <div className="rounded-2xl border border-brand/30 bg-brand/5 p-5">
+          <h2 className="font-semibold">Análise automática do perfil</h2>
+          <p className="mt-1 text-sm text-muted">
+            Escolha o perfil e o sistema lê o Google e marca sozinho o que já está feito,
+            calcula a nota e mostra o que falta.
+          </p>
+          <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
+            <select
+              value={selected}
+              onChange={(e) => setSelected(e.target.value)}
+              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand sm:max-w-xs"
+            >
+              {locations.map((l) => (
+                <option key={l.location_name} value={l.location_name}>
+                  {l.title ?? l.location_name}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={analyze}
+              disabled={analyzing}
+              className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+            >
+              {analyzing ? "Analisando…" : analyzedAt ? "Analisar de novo" : "Analisar meu perfil"}
+            </button>
+          </div>
+          {analyzedAt && !error && (
+            <p className="mt-3 text-xs text-brand-2">Perfil analisado em {analyzedAt}.</p>
+          )}
+          {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
+          {!analyzedAt && !error && (
+            <p className="mt-3 text-xs text-muted">
+              Os itens com o selo <AutoBadge /> são preenchidos automaticamente após a análise.
+            </p>
+          )}
+        </div>
+      ) : (
+        <div className="rounded-2xl border border-accent/40 bg-accent/10 p-5 text-sm text-muted">
+          Conecte o Google e sincronize seus perfis (na aba <span className="font-medium text-foreground">Agendamentos</span>)
+          para a análise automática. Enquanto isso, você pode preencher o checklist manualmente abaixo.
+        </div>
+      )}
+
       {/* Nota */}
       <div className="sticky top-16 z-20 flex items-center gap-4 rounded-2xl border border-border bg-surface/95 p-4 backdrop-blur">
         <div
@@ -62,18 +155,20 @@ export default function ChecklistTool() {
             {doneItems} de {totalItems} itens concluídos
           </p>
         </div>
-        <button
-          onClick={reset}
-          className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition hover:bg-surface-2"
-        >
-          Limpar
-        </button>
+        {!autoEnabled && (
+          <button
+            onClick={reset}
+            className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition hover:bg-surface-2"
+          >
+            Limpar
+          </button>
+        )}
       </div>
 
       {/* Prioridades */}
       {top.length > 0 && (
         <div className="rounded-2xl border border-border bg-surface p-5">
-          <h2 className="mb-3 font-semibold">O que fazer primeiro</h2>
+          <h2 className="mb-3 font-semibold">O que falta para concluir</h2>
           <ol className="space-y-2">
             {top.map((item, i) => (
               <li key={item.id} className="flex gap-2 text-sm">
@@ -107,7 +202,15 @@ export default function ChecklistTool() {
             </div>
             <ul className="space-y-2">
               {cat.items.map((item) => (
-                <Row key={item.id} item={item} checked={!!checked[item.id]} onToggle={() => toggle(item.id)} />
+                <Row
+                  key={item.id}
+                  item={item}
+                  checked={!!checked[item.id]}
+                  auto={isAuto(item.id)}
+                  detail={auto?.[item.id]?.detail}
+                  analyzed={!!analyzedAt}
+                  onToggle={() => toggle(item.id)}
+                />
               ))}
             </ul>
           </div>
@@ -117,15 +220,73 @@ export default function ChecklistTool() {
   );
 }
 
+function AutoBadge() {
+  return (
+    <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-2 align-middle">
+      ⚡ auto
+    </span>
+  );
+}
+
 function Row({
   item,
   checked,
+  auto,
+  detail,
+  analyzed,
   onToggle,
 }: {
   item: ChecklistItem;
   checked: boolean;
+  auto: boolean;
+  detail?: string;
+  analyzed: boolean;
   onToggle: () => void;
 }) {
+  // Itens automáticos: só leitura (preenchidos pela análise).
+  if (auto) {
+    const pending = !analyzed;
+    return (
+      <li>
+        <div
+          className={`flex w-full items-start gap-3 rounded-lg border p-3 text-left ${
+            checked
+              ? "border-brand-2/40 bg-brand-2/10"
+              : pending
+                ? "border-border bg-surface-2"
+                : "border-red-400/30 bg-red-400/5"
+          }`}
+        >
+          <span
+            className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border text-xs font-bold ${
+              checked
+                ? "border-brand-2 bg-brand-2 text-white"
+                : pending
+                  ? "border-border"
+                  : "border-red-400/50 text-red-400"
+            }`}
+          >
+            {checked ? "✓" : pending ? "" : "✕"}
+          </span>
+          <span className="min-w-0">
+            <span className="block text-sm">
+              {item.label}
+              <AutoBadge />
+            </span>
+            {checked && detail ? (
+              <span className="mt-0.5 block text-xs text-brand-2">{detail}</span>
+            ) : !checked ? (
+              <span className="mt-0.5 block text-xs text-muted">
+                {pending ? "Será verificado na análise." : item.tip}
+              </span>
+            ) : null}
+          </span>
+        </div>
+      </li>
+    );
+  }
+
+  // Itens manuais: clicáveis.
   return (
     <li>
       <button

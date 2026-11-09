@@ -65,6 +65,29 @@ export const CHECKLIST: ChecklistCategory[] = [
   },
 ];
 
+/**
+ * Itens que o sistema consegue detectar sozinho lendo o perfil conectado
+ * (Business Profile API). Os demais continuam manuais.
+ */
+export const AUTO_ITEM_IDS = new Set<string>([
+  "nome",
+  "cat_principal",
+  "cat_secundarias",
+  "endereco",
+  "horarios",
+  "telefone",
+  "site",
+  "descricao",
+  "foto_capa",
+  "fotos_variadas",
+  "fotos_recentes",
+  "nota",
+  "responder",
+  "volume",
+  "posts",
+  "botao",
+]);
+
 export const TOTAL_WEIGHT = CHECKLIST.reduce(
   (sum, cat) => sum + cat.items.reduce((s, i) => s + i.weight, 0),
   0,
