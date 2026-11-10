@@ -95,10 +95,10 @@ export default function Home() {
       </section>
 
       <Feature
-        eyebrow="Perfis"
-        title="Seus perfis do Google, num lugar só."
-        desc="Conecte quantos perfis quiser e gerencie todos na mesma conta — ideal para quem cuida de vários clientes."
-        chips={["Vários perfis", "Uma conta", "Zero bagunça"]}
+        eyebrow="Clientes"
+        title="Todos os seus clientes em um só lugar."
+        desc="Conecte quantos perfis do Google quiser e gerencie todos na mesma conta — ideal para quem cuida de vários clientes."
+        chips={["Vários clientes", "Uma conta", "Zero bagunça"]}
         reverse
       >
         <MockProfiles />
