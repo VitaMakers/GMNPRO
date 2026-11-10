@@ -5,6 +5,7 @@ import CtaSection from "@/components/CtaSection";
 import { BenefitsGrid } from "@/components/Showcase";
 import HeroCommand from "@/components/landing/HeroCommand";
 import { TrustBadges } from "@/components/GoogleBadge";
+import SocialProof from "@/components/landing/SocialProof";
 import MockProfiles from "@/components/landing/MockProfiles";
 import MockReviewAI from "@/components/landing/MockReviewAI";
 import MockPerformance from "@/components/landing/MockPerformance";
@@ -93,6 +94,7 @@ export default function Home() {
         </div>
         <div className="mx-auto mt-12 max-w-5xl">
           <HeroCommand />
+          <SocialProof />
         </div>
       </section>
 
