@@ -15,7 +15,7 @@ interface Review {
   replyComment: string | null;
 }
 
-type AiProvider = "claude" | "openai" | "gemini";
+type AiProvider = "claude" | "openai" | "gemini" | "groq";
 
 interface Settings {
   keywords: string;
@@ -32,7 +32,7 @@ type RowState = {
   error: string;
 };
 
-const EMPTY_SETTINGS: Settings = { keywords: "", tone: "", signature: "", provider: "gemini" };
+const EMPTY_SETTINGS: Settings = { keywords: "", tone: "", signature: "", provider: "groq" };
 
 export default function AvaliacoesDashboard({ locations }: { locations: LocationOption[] }) {
   const supabase = createClient();
@@ -57,7 +57,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
       keywords: data?.keywords ?? "",
       tone: data?.tone ?? "",
       signature: data?.signature ?? "",
-      provider: (data?.provider as AiProvider) ?? "gemini",
+      provider: (data?.provider as AiProvider) ?? "groq",
     });
   }, [selected, supabase]);
 
@@ -223,6 +223,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
               onChange={(e) => setSettings((s) => ({ ...s, provider: e.target.value as AiProvider }))}
               className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
             >
+              <option value="groq">Groq / Llama — grátis (recomendado)</option>
               <option value="gemini">Gemini (Google) — grátis</option>
               <option value="claude">Claude (Anthropic)</option>
               <option value="openai">ChatGPT (OpenAI)</option>

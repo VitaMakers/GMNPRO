@@ -6,7 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 
-export type Provider = "claude" | "openai" | "gemini";
+export type Provider = "claude" | "openai" | "gemini" | "groq";
 
 export interface ReplyContext {
   businessName: string;
@@ -23,6 +23,7 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const GEMINI_MODELS = process.env.GEMINI_MODEL
   ? [process.env.GEMINI_MODEL]
   : ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash-lite", "gemini-3.8-flash"];
+const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
 function firstName(name: string): string {
   return (name || "").trim().split(/\s+/)[0] || "";
@@ -63,6 +64,7 @@ export async function generateReply(provider: Provider, c: ReplyContext): Promis
   const { system, user } = buildPrompt(c);
   if (provider === "openai") return openaiReply(system, user);
   if (provider === "gemini") return geminiReply(system, user);
+  if (provider === "groq") return groqReply(system, user);
   return claudeReply(system, user);
 }
 
@@ -144,6 +146,31 @@ async function geminiReply(system: string, user: string): Promise<string> {
       ? "O Gemini (grátis) está sobrecarregado agora. Tente de novo em instantes — ou configure o perfil para usar Claude/ChatGPT."
       : `Gemini: ${lastErr}`,
   );
+}
+
+async function groqReply(system: string, user: string): Promise<string> {
+  const key = process.env.GROQ_API_KEY;
+  if (!key) {
+    throw new Error("A chave do Groq (GROQ_API_KEY) não está configurada no ambiente.");
+  }
+  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+    body: JSON.stringify({
+      model: GROQ_MODEL,
+      temperature: 0.9,
+      max_tokens: 400,
+      messages: [
+        { role: "system", content: system },
+        { role: "user", content: user },
+      ],
+    }),
+  });
+  if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+  const text = data.choices?.[0]?.message?.content?.trim();
+  if (!text) throw new Error("A IA (Groq) não retornou texto.");
+  return text;
 }
 
 async function openaiReply(system: string, user: string): Promise<string> {
