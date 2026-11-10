@@ -78,6 +78,8 @@ export default function GeotagTool() {
   const [aiBusy, setAiBusy] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
   const [markedDays, setMarkedDays] = useState<Set<string>>(new Set());
+  const [kwProfile, setKwProfile] = useState("");
+  const [kwMsg, setKwMsg] = useState("");
   const [results, setResults] = useState<GeoResult[]>([]);
   const [selected, setSelected] = useState<GeoResult | null>(null);
   const [searching, setSearching] = useState(false);
@@ -217,6 +219,40 @@ export default function GeotagTool() {
       }
     })();
   }, []);
+
+  // Seleciona o primeiro perfil para as palavras-chave.
+  useEffect(() => {
+    if (locations.length && !kwProfile) setKwProfile(locations[0].location_name);
+  }, [locations, kwProfile]);
+
+  // Carrega as palavras-chave salvas do perfil selecionado.
+  useEffect(() => {
+    if (!kwProfile) return;
+    (async () => {
+      try {
+        const res = await fetch(`/api/profile-keywords?location=${encodeURIComponent(kwProfile)}`);
+        const data = await res.json();
+        if (res.ok) setBrandKeywords(data.keywords ?? "");
+      } catch {
+        /* ignora */
+      }
+    })();
+  }, [kwProfile]);
+
+  async function saveKeywords() {
+    if (!kwProfile) return;
+    try {
+      await fetch("/api/profile-keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: kwProfile, keywords: brandKeywords }),
+      });
+      setKwMsg("Palavras-chave salvas para este perfil ✓");
+      setTimeout(() => setKwMsg(""), 2500);
+    } catch {
+      /* ignora */
+    }
+  }
 
   const updateMeta = (id: string, field: keyof PhotoMeta, value: string) => {
     setPhotos((p) =>
@@ -473,16 +509,32 @@ export default function GeotagTool() {
           placeholder="Segmento ou nome do negócio (ex.: aluguel de brinquedos infantis)"
           className="mt-3 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
         />
+        {locations.length > 0 && (
+          <select
+            value={kwProfile}
+            onChange={(e) => setKwProfile(e.target.value)}
+            className="mt-3 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+          >
+            {locations.map((l) => (
+              <option key={l.location_name} value={l.location_name}>
+                Palavras-chave de: {l.title ?? l.location_name}
+              </option>
+            ))}
+          </select>
+        )}
         <input
           value={brandKeywords}
           onChange={(e) => setBrandKeywords(e.target.value)}
+          onBlur={() => kwProfile && saveKeywords()}
           placeholder="Palavras-chave ideais para as fotos (separadas por vírgula)"
-          className="mt-3 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+          className="mt-2 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
         />
         <p className="mt-1.5 text-xs text-muted">
-          Ex.: aluguel de brinquedos, festa infantil, Sorocaba, pula-pula. Elas deixam o título, a
+          {locations.length > 0 ? "Salvas automaticamente para o perfil selecionado. " : ""}
+          Ex.: aluguel de brinquedos, festa infantil, Sorocaba, pula-pula. Deixam o título, a
           descrição e o nome do arquivo mais fortes para busca.
         </p>
+        {kwMsg && <p className="mt-1 text-xs text-brand-2">{kwMsg}</p>}
         {searchError && <p className="mt-2 text-sm text-red-400">{searchError}</p>}
         {results.length > 0 && (
           <ul className="mt-3 space-y-2">
