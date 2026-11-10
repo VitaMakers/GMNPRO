@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ScheduleCalendar from "@/components/ScheduleCalendar";
+import DateTimePicker, { markedDaysFromPosts } from "@/components/DateTimePicker";
 import GalleryVerifier from "@/components/GalleryVerifier";
 
 type Topic = "STANDARD" | "EVENT" | "OFFER";
@@ -231,6 +232,8 @@ export default function AgendamentoDashboard({
   const locationTitle = (name: string) =>
     locations.find((l) => l.location_name === name)?.title ?? name;
 
+  const markedDays = markedDaysFromPosts(posts);
+
   function toLocalInput(iso: string) {
     const d = new Date(iso);
     const pad = (n: number) => String(n).padStart(2, "0");
@@ -415,12 +418,7 @@ export default function AgendamentoDashboard({
           </label>
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Agendar para</span>
-            <input
-              type="datetime-local"
-              value={when}
-              onChange={(e) => setWhen(e.target.value)}
-              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
-            />
+            <DateTimePicker value={when} onChange={setWhen} marked={markedDays} />
           </label>
         </div>
 
@@ -467,11 +465,11 @@ export default function AgendamentoDashboard({
                     {p.error && <p className="mt-1 text-xs text-red-400">{p.error}</p>}
                     {editingId === p.id && (
                       <div className="mt-2 flex gap-2">
-                        <input
-                          type="datetime-local"
+                        <DateTimePicker
                           value={editWhen}
-                          onChange={(e) => setEditWhen(e.target.value)}
-                          className="rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                          onChange={setEditWhen}
+                          marked={markedDays}
+                          className="flex-1"
                         />
                         <button onClick={() => saveReschedule(p.id)} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white">Salvar</button>
                         <button onClick={() => setEditingId(null)} className="text-sm text-muted hover:underline">Cancelar</button>

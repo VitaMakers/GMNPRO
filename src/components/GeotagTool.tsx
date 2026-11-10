@@ -5,6 +5,7 @@ import JSZip from "jszip";
 import Link from "next/link";
 import { geocode, type GeoResult } from "@/lib/geocode";
 import { createClient } from "@/lib/supabase/client";
+import DateTimePicker, { markedDaysFromPosts } from "@/components/DateTimePicker";
 import {
   geotagPhoto,
   isLowResolution,
@@ -76,6 +77,7 @@ export default function GeotagTool() {
   const [brandKeywords, setBrandKeywords] = useState("");
   const [aiBusy, setAiBusy] = useState(false);
   const [aiMsg, setAiMsg] = useState("");
+  const [markedDays, setMarkedDays] = useState<Set<string>>(new Set());
   const [results, setResults] = useState<GeoResult[]>([]);
   const [selected, setSelected] = useState<GeoResult | null>(null);
   const [searching, setSearching] = useState(false);
@@ -201,6 +203,19 @@ export default function GeotagTool() {
       window.removeEventListener("dragover", prevent);
       window.removeEventListener("drop", prevent);
     };
+  }, []);
+
+  // Dias que já têm agendamento (para marcar no seletor de data).
+  useEffect(() => {
+    (async () => {
+      try {
+        const supabase = createClient();
+        const { data } = await supabase.from("scheduled_posts").select("scheduled_at");
+        if (data) setMarkedDays(markedDaysFromPosts(data as { scheduled_at: string }[]));
+      } catch {
+        /* ignora */
+      }
+    })();
   }, []);
 
   const updateMeta = (id: string, field: keyof PhotoMeta, value: string) => {
@@ -726,15 +741,15 @@ export default function GeotagTool() {
 
                 {connected && locations.length > 0 && (
                   <div className="mt-2 flex gap-2">
-                    <input
-                      type="datetime-local"
+                    <DateTimePicker
                       value={ph.scheduleWhen ?? ""}
-                      onChange={(e) =>
+                      onChange={(v) =>
                         setPhotos((p) =>
-                          p.map((x) => (x.id === ph.id ? { ...x, scheduleWhen: e.target.value } : x)),
+                          p.map((x) => (x.id === ph.id ? { ...x, scheduleWhen: v } : x)),
                         )
                       }
-                      className="flex-1 rounded-lg border border-border bg-background px-2.5 py-1.5 text-sm outline-none focus:border-brand"
+                      marked={markedDays}
+                      className="flex-1"
                     />
                     <div className="w-36 shrink-0">
                       <ActionButton
