@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import AssinarPlans from "@/components/AssinarPlans";
+import ManageSubscriptionButton from "@/components/ManageSubscriptionButton";
 import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 
@@ -35,6 +36,7 @@ export default async function AssinarPage() {
           )}
         </div>
         <AssinarPlans />
+        <ManageSubscriptionButton />
       </main>
     </div>
   );

@@ -70,6 +70,14 @@ export default function AppHeader() {
               </Link>
             );
           })}
+          <Link
+            href="/assinar"
+            className={`rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground ${
+              pathname === "/assinar" ? "bg-surface text-foreground" : "text-muted"
+            }`}
+          >
+            Assinatura
+          </Link>
           <button
             onClick={sair}
             className="ml-1 rounded-lg border border-border px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground"
