@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
 import ChecklistTool from "@/components/ChecklistTool";
 import CtaSection from "@/components/CtaSection";
 import Faq from "@/components/Faq";
@@ -38,6 +39,9 @@ export default async function ChecklistPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
+
+  const access = await getAccess(supabase, user.id, user.email);
+  if (!access.allowed) redirect("/assinar");
 
   const { data: connection } = await supabase
     .from("google_connections")

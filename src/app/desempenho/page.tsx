@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
 import DesempenhoDashboard from "@/components/DesempenhoDashboard";
 
 export const metadata = { title: "Desempenho — GMN PRO" };
@@ -11,6 +12,9 @@ export default async function DesempenhoPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
+
+  const access = await getAccess(supabase, user.id, user.email);
+  if (!access.allowed) redirect("/assinar");
 
   const { data: locs } = await supabase
     .from("gmb_locations")

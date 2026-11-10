@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
 import AgendamentoDashboard from "@/components/AgendamentoDashboard";
 
 export const metadata = {
@@ -14,6 +15,9 @@ export default async function AgendamentoPage() {
   } = await supabase.auth.getUser();
 
   if (!user) redirect("/entrar");
+
+  const access = await getAccess(supabase, user.id, user.email);
+  if (!access.allowed) redirect("/assinar");
 
   const { data: connection } = await supabase
     .from("google_connections")

@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -16,6 +17,21 @@ const links = [
 export default function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
+  const [trial, setTrial] = useState<{ daysLeft: number } | null>(null);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await fetch("/api/access");
+        if (res.ok) {
+          const d = await res.json();
+          if (d.trial) setTrial({ daysLeft: d.daysLeft });
+        }
+      } catch {
+        /* ignora */
+      }
+    })();
+  }, []);
 
   async function sair() {
     const supabase = createClient();
@@ -25,7 +41,16 @@ export default function AppHeader() {
   }
 
   return (
-    <header className="sticky top-0 z-30 border-b border-border bg-background/70 backdrop-blur-xl">
+    <>
+      {trial && pathname !== "/assinar" && (
+        <div className="bg-brand/15 px-4 py-2 text-center text-xs text-brand-2">
+          Teste grátis: {trial.daysLeft} dia(s) restante(s).{" "}
+          <Link href="/assinar" className="font-semibold underline">
+            Assinar agora
+          </Link>
+        </div>
+      )}
+      <header className="sticky top-0 z-30 border-b border-border bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
         <Link href="/agendamento" className="font-display text-lg font-semibold tracking-tight">
           GMN <span className="text-brand-2">PRO</span>
@@ -53,6 +78,7 @@ export default function AppHeader() {
           </button>
         </nav>
       </div>
-    </header>
+      </header>
+    </>
   );
 }

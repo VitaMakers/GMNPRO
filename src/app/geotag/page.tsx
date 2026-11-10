@@ -3,6 +3,7 @@ import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
 import GeotagTool from "@/components/GeotagTool";
 import CtaSection from "@/components/CtaSection";
 import Faq from "@/components/Faq";
@@ -19,6 +20,9 @@ export default async function GeotagPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
+
+  const access = await getAccess(supabase, user.id, user.email);
+  if (!access.allowed) redirect("/assinar");
 
   return (
     <div className="min-h-screen">
