@@ -3,10 +3,30 @@
 import { useEffect, useRef, useState } from "react";
 
 const CLIENTS = [
-  { name: "Buffet Vita Sorocaba", meta: "Restaurante · Sorocaba" },
-  { name: "Padaria Pão Nosso", meta: "Padaria · Votorantim" },
-  { name: "Clínica Sorriso", meta: "Odontologia · Sorocaba" },
-  { name: "Auto Center Vale", meta: "Automotivo · Itu" },
+  {
+    name: "Janoski Lagos & Carpas",
+    meta: "Lagos e carpas ornamentais",
+    logo: "/clients/janoski.jpg",
+    chip: "bg-white",
+  },
+  {
+    name: "Espetinhos do Zan",
+    meta: "Espetinhos e churrasco",
+    logo: "/clients/espetinhos-zan.png",
+    chip: "bg-white",
+  },
+  {
+    name: "Horse BBQ",
+    meta: "Smoke n' Grill · Churrascaria",
+    logo: "/clients/horse-bbq.jpg",
+    chip: "bg-white",
+  },
+  {
+    name: "Facilitoy Sorocaba",
+    meta: "Brinquedos e diversão",
+    logo: "/clients/facilitoy.png",
+    chip: "bg-[#0b1220]",
+  },
 ];
 
 const BARS = [34, 52, 44, 66, 58, 78, 88];
@@ -70,7 +90,7 @@ export default function MockProfiles() {
         <div className="mesh h-full w-full rounded-[2rem]" />
       </div>
 
-      <div className="relative h-[352px] overflow-hidden rounded-3xl border border-border bg-white p-5 card-soft">
+      <div className="relative h-[420px] overflow-hidden rounded-3xl border border-border bg-white p-5 card-soft">
         {/* ---- Fases 0 e 1: lista de clientes conectando ---- */}
         <div
           className={`absolute inset-0 p-5 transition-all duration-500 ${
@@ -105,11 +125,14 @@ export default function MockProfiles() {
                 >
                   <div className="flex min-w-0 items-center gap-3">
                     <span
-                      className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl text-sm font-bold transition ${
-                        on ? "bg-brand/15 text-brand-2" : "bg-white text-muted"
-                      }`}
+                      className={`grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl border border-border ${c.chip}`}
                     >
-                      {c.name[0]}
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={c.logo}
+                        alt={c.name}
+                        className="h-full w-full object-contain p-1"
+                      />
                     </span>
                     <div className="min-w-0">
                       <p className="truncate text-sm font-medium">{c.name}</p>
