@@ -29,7 +29,7 @@ export async function getAccess(
 
   let { data } = await supabase
     .from("subscriptions")
-    .select("trial_ends_at, status")
+    .select("trial_ends_at, status, manual_access")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -38,7 +38,12 @@ export async function getAccess(
     await supabase
       .from("subscriptions")
       .upsert({ user_id: userId, trial_ends_at: trialEnds }, { onConflict: "user_id" });
-    data = { trial_ends_at: trialEnds, status: null };
+    data = { trial_ends_at: trialEnds, status: null, manual_access: false };
+  }
+
+  // Acesso liberado pela agência: sempre permitido, sem cobrança.
+  if (data.manual_access) {
+    return { allowed: true, trial: false, daysLeft: 0, status: "comp" };
   }
 
   const status = data.status ?? null;

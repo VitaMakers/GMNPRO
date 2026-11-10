@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/stripe";
+import AdminGrantButton from "@/components/AdminGrantButton";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Painel Admin — GMN PRO" };
@@ -16,6 +17,7 @@ interface SubRow {
   plan: string | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
+  manual_access: boolean | null;
 }
 
 export default async function AdminPage() {
@@ -30,7 +32,7 @@ export default async function AdminPage() {
 
   const { data: subs } = await admin
     .from("subscriptions")
-    .select("user_id, status, plan, trial_ends_at, current_period_end");
+    .select("user_id, status, plan, trial_ends_at, current_period_end, manual_access");
   const subMap = new Map<string, SubRow>((subs as SubRow[] | null)?.map((s) => [s.user_id, s]) ?? []);
 
   const { count: perfis } = await admin
@@ -42,6 +44,7 @@ export default async function AdminPage() {
 
   const now = Date.now();
   type Row = {
+    userId: string;
     email: string;
     phone: string;
     created: string;
@@ -49,12 +52,14 @@ export default async function AdminPage() {
     rank: number;
     plano: string | null;
     valor: number;
+    manual: boolean;
   };
   const rows: Row[] = [];
   let emTeste = 0;
   let ativos = 0;
   let assinouTeste = 0;
   let semFechar = 0;
+  let liberados = 0;
   let mrr = 0;
 
   for (const u of users) {
@@ -62,13 +67,18 @@ export default async function AdminPage() {
     const status = s?.status ?? null;
     const plan = s?.plan ?? null;
     const trialEnds = s?.trial_ends_at ?? null;
+    const manual = s?.manual_access ?? false;
     const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
     const phone = String(meta.phone ?? meta.whatsapp ?? "");
     let categoria = "";
     let rank = 5;
     let valor = 0;
 
-    if (status === "active") {
+    if (manual) {
+      categoria = "Liberado (agência)";
+      rank = 2;
+      liberados++;
+    } else if (status === "active") {
       categoria = "Assinante ativo";
       rank = 4;
       ativos++;
@@ -97,7 +107,17 @@ export default async function AdminPage() {
       semFechar++;
     }
 
-    rows.push({ email: u.email ?? "", phone, created: u.created_at, categoria, rank, plano: plan, valor });
+    rows.push({
+      userId: u.id,
+      email: u.email ?? "",
+      phone,
+      created: u.created_at,
+      categoria,
+      rank,
+      plano: plan,
+      valor,
+      manual,
+    });
   }
 
   rows.sort((a, b) => a.rank - b.rank || +new Date(b.created) - +new Date(a.created));
@@ -108,15 +128,18 @@ export default async function AdminPage() {
     { label: "Assinantes ativos", value: String(ativos) },
     { label: "Assinaram (em teste)", value: String(assinouTeste) },
     { label: "Perfis Google conectados", value: String(perfis ?? 0) },
+    { label: "Liberados (agência)", value: String(liberados) },
     { label: "A cobrar (não fecharam)", value: String(semFechar) },
   ];
 
   const corCategoria = (c: string) =>
     c.startsWith("Assinante")
       ? "text-brand-2"
-      : c.startsWith("Em teste") || c.startsWith("Assinou")
-        ? "text-accent"
-        : "text-red-400";
+      : c.startsWith("Liberado")
+        ? "text-sky-400"
+        : c.startsWith("Em teste") || c.startsWith("Assinou")
+          ? "text-accent"
+          : "text-red-400";
 
   return (
     <div className="min-h-screen">
@@ -155,6 +178,7 @@ export default async function AdminPage() {
                 <th className="px-4 py-3">Plano</th>
                 <th className="px-4 py-3">Valor/mês</th>
                 <th className="px-4 py-3">Cadastro</th>
+                <th className="px-4 py-3">Ação</th>
               </tr>
             </thead>
             <tbody>
@@ -179,11 +203,14 @@ export default async function AdminPage() {
                   <td className="px-4 py-3 text-muted">{r.plano ?? "—"}</td>
                   <td className="px-4 py-3">{r.valor ? brl(r.valor) : "—"}</td>
                   <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
+                  <td className="px-4 py-3">
+                    <AdminGrantButton userId={r.userId} granted={r.manual} />
+                  </td>
                 </tr>
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-6 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-6 text-center text-muted">
                     Nenhuma conta ainda.
                   </td>
                 </tr>
