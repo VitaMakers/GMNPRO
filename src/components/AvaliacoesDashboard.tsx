@@ -22,6 +22,7 @@ interface Settings {
   tone: string;
   signature: string;
   provider: AiProvider;
+  apiKey: string;
 }
 
 type RowState = {
@@ -32,7 +33,7 @@ type RowState = {
   error: string;
 };
 
-const EMPTY_SETTINGS: Settings = { keywords: "", tone: "", signature: "", provider: "groq" };
+const EMPTY_SETTINGS: Settings = { keywords: "", tone: "", signature: "", provider: "groq", apiKey: "" };
 
 export default function AvaliacoesDashboard({ locations }: { locations: LocationOption[] }) {
   const supabase = createClient();
@@ -50,7 +51,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
     if (!selected) return;
     const { data } = await supabase
       .from("review_settings")
-      .select("keywords, tone, signature, provider")
+      .select("keywords, tone, signature, provider, api_key")
       .eq("location_name", selected)
       .maybeSingle();
     setSettings({
@@ -58,6 +59,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
       tone: data?.tone ?? "",
       signature: data?.signature ?? "",
       provider: (data?.provider as AiProvider) ?? "groq",
+      apiKey: data?.api_key ?? "",
     });
   }, [selected, supabase]);
 
@@ -83,6 +85,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
           tone: settings.tone.trim() || null,
           signature: settings.signature.trim() || null,
           provider: settings.provider,
+          api_key: settings.apiKey.trim() || null,
           updated_at: new Date().toISOString(),
         },
         { onConflict: "user_id,location_name" },
@@ -228,6 +231,24 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
               <option value="claude">Claude (Anthropic)</option>
               <option value="openai">ChatGPT (OpenAI)</option>
             </select>
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs text-muted">
+              Minha própria chave de IA (opcional)
+            </span>
+            <input
+              type="password"
+              value={settings.apiKey}
+              onChange={(e) => setSettings((s) => ({ ...s, apiKey: e.target.value }))}
+              placeholder="Cole sua chave do provedor escolhido acima — ou deixe em branco"
+              autoComplete="off"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <span className="mt-1 block text-xs text-muted">
+              Em branco = usa a IA gratuita do sistema. Com sua chave = responde pela sua conta
+              do provedor selecionado. Chaves grátis: Groq em console.groq.com/keys, Gemini em
+              aistudio.google.com/apikey.
+            </span>
           </label>
         </div>
 

@@ -24,7 +24,7 @@ export async function POST(request: Request) {
   // Configurações do perfil (palavras-chave, tom, assinatura, provedor).
   const { data: settings } = await supabase
     .from("review_settings")
-    .select("business_name, keywords, tone, signature, provider")
+    .select("business_name, keywords, tone, signature, provider, api_key")
     .eq("location_name", location)
     .maybeSingle();
 
@@ -45,7 +45,7 @@ export async function POST(request: Request) {
       reviewerName: reviewer ?? "Cliente",
       rating: Number(rating) || 0,
       reviewText: comment ?? "",
-    });
+    }, settings?.api_key ?? undefined);
     return NextResponse.json({ ok: true, reply });
   } catch (e) {
     return NextResponse.json(

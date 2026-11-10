@@ -62,19 +62,25 @@ function buildPrompt(c: ReplyContext): { system: string; user: string } {
   return { system, user };
 }
 
-export async function generateReply(provider: Provider, c: ReplyContext): Promise<string> {
+export async function generateReply(
+  provider: Provider,
+  c: ReplyContext,
+  apiKey?: string,
+): Promise<string> {
   const { system, user } = buildPrompt(c);
-  if (provider === "openai") return openaiReply(system, user);
-  if (provider === "gemini") return geminiReply(system, user);
-  if (provider === "groq") return groqReply(system, user);
-  return claudeReply(system, user);
+  const key = apiKey?.trim() || undefined;
+  if (provider === "openai") return openaiReply(system, user, key);
+  if (provider === "gemini") return geminiReply(system, user, key);
+  if (provider === "groq") return groqReply(system, user, key);
+  return claudeReply(system, user, key);
 }
 
-async function claudeReply(system: string, user: string): Promise<string> {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    throw new Error("A chave do Claude (ANTHROPIC_API_KEY) não está configurada no ambiente.");
+async function claudeReply(system: string, user: string, apiKey?: string): Promise<string> {
+  const key = apiKey || process.env.ANTHROPIC_API_KEY;
+  if (!key) {
+    throw new Error("A chave do Claude (ANTHROPIC_API_KEY) não está configurada.");
   }
-  const client = new Anthropic();
+  const client = new Anthropic({ apiKey: key });
   const res = await client.messages.create({
     model: CLAUDE_MODEL,
     max_tokens: 800,
@@ -92,10 +98,10 @@ async function claudeReply(system: string, user: string): Promise<string> {
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-async function geminiReply(system: string, user: string): Promise<string> {
-  const key = process.env.GEMINI_API_KEY;
+async function geminiReply(system: string, user: string, apiKey?: string): Promise<string> {
+  const key = apiKey || process.env.GEMINI_API_KEY;
   if (!key) {
-    throw new Error("A chave do Gemini (GEMINI_API_KEY) não está configurada no ambiente.");
+    throw new Error("A chave do Gemini (GEMINI_API_KEY) não está configurada.");
   }
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
@@ -150,10 +156,10 @@ async function geminiReply(system: string, user: string): Promise<string> {
   );
 }
 
-async function groqReply(system: string, user: string): Promise<string> {
-  const key = process.env.GROQ_API_KEY;
+async function groqReply(system: string, user: string, apiKey?: string): Promise<string> {
+  const key = apiKey || process.env.GROQ_API_KEY;
   if (!key) {
-    throw new Error("A chave do Groq (GROQ_API_KEY) não está configurada no ambiente.");
+    throw new Error("A chave do Groq (GROQ_API_KEY) não está configurada.");
   }
   const payload = (model: string) =>
     JSON.stringify({
@@ -187,10 +193,10 @@ async function groqReply(system: string, user: string): Promise<string> {
   throw new Error(`Groq: ${lastErr}`);
 }
 
-async function openaiReply(system: string, user: string): Promise<string> {
-  const key = process.env.OPENAI_API_KEY;
+async function openaiReply(system: string, user: string, apiKey?: string): Promise<string> {
+  const key = apiKey || process.env.OPENAI_API_KEY;
   if (!key) {
-    throw new Error("A chave do ChatGPT (OPENAI_API_KEY) não está configurada no ambiente.");
+    throw new Error("A chave do ChatGPT (OPENAI_API_KEY) não está configurada.");
   }
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
