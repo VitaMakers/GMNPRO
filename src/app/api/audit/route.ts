@@ -36,9 +36,14 @@ async function searchPlaces(query: string, key: string) {
       "X-Goog-FieldMask":
         "places.id,places.displayName,places.formattedAddress",
     },
-    body: JSON.stringify({ textQuery: query, languageCode: "pt-BR", maxResultCount: 5 }),
+    body: JSON.stringify({
+      textQuery: query,
+      languageCode: "pt-BR",
+      regionCode: "BR",
+      maxResultCount: 10,
+    }),
   });
-  if (!res.ok) throw new Error(`search ${res.status}`);
+  if (!res.ok) throw new Error(`Places busca ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as { places?: PlacesSearchPlace[] };
   return data.places ?? [];
 }
@@ -120,9 +125,12 @@ export async function GET(request: Request) {
     const details = await placeDetails(placeId!, key);
     const report = auditPlace(toPlaceData(details));
     return NextResponse.json({ report });
-  } catch {
+  } catch (e) {
     return NextResponse.json(
-      { error: "upstream", message: "Não foi possível consultar o Google agora. Tente de novo." },
+      {
+        error: "upstream",
+        message: e instanceof Error ? e.message : "Não foi possível consultar o Google agora.",
+      },
       { status: 502 },
     );
   }

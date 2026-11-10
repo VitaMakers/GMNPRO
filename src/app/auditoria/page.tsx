@@ -34,13 +34,14 @@ export default async function AuditoriaPage() {
         </div>
 
         <div className="mb-6 rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm">
-          <p className="font-medium">A auditoria automática está em fase final de configuração.</p>
+          <p className="font-medium">É o seu próprio perfil? O Checklist é mais completo.</p>
           <p className="mt-1 text-muted">
-            Enquanto isso, use o{" "}
+            Esta auditoria usa apenas dados públicos do Google Maps — ótima para analisar qualquer
+            empresa (inclusive a de clientes em prospecção). Para um perfil que você conecta, o{" "}
             <Link href="/checklist" className="font-medium text-brand hover:underline">
-              Checklist do Google Meu Negócio
+              Checklist
             </Link>{" "}
-            — a auto-avaliação gratuita que já entrega sua nota e as prioridades.
+            lê os dados reais da conta e entrega uma análise bem mais detalhada.
           </p>
         </div>
 
