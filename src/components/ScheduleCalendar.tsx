@@ -99,6 +99,10 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
             {STATUS_META[s].label}
           </span>
         ))}
+        <span className="flex items-center gap-1.5 rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-muted">
+          <span className="h-3 w-3 rounded-full border border-brand-2" />
+          Dia com agendamento
+        </span>
       </div>
 
       {/* Dias da semana */}
@@ -120,8 +124,21 @@ export default function ScheduleCalendar({ posts }: { posts: CalPost[] }) {
                 isToday ? "border-foreground/40 ring-1 ring-foreground/20" : "border-border"
               }`}
             >
-              <div className={`mb-1 text-right text-xs ${isToday ? "font-bold text-foreground" : "text-muted"}`}>
-                {day}
+              <div className="mb-1 flex justify-end">
+                {items.length > 0 ? (
+                  <span
+                    className={`grid h-6 w-6 place-items-center rounded-full border text-xs ${
+                      isToday ? "border-foreground font-bold text-foreground" : "border-brand-2 text-brand-2"
+                    }`}
+                    title={`${items.length} agendamento(s) neste dia`}
+                  >
+                    {day}
+                  </span>
+                ) : (
+                  <span className={`px-1 text-xs ${isToday ? "font-bold text-foreground" : "text-muted"}`}>
+                    {day}
+                  </span>
+                )}
               </div>
               <div className="space-y-1">
                 {items.slice(0, 3).map((p) => (
