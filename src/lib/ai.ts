@@ -23,7 +23,9 @@ const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 const GEMINI_MODELS = process.env.GEMINI_MODEL
   ? [process.env.GEMINI_MODEL]
   : ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash-lite", "gemini-3.8-flash"];
-const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
+const GROQ_MODELS = process.env.GROQ_MODEL
+  ? [process.env.GROQ_MODEL]
+  : ["openai/gpt-oss-120b", "qwen/qwen3.8-27b", "openai/gpt-oss-20b"];
 
 function firstName(name: string): string {
   return (name || "").trim().split(/\s+/)[0] || "";
@@ -153,24 +155,36 @@ async function groqReply(system: string, user: string): Promise<string> {
   if (!key) {
     throw new Error("A chave do Groq (GROQ_API_KEY) não está configurada no ambiente.");
   }
-  const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
-    method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
-    body: JSON.stringify({
-      model: GROQ_MODEL,
+  const payload = (model: string) =>
+    JSON.stringify({
+      model,
       temperature: 0.9,
       max_tokens: 400,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
       ],
-    }),
-  });
-  if (!res.ok) throw new Error(`Groq ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-  const text = data.choices?.[0]?.message?.content?.trim();
-  if (!text) throw new Error("A IA (Groq) não retornou texto.");
-  return text;
+    });
+
+  let lastErr = "";
+  for (const model of GROQ_MODELS) {
+    const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
+      body: payload(model),
+    });
+    if (res.ok) {
+      const data = (await res.json()) as { choices?: { message?: { content?: string } }[] };
+      const text = data.choices?.[0]?.message?.content?.trim();
+      if (text) return text;
+      lastErr = `${model}: resposta vazia`;
+      continue;
+    }
+    lastErr = `${model} ${res.status}: ${await res.text()}`;
+    if ([404, 429, 500, 503].includes(res.status)) continue; // tenta o próximo modelo
+    break;
+  }
+  throw new Error(`Groq: ${lastErr}`);
 }
 
 async function openaiReply(system: string, user: string): Promise<string> {
