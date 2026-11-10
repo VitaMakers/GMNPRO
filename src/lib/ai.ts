@@ -84,22 +84,41 @@ async function claudeReply(system: string, user: string): Promise<string> {
   return text;
 }
 
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
 async function geminiReply(system: string, user: string): Promise<string> {
   const key = process.env.GEMINI_API_KEY;
   if (!key) {
     throw new Error("A chave do Gemini (GEMINI_API_KEY) não está configurada no ambiente.");
   }
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: [{ role: "user", parts: [{ text: user }] }],
-      generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
-    }),
+  const body = JSON.stringify({
+    systemInstruction: { parts: [{ text: system }] },
+    contents: [{ role: "user", parts: [{ text: user }] }],
+    generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
   });
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+
+  // Tenta de novo em sobrecarga temporária do Google (503/429/500).
+  let res: Response | null = null;
+  let lastText = "";
+  for (let attempt = 0; attempt < 4; attempt++) {
+    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
+    if (res.ok) break;
+    lastText = await res.text();
+    if ([429, 500, 503].includes(res.status) && attempt < 3) {
+      await sleep(1200 * (attempt + 1)); // 1.2s, 2.4s, 3.6s
+      continue;
+    }
+    break;
+  }
+  if (!res || !res.ok) {
+    const overloaded = res && [429, 503].includes(res.status);
+    throw new Error(
+      overloaded
+        ? "O Gemini está sobrecarregado agora (muita demanda). Tente de novo em instantes."
+        : `Gemini ${res?.status}: ${lastText}`,
+    );
+  }
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
