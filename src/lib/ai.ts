@@ -20,7 +20,9 @@ export interface ReplyContext {
 
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
-const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-3.8-flash";
+const GEMINI_MODELS = process.env.GEMINI_MODEL
+  ? [process.env.GEMINI_MODEL]
+  : ["gemini-2.5-flash", "gemini-flash-latest", "gemini-3.8-flash-lite", "gemini-3.8-flash"];
 
 function firstName(name: string): string {
   return (name || "").trim().split(/\s+/)[0] || "";
@@ -91,43 +93,57 @@ async function geminiReply(system: string, user: string): Promise<string> {
   if (!key) {
     throw new Error("A chave do Gemini (GEMINI_API_KEY) não está configurada no ambiente.");
   }
-  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
     generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
   });
 
-  // Tenta de novo em sobrecarga temporária do Google (503/429/500).
-  let res: Response | null = null;
-  let lastText = "";
-  for (let attempt = 0; attempt < 4; attempt++) {
-    res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body });
-    if (res.ok) break;
-    lastText = await res.text();
-    if ([429, 500, 503].includes(res.status) && attempt < 3) {
-      await sleep(1200 * (attempt + 1)); // 1.2s, 2.4s, 3.6s
-      continue;
+  let overloaded = false;
+  let lastErr = "";
+
+  // Tenta vários modelos do Gemini em sequência: se um estiver indisponível
+  // (404) ou sobrecarregado (503/429/500), passa para o próximo — os modelos
+  // estáveis/"lite" costumam ter mais capacidade no plano gratuito.
+  for (const model of GEMINI_MODELS) {
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body,
+      });
+      if (res.ok) {
+        const data = (await res.json()) as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        };
+        const text = (data.candidates?.[0]?.content?.parts ?? [])
+          .map((p) => p.text ?? "")
+          .join("")
+          .trim();
+        if (text) return text;
+        lastErr = `${model}: resposta vazia`;
+        break;
+      }
+      lastErr = `${model} ${res.status}: ${await res.text()}`;
+      if (res.status === 404) break; // modelo não existe aqui — tenta o próximo
+      if ([429, 500, 503].includes(res.status)) {
+        overloaded = true;
+        if (attempt < 1) {
+          await sleep(1000);
+          continue; // tenta o mesmo modelo mais uma vez
+        }
+        break; // passa para o próximo modelo
+      }
+      break; // outro erro — tenta o próximo modelo
     }
-    break;
   }
-  if (!res || !res.ok) {
-    const overloaded = res && [429, 503].includes(res.status);
-    throw new Error(
-      overloaded
-        ? "O Gemini está sobrecarregado agora (muita demanda). Tente de novo em instantes."
-        : `Gemini ${res?.status}: ${lastText}`,
-    );
-  }
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = (data.candidates?.[0]?.content?.parts ?? [])
-    .map((p) => p.text ?? "")
-    .join("")
-    .trim();
-  if (!text) throw new Error("A IA (Gemini) não retornou texto.");
-  return text;
+
+  throw new Error(
+    overloaded
+      ? "O Gemini (grátis) está sobrecarregado agora. Tente de novo em instantes — ou configure o perfil para usar Claude/ChatGPT."
+      : `Gemini: ${lastErr}`,
+  );
 }
 
 async function openaiReply(system: string, user: string): Promise<string> {
