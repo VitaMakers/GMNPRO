@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import CtaSection from "@/components/CtaSection";
 import { BenefitsGrid } from "@/components/Showcase";
 import HeroCommand from "@/components/landing/HeroCommand";
+import { TrustBadges } from "@/components/GoogleBadge";
 import MockProfiles from "@/components/landing/MockProfiles";
 import MockReviewAI from "@/components/landing/MockReviewAI";
 import MockPerformance from "@/components/landing/MockPerformance";
@@ -65,6 +66,7 @@ export default function Home() {
       {/* Hero */}
       <section className="px-4 pb-8 pt-16 sm:pt-24">
         <div className="mx-auto max-w-4xl text-center">
+          <TrustBadges className="mb-7" />
           <h1 className="font-display text-5xl font-extrabold leading-[1.02] tracking-tight sm:text-7xl">
             Seu Google Meu Negócio
             <br />

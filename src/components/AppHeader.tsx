@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { GoogleG } from "@/components/GoogleBadge";
 
 const links = [
   { href: "/geotag", label: "Geotag" },
@@ -54,9 +55,18 @@ export default function AppHeader() {
       )}
       <header className="sticky top-0 z-30 border-b border-border bg-background/70 backdrop-blur-xl">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
-        <Link href="/agendamento" className="font-display text-lg font-semibold tracking-tight">
-          GMN <span className="text-brand-2">PRO</span>
-        </Link>
+        <div className="flex items-center gap-3">
+          <Link href="/agendamento" className="font-display text-lg font-semibold tracking-tight">
+            GMN <span className="text-brand-2">PRO</span>
+          </Link>
+          <span
+            title="Integração oficial com a API do Google Perfil da Empresa"
+            className="hidden items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted lg:inline-flex"
+          >
+            <GoogleG className="h-3.5 w-3.5" />
+            API oficial do Google
+          </span>
+        </div>
         <nav className="flex items-center gap-1 text-sm">
           {links.map((l) => {
             const active = pathname === l.href;
