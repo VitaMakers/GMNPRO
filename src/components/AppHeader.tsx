@@ -18,6 +18,7 @@ export default function AppHeader() {
   const router = useRouter();
   const pathname = usePathname();
   const [trial, setTrial] = useState<{ daysLeft: number } | null>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -26,6 +27,7 @@ export default function AppHeader() {
         if (res.ok) {
           const d = await res.json();
           if (d.trial) setTrial({ daysLeft: d.daysLeft });
+          if (d.status === "admin") setIsAdmin(true);
         }
       } catch {
         /* ignora */
@@ -70,6 +72,16 @@ export default function AppHeader() {
               </Link>
             );
           })}
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className={`rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground ${
+                pathname === "/admin" ? "bg-surface text-foreground" : "text-brand-2"
+              }`}
+            >
+              Admin
+            </Link>
+          )}
           <Link
             href="/assinar"
             className={`rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground ${

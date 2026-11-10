@@ -9,6 +9,7 @@ export default function EntrarPage() {
   const [mode, setMode] = useState<"login" | "signup">("login");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [msg, setMsg] = useState("");
@@ -57,7 +58,11 @@ export default function EntrarPage() {
     const supabase = createClient();
     try {
       if (mode === "signup") {
-        const { error } = await supabase.auth.signUp({ email, password });
+        const { error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { data: { phone: phone.trim() } },
+        });
         if (error) throw error;
         setMsg("Conta criada! Se pedir confirmação por e-mail, confirme e volte para entrar.");
       } else {
@@ -154,6 +159,21 @@ export default function EntrarPage() {
                 className="mt-2.5 w-full border-0 border-b border-white/15 bg-transparent pb-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-brand-2"
               />
             </label>
+
+            {mode === "signup" && (
+              <label className="mt-7 block">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">
+                  WhatsApp (com DDD)
+                </span>
+                <input
+                  type="tel"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Ex.: 15 99663-4333"
+                  className="mt-2.5 w-full border-0 border-b border-white/15 bg-transparent pb-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-brand-2"
+                />
+              </label>
+            )}
 
             {/* Senha */}
             <label className="mt-7 block">
