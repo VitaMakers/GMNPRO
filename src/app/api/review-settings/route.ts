@@ -16,7 +16,9 @@ export async function GET(request: Request) {
 
   const { data } = await supabase
     .from("review_settings")
-    .select("keywords, tone, signature, provider, examples, api_key, auto_reply, auto_reply_negatives")
+    .select(
+      "keywords, tone, signature, provider, examples, api_key, auto_reply, auto_reply_negatives, banned_words",
+    )
     .eq("location_name", location)
     .maybeSingle();
 
@@ -32,6 +34,7 @@ export async function GET(request: Request) {
       hasApiKey: !!data?.api_key,
       autoReply: !!data?.auto_reply,
       autoReplyNegatives: !!data?.auto_reply_negatives,
+      bannedWords: data?.banned_words ?? "",
     },
   });
 }
@@ -44,18 +47,29 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const { location, keywords, tone, signature, provider, examples, apiKey, autoReply, autoReplyNegatives } =
-    body as {
-      location?: string;
-      keywords?: string;
-      tone?: string;
-      signature?: string;
-      provider?: string;
-      examples?: { review: string; reply: string }[];
-      apiKey?: string;
-      autoReply?: boolean;
-      autoReplyNegatives?: boolean;
-    };
+  const {
+    location,
+    keywords,
+    tone,
+    signature,
+    provider,
+    examples,
+    apiKey,
+    autoReply,
+    autoReplyNegatives,
+    bannedWords,
+  } = body as {
+    location?: string;
+    keywords?: string;
+    tone?: string;
+    signature?: string;
+    provider?: string;
+    examples?: { review: string; reply: string }[];
+    apiKey?: string;
+    autoReply?: boolean;
+    autoReplyNegatives?: boolean;
+    bannedWords?: string;
+  };
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
   const cleanExamples = (Array.isArray(examples) ? examples : [])
@@ -73,6 +87,7 @@ export async function POST(request: Request) {
     examples: cleanExamples,
     auto_reply: !!autoReply,
     auto_reply_negatives: !!autoReplyNegatives,
+    banned_words: bannedWords?.trim() || null,
     updated_at: new Date().toISOString(),
   };
 

@@ -22,6 +22,8 @@ export interface ReplyContext {
   rating: number; // 1 a 5
   reviewText: string;
   examples?: ReplyExample[];
+  bannedWords?: string;
+  avoid?: string[]; // respostas recentes já publicadas, para não repetir
 }
 
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
@@ -52,10 +54,13 @@ function buildPrompt(c: ReplyContext): { system: string; user: string } {
       ? "- Comente de forma específica algo que a pessoa mencionou no texto, mostrando que leu de verdade."
       : "- A pessoa NÃO escreveu texto (só deu a nota). Agradeça de forma simples e calorosa, SEM supor o motivo nem dizer o que ela teria gostado.",
     "- Soe humano e sincero; evite clichês e frases de marketing genéricas.",
-    "- Varie a abertura e as palavras; nunca use um texto padrão igual para todos.",
+    "- Varie MUITO de uma resposta para outra: abertura, estrutura e vocabulário diferentes. Nunca comece sempre do mesmo jeito (ex.: não abrir toda resposta com 'Obrigado, [nome]!'). Duas respostas NÃO podem ficar parecidas (nada de 90% igual).",
     "- Escreva de 2 a 4 frases.",
     c.keywords
       ? `- As palavras-chave a seguir são do NEGÓCIO (NÃO são o que a pessoa disse): ${c.keywords}. Use no máximo UMA, e só se couber com total naturalidade e verdade (por exemplo, numa despedida). É PROIBIDO atribuir à pessoa algo que ela não escreveu. Se não encaixar com verdade, não use nenhuma palavra-chave.`
+      : "",
+    c.bannedWords
+      ? `- PROIBIDO usar estas palavras ou expressões (o cliente não quer): ${c.bannedWords}. Use sinônimos ou reescreva a frase sem elas.`
       : "",
     c.tone ? `- Tom/estilo desejado pelo cliente: ${c.tone}` : "",
     negativa
@@ -73,6 +78,15 @@ function buildPrompt(c: ReplyContext): { system: string; user: string } {
     examples.forEach((e, i) => {
       lines.push(`Exemplo ${i + 1}:\n  Avaliação: "${e.review.trim()}"\n  Resposta do cliente: "${e.reply.trim()}"`);
     });
+  }
+
+  const avoid = (c.avoid ?? []).map((a) => (a ?? "").trim()).filter(Boolean).slice(0, 6);
+  if (avoid.length) {
+    lines.push(
+      "",
+      "RESPOSTAS RECENTES JÁ PUBLICADAS — escreva algo CLARAMENTE diferente destas (outra abertura, outra estrutura, outras palavras); não repita as mesmas frases:",
+    );
+    avoid.forEach((a) => lines.push(`- "${a}"`));
   }
 
   lines.push("", "Responda APENAS com o texto da resposta, sem aspas e sem comentários.");

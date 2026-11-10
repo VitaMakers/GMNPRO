@@ -14,18 +14,19 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const { location, reviewer, rating, comment } = body as {
+  const { location, reviewer, rating, comment, avoid } = body as {
     location?: string;
     reviewer?: string;
     rating?: number;
     comment?: string;
+    avoid?: string[];
   };
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
   // Configurações do perfil (palavras-chave, tom, assinatura, provedor).
   const { data: settings } = await supabase
     .from("review_settings")
-    .select("business_name, keywords, tone, signature, provider, api_key, examples")
+    .select("business_name, keywords, tone, signature, provider, api_key, examples, banned_words")
     .eq("location_name", location)
     .maybeSingle();
 
@@ -56,6 +57,8 @@ export async function POST(request: Request) {
       rating: Number(rating) || 0,
       reviewText: comment ?? "",
       examples: Array.isArray(settings?.examples) ? settings?.examples : [],
+      bannedWords: settings?.banned_words ?? "",
+      avoid: Array.isArray(avoid) ? avoid : [],
     }, clientKey);
     return NextResponse.json({ ok: true, reply });
   } catch (e) {

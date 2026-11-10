@@ -28,6 +28,7 @@ interface SettingRow {
   api_key: string | null;
   examples: { review: string; reply: string }[] | null;
   auto_reply_negatives: boolean | null;
+  banned_words: string | null;
 }
 
 export async function runAutoReplies(
@@ -39,7 +40,7 @@ export async function runAutoReplies(
   const { data: list } = await admin
     .from("review_settings")
     .select(
-      "user_id, location_name, business_name, keywords, tone, signature, provider, api_key, examples, auto_reply_negatives",
+      "user_id, location_name, business_name, keywords, tone, signature, provider, api_key, examples, auto_reply_negatives, banned_words",
     )
     .eq("auto_reply", true)
     .or(`auto_reply_last_run.is.null,auto_reply_last_run.lt.${cutoff}`)
@@ -64,6 +65,12 @@ export async function runAutoReplies(
         (r) => !r.replied && r.createTime && now - new Date(r.createTime).getTime() <= DAY_MS,
       );
       if (novas.length === 0) continue;
+
+      // Respostas recentes já publicadas, para a IA não repetir.
+      const recentReplies = reviews
+        .filter((r) => r.replied && r.replyComment)
+        .slice(0, 6)
+        .map((r) => r.replyComment as string);
 
       const { data: loc } = await admin
         .from("gmb_locations")
@@ -97,6 +104,8 @@ export async function runAutoReplies(
               rating: r.rating,
               reviewText: r.comment,
               examples: Array.isArray(s.examples) ? s.examples : [],
+              bannedWords: s.banned_words ?? "",
+              avoid: recentReplies,
             },
             clientKey,
           );

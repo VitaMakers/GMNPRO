@@ -24,6 +24,7 @@ interface Settings {
   apiKey: string;
   autoReply: boolean;
   autoReplyNegatives: boolean;
+  bannedWords: string;
 }
 
 type RowState = {
@@ -42,6 +43,7 @@ const EMPTY_SETTINGS: Settings = {
   apiKey: "",
   autoReply: false,
   autoReplyNegatives: false,
+  bannedWords: "",
 };
 const EMPTY_EXAMPLES: Example[] = [
   { review: "", reply: "" },
@@ -76,6 +78,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         apiKey: "",
         autoReply: !!s.autoReply,
         autoReplyNegatives: !!s.autoReplyNegatives,
+        bannedWords: s.bannedWords ?? "",
       });
       setHasApiKey(!!s.hasApiKey);
       const ex: Example[] = Array.isArray(s.examples) ? s.examples : [];
@@ -108,6 +111,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
           examples,
           autoReply: settings.autoReply,
           autoReplyNegatives: settings.autoReplyNegatives,
+          bannedWords: settings.bannedWords,
         }),
       });
       const data = await res.json();
@@ -165,6 +169,10 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
           rating: review.rating,
           comment: review.comment,
           provider: settings.provider,
+          avoid: (reviews ?? [])
+            .filter((x) => x.replied && x.replyComment)
+            .slice(0, 6)
+            .map((x) => x.replyComment as string),
         }),
       });
       const data = await res.json();
@@ -264,6 +272,18 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
               <option value="claude">Claude (Anthropic)</option>
               <option value="openai">ChatGPT (OpenAI)</option>
             </select>
+          </label>
+          <label className="block sm:col-span-2">
+            <span className="mb-1 block text-xs text-muted">Palavras que NÃO podemos usar (separadas por vírgula)</span>
+            <input
+              value={settings.bannedWords}
+              onChange={(e) => setSettings((s) => ({ ...s, bannedWords: e.target.value }))}
+              placeholder="Ex.: barato, promoção, desconto, parceiro"
+              className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <span className="mt-1 block text-xs text-muted">
+              A IA fica proibida de usar essas palavras/expressões nas respostas.
+            </span>
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-1 block text-xs text-muted">Minha própria chave de IA (opcional)</span>
