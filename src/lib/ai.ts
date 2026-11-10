@@ -6,7 +6,7 @@
 
 import Anthropic from "@anthropic-ai/sdk";
 
-export type Provider = "claude" | "openai";
+export type Provider = "claude" | "openai" | "gemini";
 
 export interface ReplyContext {
   businessName: string;
@@ -20,6 +20,7 @@ export interface ReplyContext {
 
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
 const OPENAI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
+const GEMINI_MODEL = process.env.GEMINI_MODEL || "gemini-2.0-flash";
 
 function firstName(name: string): string {
   return (name || "").trim().split(/\s+/)[0] || "";
@@ -58,7 +59,9 @@ function buildPrompt(c: ReplyContext): { system: string; user: string } {
 
 export async function generateReply(provider: Provider, c: ReplyContext): Promise<string> {
   const { system, user } = buildPrompt(c);
-  return provider === "openai" ? openaiReply(system, user) : claudeReply(system, user);
+  if (provider === "openai") return openaiReply(system, user);
+  if (provider === "gemini") return geminiReply(system, user);
+  return claudeReply(system, user);
 }
 
 async function claudeReply(system: string, user: string): Promise<string> {
@@ -78,6 +81,33 @@ async function claudeReply(system: string, user: string): Promise<string> {
   }
   text = text.trim();
   if (!text) throw new Error("A IA (Claude) não retornou texto.");
+  return text;
+}
+
+async function geminiReply(system: string, user: string): Promise<string> {
+  const key = process.env.GEMINI_API_KEY;
+  if (!key) {
+    throw new Error("A chave do Gemini (GEMINI_API_KEY) não está configurada no ambiente.");
+  }
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${key}`;
+  const res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      systemInstruction: { parts: [{ text: system }] },
+      contents: [{ role: "user", parts: [{ text: user }] }],
+      generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
+    }),
+  });
+  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as {
+    candidates?: { content?: { parts?: { text?: string }[] } }[];
+  };
+  const text = (data.candidates?.[0]?.content?.parts ?? [])
+    .map((p) => p.text ?? "")
+    .join("")
+    .trim();
+  if (!text) throw new Error("A IA (Gemini) não retornou texto.");
   return text;
 }
 
