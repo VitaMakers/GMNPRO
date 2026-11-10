@@ -95,44 +95,24 @@ export default function EntrarPage() {
   }
 
   return (
-    <div className="relative min-h-screen overflow-hidden bg-background text-white">
-      {/* Aurora verde luminosa */}
+    <div className="relative min-h-screen overflow-hidden bg-background text-foreground">
+      {/* Brilho verde suave (tema claro) */}
       <div className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/* brilho amplo no topo, some para o preto embaixo */}
         <div
-          className="absolute inset-x-0 -top-1/4 h-[85%]"
-          style={{
-            background:
-              "radial-gradient(78% 95% at 40% 0%, rgba(16,185,129,0.72) 0%, rgba(5,150,105,0.42) 30%, rgba(5,150,105,0) 66%)",
-          }}
-        />
-        {/* núcleo mais brilhante */}
-        <div
-          className="absolute -top-16 left-[28%] h-80 w-[34rem] rounded-full blur-[90px]"
-          style={{ background: "radial-gradient(closest-side, rgba(110,231,183,0.80), transparent)" }}
-        />
-        {/* faixas diagonais (ribbons) */}
-        <div
-          className="absolute -top-32 left-[-4%] h-[44rem] w-[26rem] rotate-[24deg] rounded-full blur-[95px]"
-          style={{ background: "radial-gradient(closest-side, rgba(52,211,153,0.65), transparent)" }}
+          className="absolute -left-40 -top-40 h-[34rem] w-[34rem] rounded-full blur-[120px]"
+          style={{ background: "radial-gradient(closest-side, rgba(16,185,129,0.22), transparent)" }}
         />
         <div
-          className="absolute -top-36 left-[38%] h-[46rem] w-[22rem] -rotate-[16deg] rounded-full blur-[100px]"
-          style={{ background: "radial-gradient(closest-side, rgba(74,222,128,0.55), transparent)" }}
+          className="absolute left-10 top-44 h-96 w-96 rounded-full blur-[120px]"
+          style={{ background: "radial-gradient(closest-side, rgba(52,211,153,0.16), transparent)" }}
         />
-        <div
-          className="absolute -top-20 left-[58%] h-[34rem] w-[20rem] rotate-[12deg] rounded-full blur-[110px]"
-          style={{ background: "radial-gradient(closest-side, rgba(16,185,129,0.45), transparent)" }}
-        />
-        {/* escurece a base para preto */}
-        <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-background via-background/85 to-transparent" />
       </div>
 
       <div className="relative z-10 mx-auto flex min-h-screen max-w-6xl flex-col px-6 lg:flex-row lg:items-center lg:gap-12 lg:px-8">
         {/* Esquerda — marca */}
         <div className="flex flex-1 items-center pb-6 pt-16 lg:py-16">
           <div>
-            <span className="font-serif text-2xl text-white/80">Grupo Vita</span>
+            <span className="font-serif text-2xl text-brand-2">Grupo Vita</span>
             <h1 className="mt-3 whitespace-nowrap font-display text-6xl font-extrabold leading-[0.9] tracking-tight sm:text-7xl lg:text-8xl">
               GMN PRO
             </h1>
@@ -144,25 +124,22 @@ export default function EntrarPage() {
 
         {/* Direita — card */}
         <div className="mx-auto w-full max-w-sm pb-12 lg:mx-0 lg:w-[400px] lg:max-w-none lg:flex-none lg:pb-0">
-          <div
-            className="w-full rounded-3xl border border-white/10 p-8 shadow-2xl shadow-black/50 backdrop-blur-xl"
-            style={{ background: "linear-gradient(180deg, rgba(16,185,129,0.20) 0%, rgba(18,22,20,0.80) 42%, rgba(10,11,12,0.92) 100%)" }}
-          >
+          <div className="w-full rounded-3xl border border-border bg-surface p-8 shadow-xl shadow-slate-200/70">
             {/* E-mail */}
             <label className="block">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">E-mail</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">E-mail</span>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="voce@empresa.com"
-                className="mt-2.5 w-full border-0 border-b border-white/15 bg-transparent pb-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-brand-2"
+                className="mt-2.5 w-full border-0 border-b border-border bg-transparent pb-2 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-brand"
               />
             </label>
 
             {mode === "signup" && (
               <label className="mt-7 block">
-                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">
                   WhatsApp (com DDD)
                 </span>
                 <input
@@ -170,26 +147,26 @@ export default function EntrarPage() {
                   value={phone}
                   onChange={(e) => setPhone(e.target.value)}
                   placeholder="Ex.: 15 99663-4333"
-                  className="mt-2.5 w-full border-0 border-b border-white/15 bg-transparent pb-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-brand-2"
+                  className="mt-2.5 w-full border-0 border-b border-border bg-transparent pb-2 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-brand"
                 />
               </label>
             )}
 
             {/* Senha */}
             <label className="mt-7 block">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-white/45">Senha</span>
+              <span className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted">Senha</span>
               <input
                 type="password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && submit()}
                 placeholder="••••••••"
-                className="mt-2.5 w-full border-0 border-b border-white/15 bg-transparent pb-2 text-sm text-white outline-none transition placeholder:text-white/35 focus:border-brand-2"
+                className="mt-2.5 w-full border-0 border-b border-border bg-transparent pb-2 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-brand"
               />
             </label>
 
             <div className="mt-3 text-right">
-              <button type="button" onClick={recover} className="text-xs text-white/50 transition hover:text-white">
+              <button type="button" onClick={recover} className="text-xs text-muted transition hover:text-foreground">
                 Esqueceu a senha?
               </button>
             </div>
@@ -198,23 +175,23 @@ export default function EntrarPage() {
             <button
               onClick={submit}
               disabled={loading}
-              className="mt-6 w-full rounded-full bg-gradient-to-b from-brand-2 to-brand py-3 text-sm font-semibold text-white shadow-lg shadow-brand/30 transition hover:opacity-95 disabled:opacity-60"
+              className="mt-6 w-full rounded-full bg-brand py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-90 disabled:opacity-60"
             >
               {loading ? "Aguarde…" : mode === "login" ? "Entrar" : "Criar conta"}
             </button>
 
             {/* ou */}
-            <div className="my-6 flex items-center gap-4 text-xs text-white/40">
-              <span className="h-px flex-1 bg-white/10" />
+            <div className="my-6 flex items-center gap-4 text-xs text-muted">
+              <span className="h-px flex-1 bg-border" />
               ou
-              <span className="h-px flex-1 bg-white/10" />
+              <span className="h-px flex-1 bg-border" />
             </div>
 
             {/* Google */}
             <button
               onClick={loginWithGoogle}
               disabled={googleLoading}
-              className="flex w-full items-center justify-center gap-2.5 rounded-full border border-white/10 bg-white/[0.04] py-3 text-sm font-semibold text-white transition hover:bg-white/[0.08] disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-2.5 rounded-full border border-border bg-surface py-3 text-sm font-semibold text-foreground transition hover:bg-surface-2 disabled:opacity-60"
             >
               <svg width="18" height="18" viewBox="0 0 48 48" aria-hidden>
                 <path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.9 29.3 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3.1 0 5.9 1.2 8 3.1l5.7-5.7C34.6 6.1 29.6 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20c11 0 19.5-8 19.5-20 0-1.3-.1-2.3-.4-3.5z"/>
@@ -229,7 +206,7 @@ export default function EntrarPage() {
             {msg && <p className="mt-4 rounded-lg border border-brand-2/40 bg-brand-2/10 p-2.5 text-sm text-brand-2">{msg}</p>}
 
             {/* Alternar */}
-            <p className="mt-7 text-center text-xs leading-relaxed text-white/45">
+            <p className="mt-7 text-center text-xs leading-relaxed text-muted">
               {mode === "login" ? "Não tem conta? " : "Já tem conta? "}
               <button
                 onClick={() => { setMode(mode === "login" ? "signup" : "login"); setError(""); setMsg(""); }}

@@ -1,16 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #0a0a0b;
-  --surface: #121214;
-  --surface-2: #1a1a1d;
-  --border: #26262b;
-  --foreground: #fafafa;
-  --muted: #8a8a93;
-  /* Acento único (verde esmeralda premium) + tons para estados. */
-  --brand: #059669;    /* ações primárias (contraste bom com texto branco) */
-  --brand-2: #34d399;  /* sucesso / concluído / destaque em texto */
-  --accent: #f5b941;   /* avisos */
+  /* Tema claro (fundo branco), verde esmeralda como marca. */
+  --background: #f6f7f9;  /* página (cinza bem claro) */
+  --surface: #ffffff;     /* cards */
+  --surface-2: #f1f3f6;   /* inputs / fundo secundário */
+  --border: #e4e7ec;      /* bordas suaves */
+  --foreground: #0f172a;  /* texto principal (quase preto) */
+  --muted: #667085;       /* texto secundário */
+  --brand: #059669;       /* ações primárias (verde, texto branco) */
+  --brand-2: #047857;     /* verde escuro p/ texto/destaque com bom contraste no branco */
+  --accent: #d97706;      /* avisos (âmbar) */
 }
 
 @theme inline {
