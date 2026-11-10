@@ -8,6 +8,11 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export type Provider = "claude" | "openai" | "gemini" | "groq";
 
+export interface ReplyExample {
+  review: string;
+  reply: string;
+}
+
 export interface ReplyContext {
   businessName: string;
   keywords: string;
@@ -16,6 +21,7 @@ export interface ReplyContext {
   reviewerName: string;
   rating: number; // 1 a 5
   reviewText: string;
+  examples?: ReplyExample[];
 }
 
 const CLAUDE_MODEL = process.env.CLAUDE_MODEL || "claude-opus-5-5";
@@ -34,27 +40,44 @@ function firstName(name: string): string {
 function buildPrompt(c: ReplyContext): { system: string; user: string } {
   const negativa = c.rating > 0 && c.rating <= 3;
   const nome = firstName(c.reviewerName);
+  const temTexto = (c.reviewText ?? "").trim().length > 0;
 
-  const system = [
-    `Você escreve respostas públicas para avaliações do Google Meu Negócio da empresa "${c.businessName}", em português do Brasil.`,
-    "Regras importantes:",
-    `- Cite o nome de quem avaliou${nome ? ` (${nome})` : ""} de forma natural.`,
-    "- VARIE o estilo, a abertura e as palavras a cada resposta; nunca escreva um texto padrão igual para todos.",
-    "- Soe humano, próximo e sincero (não robótico, sem exageros de marketing).",
+  const lines = [
+    `Você escreve a resposta pública do DONO da empresa "${c.businessName}" a uma avaliação no Google, em português do Brasil.`,
+    "",
+    "COMO RESPONDER:",
+    "- Leia a avaliação e responda ao que a pessoa REALMENTE escreveu. Nunca invente nem diga que ela elogiou/comentou algo que ela não falou.",
+    nome ? `- Chame a pessoa pelo nome (${nome}) de forma natural.` : "- Se não souber o nome, não invente um.",
+    temTexto
+      ? "- Comente de forma específica algo que a pessoa mencionou no texto, mostrando que leu de verdade."
+      : "- A pessoa NÃO escreveu texto (só deu a nota). Agradeça de forma simples e calorosa, SEM supor o motivo nem dizer o que ela teria gostado.",
+    "- Soe humano e sincero; evite clichês e frases de marketing genéricas.",
+    "- Varie a abertura e as palavras; nunca use um texto padrão igual para todos.",
+    "- Escreva de 2 a 4 frases.",
     c.keywords
-      ? `- Inclua de forma NATURAL 1 ou 2 destas palavras-chave do negócio, para ajudar na busca, sem forçar: ${c.keywords}.`
-      : "- Se fizer sentido, mencione naturalmente o tipo de serviço do negócio.",
-    "- Escreva de 2 a 4 frases, direto ao ponto.",
+      ? `- As palavras-chave a seguir são do NEGÓCIO (NÃO são o que a pessoa disse): ${c.keywords}. Use no máximo UMA, e só se couber com total naturalidade e verdade (por exemplo, numa despedida). É PROIBIDO atribuir à pessoa algo que ela não escreveu. Se não encaixar com verdade, não use nenhuma palavra-chave.`
+      : "",
     c.tone ? `- Tom/estilo desejado pelo cliente: ${c.tone}` : "",
     negativa
-      ? "- Esta avaliação é NEGATIVA: demonstre empatia, peça desculpas sem ser defensivo, assuma o compromisso de melhorar e convide a pessoa a falar em particular para resolver."
-      : "- Esta avaliação é POSITIVA: agradeça com sinceridade e convide a pessoa a voltar.",
+      ? "- Avaliação NEGATIVA: demonstre empatia, peça desculpas com sinceridade (sem ser defensivo), assuma o compromisso de melhorar e convide a pessoa a falar em particular para resolver."
+      : "- Avaliação POSITIVA: agradeça com sinceridade.",
     c.signature ? `- Finalize assinando como: ${c.signature}.` : "",
-    "Responda APENAS com o texto da resposta, sem aspas e sem explicações.",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  ];
 
+  const examples = (c.examples ?? []).filter((e) => e.review?.trim() && e.reply?.trim());
+  if (examples.length) {
+    lines.push(
+      "",
+      "EXEMPLOS DE COMO O CLIENTE COSTUMA RESPONDER — imite ESTE tom, estilo e vocabulário (não copie o conteúdo, só o jeito de falar):",
+    );
+    examples.forEach((e, i) => {
+      lines.push(`Exemplo ${i + 1}:\n  Avaliação: "${e.review.trim()}"\n  Resposta do cliente: "${e.reply.trim()}"`);
+    });
+  }
+
+  lines.push("", "Responda APENAS com o texto da resposta, sem aspas e sem comentários.");
+
+  const system = lines.filter((l) => l !== null && l !== undefined).join("\n");
   const user = `Avaliação de ${c.reviewerName || "um cliente"} — ${c.rating || "?"} de 5 estrelas:\n"${
     c.reviewText || "(sem comentário escrito)"
   }"\n\nEscreva a resposta.`;

@@ -1,9 +1,10 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { createClient } from "@/lib/supabase/client";
 
 type LocationOption = { location_name: string; title: string | null };
+type AiProvider = "claude" | "openai" | "gemini" | "groq";
+type Example = { review: string; reply: string };
 
 interface Review {
   name: string;
@@ -14,8 +15,6 @@ interface Review {
   replied: boolean;
   replyComment: string | null;
 }
-
-type AiProvider = "claude" | "openai" | "gemini" | "groq";
 
 interface Settings {
   keywords: string;
@@ -34,11 +33,17 @@ type RowState = {
 };
 
 const EMPTY_SETTINGS: Settings = { keywords: "", tone: "", signature: "", provider: "groq", apiKey: "" };
+const EMPTY_EXAMPLES: Example[] = [
+  { review: "", reply: "" },
+  { review: "", reply: "" },
+  { review: "", reply: "" },
+];
 
 export default function AvaliacoesDashboard({ locations }: { locations: LocationOption[] }) {
-  const supabase = createClient();
   const [selected, setSelected] = useState(locations[0]?.location_name ?? "");
   const [settings, setSettings] = useState<Settings>(EMPTY_SETTINGS);
+  const [examples, setExamples] = useState<Example[]>(EMPTY_EXAMPLES);
+  const [hasApiKey, setHasApiKey] = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
   const [settingsMsg, setSettingsMsg] = useState("");
 
@@ -49,19 +54,24 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
 
   const loadSettings = useCallback(async () => {
     if (!selected) return;
-    const { data } = await supabase
-      .from("review_settings")
-      .select("keywords, tone, signature, provider, api_key")
-      .eq("location_name", selected)
-      .maybeSingle();
-    setSettings({
-      keywords: data?.keywords ?? "",
-      tone: data?.tone ?? "",
-      signature: data?.signature ?? "",
-      provider: (data?.provider as AiProvider) ?? "groq",
-      apiKey: data?.api_key ?? "",
-    });
-  }, [selected, supabase]);
+    try {
+      const res = await fetch(`/api/review-settings?location=${encodeURIComponent(selected)}`);
+      const data = await res.json();
+      const s = data.settings ?? {};
+      setSettings({
+        keywords: s.keywords ?? "",
+        tone: s.tone ?? "",
+        signature: s.signature ?? "",
+        provider: (s.provider as AiProvider) ?? "groq",
+        apiKey: "",
+      });
+      setHasApiKey(!!s.hasApiKey);
+      const ex: Example[] = Array.isArray(s.examples) ? s.examples : [];
+      setExamples([0, 1, 2].map((i) => ({ review: ex[i]?.review ?? "", reply: ex[i]?.reply ?? "" })));
+    } catch {
+      /* ignora */
+    }
+  }, [selected]);
 
   useEffect(() => {
     loadSettings();
@@ -73,25 +83,26 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
     setSavingSettings(true);
     setSettingsMsg("");
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user) throw new Error("Sessão expirada.");
-      const { error } = await supabase.from("review_settings").upsert(
-        {
-          user_id: user.id,
-          location_name: selected,
-          keywords: settings.keywords.trim() || null,
-          tone: settings.tone.trim() || null,
-          signature: settings.signature.trim() || null,
+      const res = await fetch("/api/review-settings", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: selected,
+          keywords: settings.keywords,
+          tone: settings.tone,
+          signature: settings.signature,
           provider: settings.provider,
-          api_key: settings.apiKey.trim() || null,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: "user_id,location_name" },
-      );
-      if (error) throw error;
+          apiKey: settings.apiKey, // em branco = mantém a chave atual
+          examples,
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao salvar.");
       setSettingsMsg("Configurações salvas!");
+      if (settings.apiKey.trim()) {
+        setHasApiKey(true);
+        setSettings((s) => ({ ...s, apiKey: "" }));
+      }
     } catch (e) {
       setSettingsMsg(e instanceof Error ? e.message : "Não foi possível salvar.");
     } finally {
@@ -168,6 +179,10 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
     }
   }
 
+  function setExample(i: number, patch: Partial<Example>) {
+    setExamples((ex) => ex.map((e, idx) => (idx === i ? { ...e, ...patch } : e)));
+  }
+
   const pending = reviews?.filter((r) => !r.replied) ?? [];
   const answered = reviews?.filter((r) => r.replied) ?? [];
 
@@ -196,9 +211,13 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
             <input
               value={settings.keywords}
               onChange={(e) => setSettings((s) => ({ ...s, keywords: e.target.value }))}
-              placeholder="Ex.: buffet de casamento em Sorocaba, salão de festas, decoração"
+              placeholder="Ex.: espetinho em Sorocaba, churrasco, petiscaria"
               className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
+            <span className="mt-1 block text-xs text-muted">
+              Servem para a IA citar o negócio com naturalidade — ela nunca vai dizer que a pessoa
+              elogiou algo que não escreveu.
+            </span>
           </label>
           <label className="block sm:col-span-2">
             <span className="mb-1 block text-xs text-muted">Tom / estilo (como você quer responder)</span>
@@ -215,7 +234,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
             <input
               value={settings.signature}
               onChange={(e) => setSettings((s) => ({ ...s, signature: e.target.value }))}
-              placeholder="Ex.: Equipe Buffet Vita"
+              placeholder="Ex.: Equipe Espetinho do Vale"
               className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
           </label>
@@ -233,23 +252,53 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
             </select>
           </label>
           <label className="block sm:col-span-2">
-            <span className="mb-1 block text-xs text-muted">
-              Minha própria chave de IA (opcional)
-            </span>
+            <span className="mb-1 block text-xs text-muted">Minha própria chave de IA (opcional)</span>
             <input
               type="password"
               value={settings.apiKey}
               onChange={(e) => setSettings((s) => ({ ...s, apiKey: e.target.value }))}
-              placeholder="Cole sua chave do provedor escolhido acima — ou deixe em branco"
+              placeholder={
+                hasApiKey
+                  ? "Chave salva ✓ — deixe em branco para manter, ou cole uma nova"
+                  : "Cole sua chave do provedor acima — ou deixe em branco"
+              }
               autoComplete="off"
               className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
             />
             <span className="mt-1 block text-xs text-muted">
-              Em branco = usa a IA gratuita do sistema. Com sua chave = responde pela sua conta
-              do provedor selecionado. Chaves grátis: Groq em console.groq.com/keys, Gemini em
-              aistudio.google.com/apikey.
+              Guardada de forma criptografada. Em branco = usa a IA gratuita do sistema. Chaves
+              grátis: Groq em console.groq.com/keys, Gemini em aistudio.google.com/apikey.
             </span>
           </label>
+        </div>
+
+        {/* Exemplos de tom do cliente */}
+        <div className="mt-5 rounded-xl border border-border bg-surface-2 p-4">
+          <p className="text-sm font-medium">Ensinar o tom do cliente (opcional)</p>
+          <p className="mt-1 text-xs text-muted">
+            Cole até 3 avaliações já respondidas pelo cliente. A IA aprende o jeito de falar dele e
+            responde no mesmo estilo.
+          </p>
+          <div className="mt-3 space-y-3">
+            {examples.map((ex, i) => (
+              <div key={i} className="grid gap-2 sm:grid-cols-2">
+                <textarea
+                  value={ex.review}
+                  onChange={(e) => setExample(i, { review: e.target.value })}
+                  rows={2}
+                  placeholder={`Exemplo ${i + 1} — a avaliação`}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand"
+                />
+                <textarea
+                  value={ex.reply}
+                  onChange={(e) => setExample(i, { reply: e.target.value })}
+                  rows={2}
+                  placeholder={`Exemplo ${i + 1} — a resposta que o cliente deu`}
+                  className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm outline-none focus:border-brand"
+                />
+              </div>
+            ))}
+          </div>
         </div>
 
         <div className="mt-4 flex items-center gap-3">
@@ -281,7 +330,6 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {/* A responder */}
       {pending.length > 0 && (
         <div className="space-y-4">
           <h2 className="font-semibold">A responder ({pending.length})</h2>
@@ -298,7 +346,6 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {/* Já respondidas */}
       {answered.length > 0 && (
         <div className="space-y-4">
           <h2 className="font-semibold text-muted">Já respondidas ({answered.length})</h2>

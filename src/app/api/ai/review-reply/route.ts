@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { generateReply, type Provider } from "@/lib/ai";
+import { decryptSecret } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -24,9 +25,18 @@ export async function POST(request: Request) {
   // Configurações do perfil (palavras-chave, tom, assinatura, provedor).
   const { data: settings } = await supabase
     .from("review_settings")
-    .select("business_name, keywords, tone, signature, provider, api_key")
+    .select("business_name, keywords, tone, signature, provider, api_key, examples")
     .eq("location_name", location)
     .maybeSingle();
+
+  let clientKey: string | undefined;
+  if (settings?.api_key) {
+    try {
+      clientKey = decryptSecret(settings.api_key);
+    } catch {
+      clientKey = undefined;
+    }
+  }
 
   const { data: loc } = await supabase
     .from("gmb_locations")
@@ -45,7 +55,8 @@ export async function POST(request: Request) {
       reviewerName: reviewer ?? "Cliente",
       rating: Number(rating) || 0,
       reviewText: comment ?? "",
-    }, settings?.api_key ?? undefined);
+      examples: Array.isArray(settings?.examples) ? settings?.examples : [],
+    }, clientKey);
     return NextResponse.json({ ok: true, reply });
   } catch (e) {
     return NextResponse.json(
