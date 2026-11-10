@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-function useCount(target: number, ms = 1300) {
+function useCount(target: number, run: boolean, ms = 1500) {
   const [v, setV] = useState(0);
   useEffect(() => {
+    if (!run) return;
     let raf = 0;
     const start = performance.now();
     const tick = (t: number) => {
@@ -14,24 +15,51 @@ function useCount(target: number, ms = 1300) {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [target, ms]);
+  }, [target, run, ms]);
   return v;
 }
 
 const BARS = [38, 58, 50, 72, 64, 82, 90];
 
 export default function MockPerformance() {
-  const views = useCount(4820);
-  const actions = useCount(612);
-  const pct = 68;
+  const ref = useRef<HTMLDivElement>(null);
+  const [run, setRun] = useState(false);
+
+  // Dispara a animação quando o card entra na tela (e repete a cada ciclo).
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const io = new IntersectionObserver(
+      ([e]) => {
+        if (e.isIntersecting) setRun(true);
+      },
+      { threshold: 0.4 }
+    );
+    io.observe(el);
+    return () => io.disconnect();
+  }, []);
+
+  // Reinicia a contagem periodicamente para o efeito "subindo" continuar.
+  useEffect(() => {
+    if (!run) return;
+    const loop = setInterval(() => {
+      setRun(false);
+      setTimeout(() => setRun(true), 60);
+    }, 5200);
+    return () => clearInterval(loop);
+  }, [run]);
+
+  const views = useCount(4820, run);
+  const actions = useCount(612, run);
+  const pct = useCount(90, run);
 
   return (
-    <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+    <div ref={ref} className="rounded-3xl border border-border bg-white p-6 card-soft">
       <p className="text-sm font-semibold">Desempenho · últimos 30 dias</p>
 
       <div className="mt-5 flex items-center gap-6">
         <div
-          className="grid h-28 w-28 shrink-0 place-items-center rounded-full"
+          className="grid h-28 w-28 shrink-0 place-items-center rounded-full transition-[background] duration-100"
           style={{ background: `conic-gradient(var(--brand) ${pct * 3.6}deg, var(--surface-2) 0deg)` }}
         >
           <div className="grid h-20 w-20 place-items-center rounded-full bg-white">
@@ -58,8 +86,11 @@ export default function MockPerformance() {
         {BARS.map((h, i) => (
           <span
             key={i}
-            className="fadeup flex-1 rounded-t bg-brand/70"
-            style={{ height: `${h}px`, animationDelay: `${i * 80}ms` }}
+            className="flex-1 rounded-t bg-brand/70 transition-all duration-700 ease-out"
+            style={{
+              height: run ? `${h}px` : "6px",
+              transitionDelay: `${i * 80}ms`,
+            }}
           />
         ))}
       </div>

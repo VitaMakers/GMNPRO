@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 const ITEMS = [
   {
     reviewer: "Wendler Santos",
+    photo: "/reviews/wendler.jpg",
     stars: 5,
     text: "Lugar muito top, ótimo serviço e profissionais excelentes!",
     reply:
@@ -12,6 +13,7 @@ const ITEMS = [
   },
   {
     reviewer: "Ana Prado",
+    photo: "/reviews/ana.jpg",
     stars: 5,
     text: "Atendimento maravilhoso, super atenciosos do início ao fim.",
     reply:
@@ -47,8 +49,9 @@ export default function MockReviewAI() {
     <div className="rounded-3xl border border-border bg-white p-5 card-soft">
       <div className="rounded-2xl bg-surface-2 p-4">
         <div className="flex items-center gap-2.5">
-          <span className="grid h-9 w-9 place-items-center rounded-full bg-brand/10 text-sm font-bold text-brand-2">
-            {r.reviewer[0]}
+          <span className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-surface-2">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={r.photo} alt={r.reviewer} className="h-full w-full object-cover" />
           </span>
           <div>
             <p className="text-sm font-semibold">{r.reviewer}</p>
