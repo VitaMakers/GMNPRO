@@ -16,7 +16,7 @@ export async function GET(request: Request) {
 
   const { data } = await supabase
     .from("review_settings")
-    .select("keywords, tone, signature, provider, examples, api_key")
+    .select("keywords, tone, signature, provider, examples, api_key, auto_reply, auto_reply_negatives")
     .eq("location_name", location)
     .maybeSingle();
 
@@ -30,6 +30,8 @@ export async function GET(request: Request) {
       provider: data?.provider ?? "groq",
       examples: Array.isArray(data?.examples) ? data?.examples : [],
       hasApiKey: !!data?.api_key,
+      autoReply: !!data?.auto_reply,
+      autoReplyNegatives: !!data?.auto_reply_negatives,
     },
   });
 }
@@ -42,15 +44,18 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const { location, keywords, tone, signature, provider, examples, apiKey } = body as {
-    location?: string;
-    keywords?: string;
-    tone?: string;
-    signature?: string;
-    provider?: string;
-    examples?: { review: string; reply: string }[];
-    apiKey?: string;
-  };
+  const { location, keywords, tone, signature, provider, examples, apiKey, autoReply, autoReplyNegatives } =
+    body as {
+      location?: string;
+      keywords?: string;
+      tone?: string;
+      signature?: string;
+      provider?: string;
+      examples?: { review: string; reply: string }[];
+      apiKey?: string;
+      autoReply?: boolean;
+      autoReplyNegatives?: boolean;
+    };
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
   const cleanExamples = (Array.isArray(examples) ? examples : [])
@@ -66,6 +71,8 @@ export async function POST(request: Request) {
     signature: signature?.trim() || null,
     provider: provider || "groq",
     examples: cleanExamples,
+    auto_reply: !!autoReply,
+    auto_reply_negatives: !!autoReplyNegatives,
     updated_at: new Date().toISOString(),
   };
 

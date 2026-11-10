@@ -22,6 +22,8 @@ interface Settings {
   signature: string;
   provider: AiProvider;
   apiKey: string;
+  autoReply: boolean;
+  autoReplyNegatives: boolean;
 }
 
 type RowState = {
@@ -32,7 +34,15 @@ type RowState = {
   error: string;
 };
 
-const EMPTY_SETTINGS: Settings = { keywords: "", tone: "", signature: "", provider: "groq", apiKey: "" };
+const EMPTY_SETTINGS: Settings = {
+  keywords: "",
+  tone: "",
+  signature: "",
+  provider: "groq",
+  apiKey: "",
+  autoReply: false,
+  autoReplyNegatives: false,
+};
 const EMPTY_EXAMPLES: Example[] = [
   { review: "", reply: "" },
   { review: "", reply: "" },
@@ -64,6 +74,8 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         signature: s.signature ?? "",
         provider: (s.provider as AiProvider) ?? "groq",
         apiKey: "",
+        autoReply: !!s.autoReply,
+        autoReplyNegatives: !!s.autoReplyNegatives,
       });
       setHasApiKey(!!s.hasApiKey);
       const ex: Example[] = Array.isArray(s.examples) ? s.examples : [];
@@ -94,6 +106,8 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
           provider: settings.provider,
           apiKey: settings.apiKey, // em branco = mantém a chave atual
           examples,
+          autoReply: settings.autoReply,
+          autoReplyNegatives: settings.autoReplyNegatives,
         }),
       });
       const data = await res.json();
@@ -299,6 +313,43 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
               </div>
             ))}
           </div>
+        </div>
+
+        {/* Resposta automática */}
+        <div className="mt-5 rounded-xl border border-brand/30 bg-brand/5 p-4">
+          <label className="flex cursor-pointer items-start gap-3">
+            <input
+              type="checkbox"
+              checked={settings.autoReply}
+              onChange={(e) => setSettings((s) => ({ ...s, autoReply: e.target.checked }))}
+              className="mt-0.5 h-4 w-4 accent-[var(--brand)]"
+            />
+            <span>
+              <span className="block text-sm font-medium">Responder avaliações novas automaticamente</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                O sistema responde sozinho as avaliações novas (recebidas nas últimas 24h), com a IA
+                e o tom configurados — normalmente em até 1 hora após chegarem.
+              </span>
+            </span>
+          </label>
+
+          {settings.autoReply && (
+            <label className="mt-3 flex cursor-pointer items-start gap-3 border-t border-brand/20 pt-3">
+              <input
+                type="checkbox"
+                checked={settings.autoReplyNegatives}
+                onChange={(e) => setSettings((s) => ({ ...s, autoReplyNegatives: e.target.checked }))}
+                className="mt-0.5 h-4 w-4 accent-[var(--brand)]"
+              />
+              <span>
+                <span className="block text-sm font-medium">Incluir avaliações negativas (1–3 estrelas)</span>
+                <span className="mt-0.5 block text-xs text-muted">
+                  Desligado (recomendado): negativas ficam para você responder à mão. Ligado: a IA
+                  também responde as negativas automaticamente.
+                </span>
+              </span>
+            </label>
+          )}
         </div>
 
         <div className="mt-4 flex items-center gap-3">

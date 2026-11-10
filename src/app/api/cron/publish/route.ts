@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
 import { createLocalPost, createMediaItem } from "@/lib/google/business";
+import { runAutoReplies } from "@/lib/autoReply";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -96,5 +97,13 @@ export async function GET(request: Request) {
     }
   }
 
-  return NextResponse.json({ processed: posts.length, results, ranAt: nowIso });
+  // Resposta automática de avaliações novas (não derruba a publicação se falhar).
+  let autoReply: { profiles: number; replied: number } | { error: string };
+  try {
+    autoReply = await runAutoReplies(admin);
+  } catch (e) {
+    autoReply = { error: e instanceof Error ? e.message : "erro" };
+  }
+
+  return NextResponse.json({ processed: posts.length, results, autoReply, ranAt: nowIso });
 }
