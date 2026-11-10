@@ -1,3 +1,4 @@
+@import url('https://api.fontshare.com/v2/css?f[]=general-sans@500,600,700,800,900&display=swap');
 @import "tailwindcss";
 
 :root {
@@ -50,17 +51,19 @@ h2,
 h3,
 h4,
 .font-display {
-  font-family: var(--font-display), var(--font-inter), sans-serif;
-  letter-spacing: -0.02em;
+  font-family: "General Sans", var(--font-display), var(--font-inter), sans-serif;
+  letter-spacing: -0.03em;
 }
 
 .font-serif {
   font-family: var(--font-serif), Georgia, serif;
 }
 
-a {
-  color: inherit;
-  text-decoration: none;
+@layer base {
+  a {
+    color: inherit;
+    text-decoration: none;
+  }
 }
 
 /* Brilho radial sutil para heros e destaques. */
@@ -102,3 +105,33 @@ a {
 .progress-fill {
   animation: fill-progress 3.5s ease-out forwards;
 }
+
+/* ===== Landing (estilo claro, textura em movimento) ===== */
+@keyframes meshmove {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(5%, -4%) scale(1.12); }
+  66%  { transform: translate(-4%, 4%) scale(1.06); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+.mesh { position: absolute; inset: 0; overflow: hidden; background: #e9fbf2; }
+.mesh::before,
+.mesh::after {
+  content: ""; position: absolute; inset: -25%;
+  background:
+    radial-gradient(32% 32% at 22% 30%, rgba(52,211,153,0.95), transparent 62%),
+    radial-gradient(28% 28% at 78% 24%, rgba(45,212,191,0.75), transparent 62%),
+    radial-gradient(38% 38% at 62% 74%, rgba(16,185,129,0.85), transparent 62%),
+    radial-gradient(30% 30% at 18% 80%, rgba(167,243,208,0.95), transparent 62%);
+  filter: blur(42px);
+  animation: meshmove 16s ease-in-out infinite;
+}
+.mesh::after { animation-duration: 24s; animation-direction: reverse; opacity: .75; }
+
+@keyframes fadeup { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+.fadeup { animation: fadeup .5s ease both; }
+
+@keyframes blink { 50% { opacity: 0; } }
+.caret::after { content: "▌"; margin-left: 1px; color: var(--brand); animation: blink 1s steps(1) infinite; }
+
+/* Sombra suave de card (estilo fintech). */
+.card-soft { box-shadow: 0 1px 2px rgba(16,24,40,.04), 0 12px 32px -12px rgba(16,24,40,.12); }
