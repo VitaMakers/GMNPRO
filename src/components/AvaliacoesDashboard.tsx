@@ -316,40 +316,35 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
 
         {/* Resposta automática */}
-        <div className="mt-5 rounded-xl border border-brand/30 bg-brand/5 p-4">
-          <label className="flex cursor-pointer items-start gap-3">
-            <input
-              type="checkbox"
+        <div className="mt-5 space-y-3 rounded-xl border border-brand/30 bg-brand/5 p-4">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <p className="text-sm font-medium">Responder avaliações novas automaticamente</p>
+              <p className="mt-0.5 text-xs text-muted">
+                O sistema responde sozinho as avaliações novas (últimas 24h), com a IA e o tom
+                configurados — em até ~1 hora. Enquanto estiver desligado, nada é respondido
+                automaticamente.
+              </p>
+            </div>
+            <Toggle
               checked={settings.autoReply}
-              onChange={(e) => setSettings((s) => ({ ...s, autoReply: e.target.checked }))}
-              className="mt-0.5 h-4 w-4 accent-[var(--brand)]"
+              onChange={(v) => setSettings((s) => ({ ...s, autoReply: v }))}
             />
-            <span>
-              <span className="block text-sm font-medium">Responder avaliações novas automaticamente</span>
-              <span className="mt-0.5 block text-xs text-muted">
-                O sistema responde sozinho as avaliações novas (recebidas nas últimas 24h), com a IA
-                e o tom configurados — normalmente em até 1 hora após chegarem.
-              </span>
-            </span>
-          </label>
+          </div>
 
-          {settings.autoReply && (
-            <label className="mt-3 flex cursor-pointer items-start gap-3 border-t border-brand/20 pt-3">
-              <input
-                type="checkbox"
-                checked={settings.autoReplyNegatives}
-                onChange={(e) => setSettings((s) => ({ ...s, autoReplyNegatives: e.target.checked }))}
-                className="mt-0.5 h-4 w-4 accent-[var(--brand)]"
-              />
-              <span>
-                <span className="block text-sm font-medium">Incluir avaliações negativas (1–3 estrelas)</span>
-                <span className="mt-0.5 block text-xs text-muted">
-                  Desligado (recomendado): negativas ficam para você responder à mão. Ligado: a IA
-                  também responde as negativas automaticamente.
-                </span>
-              </span>
-            </label>
-          )}
+          <div className="flex items-start justify-between gap-4 border-t border-brand/20 pt-3">
+            <div>
+              <p className="text-sm font-medium">Incluir avaliações negativas (1–3 estrelas)</p>
+              <p className="mt-0.5 text-xs text-muted">
+                Desligado (recomendado): negativas ficam para você responder à mão. Ligado: a IA
+                também responde as negativas. Só vale com a resposta automática ligada.
+              </p>
+            </div>
+            <Toggle
+              checked={settings.autoReplyNegatives}
+              onChange={(v) => setSettings((s) => ({ ...s, autoReplyNegatives: v }))}
+            />
+          </div>
         </div>
 
         <div className="mt-4 flex items-center gap-3">
@@ -412,6 +407,26 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
     </div>
+  );
+}
+
+function Toggle({ checked, onChange }: { checked: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      onClick={() => onChange(!checked)}
+      className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+        checked ? "bg-brand" : "bg-surface-2 border border-border"
+      }`}
+    >
+      <span
+        className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${
+          checked ? "translate-x-5" : "translate-x-0.5"
+        }`}
+      />
+    </button>
   );
 }
 
