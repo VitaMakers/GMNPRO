@@ -105,11 +105,73 @@ export async function generateReply(
   apiKey?: string,
 ): Promise<string> {
   const { system, user } = buildPrompt(c);
-  const key = apiKey?.trim() || undefined;
-  if (provider === "openai") return openaiReply(system, user, key);
-  if (provider === "gemini") return geminiReply(system, user, key);
-  if (provider === "groq") return groqReply(system, user, key);
-  return claudeReply(system, user, key);
+  return complete(provider, system, user, apiKey?.trim() || undefined);
+}
+
+async function complete(
+  provider: Provider,
+  system: string,
+  user: string,
+  apiKey?: string,
+): Promise<string> {
+  if (provider === "openai") return openaiReply(system, user, apiKey);
+  if (provider === "gemini") return geminiReply(system, user, apiKey);
+  if (provider === "groq") return groqReply(system, user, apiKey);
+  return claudeReply(system, user, apiKey);
+}
+
+export interface GeotagMeta {
+  title: string;
+  description: string;
+  keywords: string;
+}
+
+/** Gera metadados fortes (SEO local) para fotos do Google Meu Negócio. */
+export async function generateGeotagMeta(
+  provider: Provider,
+  input: { city: string; niche: string; keywords: string; count: number },
+  apiKey?: string,
+): Promise<GeotagMeta[]> {
+  const count = Math.max(1, Math.min(input.count || 1, 8));
+  const system =
+    "Você é especialista em SEO local para o Google Meu Negócio (Google Business Profile). Cria metadados de fotos que ajudam o perfil a ranquear e a atrair mais clientes.";
+  const user = [
+    `Gere ${count} conjuntos DIFERENTES de metadados para ${count} foto(s) de uma empresa.`,
+    input.niche ? `Segmento/negócio: ${input.niche}.` : "",
+    input.city ? `Cidade: ${input.city}.` : "",
+    input.keywords ? `Palavras-chave que o cliente quer aparecer: ${input.keywords}.` : "",
+    "Para CADA foto, escreva:",
+    "- title: curto (até ~60 caracteres), com a palavra-chave principal e a cidade.",
+    "- description: 2 a 3 frases naturais e envolventes, destacando o serviço, um benefício real e a localização; use as palavras-chave de forma fluida, sem encher de repetição.",
+    "- keywords: 6 a 8 termos de busca local reais, separados por vírgula (variações do serviço + cidade + 'perto de mim', etc.).",
+    "VARIE bastante entre as fotos (aberturas e termos diferentes). Escreva em português do Brasil.",
+    'Responda APENAS com um array JSON válido, sem nada fora dele: [{"title":"...","description":"...","keywords":"..."}]',
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  const raw = await complete(provider, system, user, apiKey);
+  return extractJsonArray(raw)
+    .map((x) => ({
+      title: String(x?.title ?? "").trim(),
+      description: String(x?.description ?? "").trim(),
+      keywords: String(x?.keywords ?? "").trim(),
+    }))
+    .filter((x) => x.title || x.description);
+}
+
+function extractJsonArray(text: string): Record<string, unknown>[] {
+  const start = text.indexOf("[");
+  const end = text.lastIndexOf("]");
+  if (start >= 0 && end > start) {
+    try {
+      const parsed = JSON.parse(text.slice(start, end + 1));
+      if (Array.isArray(parsed)) return parsed as Record<string, unknown>[];
+    } catch {
+      /* ignora JSON malformado */
+    }
+  }
+  return [];
 }
 
 async function claudeReply(system: string, user: string, apiKey?: string): Promise<string> {
@@ -120,7 +182,7 @@ async function claudeReply(system: string, user: string, apiKey?: string): Promi
   const client = new Anthropic({ apiKey: key });
   const res = await client.messages.create({
     model: CLAUDE_MODEL,
-    max_tokens: 800,
+    max_tokens: 1024,
     system,
     messages: [{ role: "user", content: user }],
   });
@@ -143,7 +205,7 @@ async function geminiReply(system: string, user: string, apiKey?: string): Promi
   const body = JSON.stringify({
     systemInstruction: { parts: [{ text: system }] },
     contents: [{ role: "user", parts: [{ text: user }] }],
-    generationConfig: { temperature: 0.9, maxOutputTokens: 400 },
+    generationConfig: { temperature: 0.9, maxOutputTokens: 1024 },
   });
 
   let overloaded = false;
@@ -202,7 +264,7 @@ async function groqReply(system: string, user: string, apiKey?: string): Promise
     JSON.stringify({
       model,
       temperature: 0.9,
-      max_tokens: 400,
+      max_tokens: 1024,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },
@@ -241,7 +303,7 @@ async function openaiReply(system: string, user: string, apiKey?: string): Promi
     body: JSON.stringify({
       model: OPENAI_MODEL,
       temperature: 0.9,
-      max_tokens: 400,
+      max_tokens: 1024,
       messages: [
         { role: "system", content: system },
         { role: "user", content: user },

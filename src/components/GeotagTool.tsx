@@ -37,30 +37,35 @@ function isHeic(file: File): boolean {
   return /heic|heif/i.test(file.type) || /\.(heic|heif)$/i.test(file.name);
 }
 
-function suggestMeta(fileName: string, place: string, niche: string): PhotoMeta {
+function suggestMeta(fileName: string, place: string, niche: string, brandKeywords: string): PhotoMeta {
   const city = place.split(",")[0]?.trim() || place;
   const segment = niche.trim();
   const base = segment || fileName.replace(/\.[^.]+$/, "").replace(/[-_]+/g, " ").trim();
+  const kws = brandKeywords
+    .split(",")
+    .map((k) => k.trim())
+    .filter(Boolean);
+  const mainKw = kws[0] || base;
+  const extras = kws.slice(0, 3).join(", ");
 
-  // Título: palavra-chave principal primeiro (padrão de SEO local).
-  const title = city ? `${base} em ${city}` : base;
+  // Título: palavra-chave principal + cidade (padrão de SEO local).
+  const title = city ? `${mainKw} em ${city}` : mainKw;
 
-  // Descrição rica em palavras-chave, mas natural.
+  // Descrição mais rica: serviço + palavras-chave + benefício + localização.
   const description = city
-    ? `${base} em ${city}. Conheça nossos serviços, veja fotos e avaliações e fale com a gente pelo nosso perfil no Google. Atendimento em ${city} e região.`
-    : `${base}. Veja fotos, avaliações e contato no nosso perfil do Google Meu Negócio.`;
+    ? `${base} em ${city}.${extras ? ` Referência em ${extras}.` : ""} Veja fotos, avaliações e horários e fale com a gente pelo perfil no Google. Atendemos ${city} e região.`
+    : `${base}.${extras ? ` Referência em ${extras}.` : ""} Veja fotos, avaliações e contato no nosso perfil do Google Meu Negócio.`;
 
-  // Palavras-chave: variações de busca local, sem repetição.
+  // Palavras-chave: as do cliente + variações de busca local, sem repetição.
   const kwList = [
+    ...kws,
     base,
     city && `${base} em ${city}`,
-    city && `${base} ${city}`,
     `${base} perto de mim`,
     city && `melhor ${base} em ${city}`,
     city,
-    "google meu negócio",
   ].filter(Boolean) as string[];
-  const keywords = Array.from(new Set(kwList.map((k) => k.toLowerCase()))).join(", ");
+  const keywords = Array.from(new Set(kwList.map((k) => k.toLowerCase()))).slice(0, 8).join(", ");
 
   return { title, description, keywords };
 }
@@ -68,6 +73,9 @@ function suggestMeta(fileName: string, place: string, niche: string): PhotoMeta 
 export default function GeotagTool() {
   const [query, setQuery] = useState("");
   const [niche, setNiche] = useState("");
+  const [brandKeywords, setBrandKeywords] = useState("");
+  const [aiBusy, setAiBusy] = useState(false);
+  const [aiMsg, setAiMsg] = useState("");
   const [results, setResults] = useState<GeoResult[]>([]);
   const [selected, setSelected] = useState<GeoResult | null>(null);
   const [searching, setSearching] = useState(false);
@@ -160,7 +168,7 @@ export default function GeotagTool() {
           id: `${file.name}-${file.size}-${crypto.randomUUID()}`,
           file,
           preview: URL.createObjectURL(file),
-          meta: suggestMeta(file.name, place, niche),
+          meta: suggestMeta(file.name, place, niche, brandKeywords),
           ready: false,
         });
       }
@@ -181,7 +189,7 @@ export default function GeotagTool() {
       }
       setUploadNotice(msgs.join(" "));
     },
-    [selected, niche],
+    [selected, niche, brandKeywords],
   );
 
   // Impede o navegador de abrir a imagem quando ela é solta fora da área exata.
@@ -212,9 +220,47 @@ export default function GeotagTool() {
   const regenerateSuggestions = () => {
     const place = selected?.label ?? "";
     setPhotos((p) =>
-      p.map((ph) => ({ ...ph, meta: suggestMeta(ph.file.name, place, niche) })),
+      p.map((ph) => ({ ...ph, meta: suggestMeta(ph.file.name, place, niche, brandKeywords) })),
     );
   };
+
+  async function generateWithAI() {
+    if (photos.length === 0) return;
+    setAiBusy(true);
+    setAiMsg("");
+    try {
+      const place = selected?.label ?? "";
+      const city = place.split(",")[0]?.trim() || place;
+      const res = await fetch("/api/ai/geotag-meta", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          city,
+          niche,
+          keywords: brandKeywords,
+          count: Math.min(photos.length, 8),
+        }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Falha ao gerar.");
+      const items = (data.items ?? []) as PhotoMeta[];
+      if (!items.length) throw new Error("A IA não retornou metadados.");
+      setPhotos((p) =>
+        p.map((ph, i) => {
+          const m = items[i % items.length];
+          return m
+            ? { ...ph, meta: { title: m.title, description: m.description, keywords: m.keywords }, blob: undefined, ready: false }
+            : ph;
+        }),
+      );
+      setDone(false);
+      setAiMsg("Descrições geradas com IA! Ajuste o que quiser.");
+    } catch (e) {
+      setAiMsg(e instanceof Error ? e.message : "Não foi possível gerar com IA.");
+    } finally {
+      setAiBusy(false);
+    }
+  }
 
   const removePhoto = (id: string) => {
     setPhotos((p) => {
@@ -409,9 +455,19 @@ export default function GeotagTool() {
         <input
           value={niche}
           onChange={(e) => setNiche(e.target.value)}
-          placeholder="Segmento ou nome do negócio (opcional, melhora as sugestões)"
+          placeholder="Segmento ou nome do negócio (ex.: aluguel de brinquedos infantis)"
           className="mt-3 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
         />
+        <input
+          value={brandKeywords}
+          onChange={(e) => setBrandKeywords(e.target.value)}
+          placeholder="Palavras-chave ideais para as fotos (separadas por vírgula)"
+          className="mt-3 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+        />
+        <p className="mt-1.5 text-xs text-muted">
+          Ex.: aluguel de brinquedos, festa infantil, Sorocaba, pula-pula. Elas deixam o título, a
+          descrição e o nome do arquivo mais fortes para busca.
+        </p>
         {searchError && <p className="mt-2 text-sm text-red-400">{searchError}</p>}
         {results.length > 0 && (
           <ul className="mt-3 space-y-2">
@@ -562,17 +618,29 @@ export default function GeotagTool() {
               {actionMsg.text}
             </div>
           )}
-          <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-            <p className="text-sm text-muted">
-              Título, descrição e palavras-chave são gerados para SEO local a partir
-              da cidade e do segmento. Ajuste como quiser.
-            </p>
-            <button
-              onClick={regenerateSuggestions}
-              className="shrink-0 rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-brand-2 transition hover:bg-surface-2"
-            >
-              Gerar sugestões (SEO)
-            </button>
+          <div className="mb-4">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted">
+                Título, descrição e palavras-chave para SEO local. Use a IA para textos mais fortes
+                e variados — a foto não sai do seu navegador, só as palavras-chave vão para a IA.
+              </p>
+              <div className="flex shrink-0 gap-2">
+                <button
+                  onClick={generateWithAI}
+                  disabled={aiBusy || photos.length === 0}
+                  className="rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white transition hover:opacity-90 disabled:opacity-50"
+                >
+                  {aiBusy ? "Gerando…" : "✨ Gerar com IA"}
+                </button>
+                <button
+                  onClick={regenerateSuggestions}
+                  className="rounded-lg border border-border px-3 py-1.5 text-xs font-medium text-brand-2 transition hover:bg-surface-2"
+                >
+                  Gerar padrão
+                </button>
+              </div>
+            </div>
+            {aiMsg && <p className="mt-2 text-xs text-brand-2">{aiMsg}</p>}
           </div>
           <div className="space-y-5">
             {photos.map((ph) => (
