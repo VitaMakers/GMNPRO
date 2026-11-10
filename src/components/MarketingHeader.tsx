@@ -11,6 +11,9 @@ export default function MarketingHeader() {
           <Link href="/recursos" className="rounded-lg px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground">
             Recursos
           </Link>
+          <Link href="/planos" className="rounded-lg px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground">
+            Planos
+          </Link>
           <Link href="/entrar" className="rounded-lg px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground">
             Entrar
           </Link>
