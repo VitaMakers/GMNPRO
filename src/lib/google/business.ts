@@ -103,6 +103,8 @@ export interface GalleryMedia {
   googleUrl?: string;
   thumbnailUrl?: string;
   createTime?: string;
+  mediaFormat?: string; // "PHOTO" | "VIDEO"
+  insights?: { viewCount?: string };
 }
 
 /** Lista as fotos da galeria do perfil (via v4). Para confirmar o que subiu. */
