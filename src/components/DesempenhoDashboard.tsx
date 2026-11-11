@@ -135,6 +135,10 @@ export default function DesempenhoDashboard({
 
       {report && !loading && (
         <>
+          <p className="text-xs text-muted">
+            Período: {fmt(report.range.start)} a {fmt(report.range.end)} · comparado com os {report.periodDays} dias anteriores.
+          </p>
+
           {/* Herói: número grande + card verde */}
           <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-3xl border border-border bg-white p-6 card-soft">
@@ -337,12 +341,13 @@ function VisaoGeralCard({ report }: { report: Report }) {
 
 function KeywordsPanel({ keywords }: { keywords: { keyword: string; value: number; approx: boolean }[] }) {
   const totalSearch = keywords.reduce((s, k) => s + k.value, 0);
+  const top = keywords.slice(0, 3).map((k) => k.keyword);
   return (
     <div className="rounded-3xl border border-border bg-white p-6 card-soft">
       <p className="text-sm font-semibold">Termos de pesquisa</p>
       <p className="mb-3 text-xs text-muted">{totalSearch.toLocaleString("pt-BR")} pesquisas mostraram seu perfil</p>
       <ul className="space-y-1.5">
-        {keywords.slice(0, 7).map((k, i) => (
+        {keywords.map((k, i) => (
           <li key={k.keyword} className="flex items-center justify-between text-sm">
             <span className="truncate">
               <span className="mr-2 text-muted">{i + 1}.</span>
@@ -355,6 +360,13 @@ function KeywordsPanel({ keywords }: { keywords: { keyword: string; value: numbe
           </li>
         ))}
       </ul>
+      {top.length > 0 && (
+        <div className="mt-4 rounded-2xl border border-brand/30 bg-brand/5 p-3 text-xs text-muted">
+          <span className="font-medium text-brand-2">Sugestão de palavras-chave:</span> seus termos mais
+          fortes são <strong>{top.join(", ")}</strong>. Inclua eles na <strong>descrição</strong>, nos{" "}
+          <strong>serviços</strong> e nas <strong>postagens</strong> para reforçar o alcance.
+        </div>
+      )}
     </div>
   );
 }
@@ -415,6 +427,11 @@ function Stat({ label, value, good, warn }: { label: string; value: string; good
       <p className={`mt-1 text-xl font-semibold ${good ? "text-brand-2" : warn ? "text-accent" : ""}`}>{value}</p>
     </div>
   );
+}
+
+function fmt(iso: string) {
+  const [y, m, d] = iso.split("-");
+  return `${d}/${m}/${y}`;
 }
 
 function buildInsights(r: Report): string[] {
