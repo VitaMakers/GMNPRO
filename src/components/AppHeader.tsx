@@ -15,6 +15,7 @@ const links = [
   { href: "/avaliacoes", label: "Avaliações" },
   { href: "/checklist", label: "Checklist" },
   { href: "/auditoria", label: "Auditoria" },
+  { href: "/suporte", label: "Suporte" },
 ];
 
 export default function AppHeader() {
