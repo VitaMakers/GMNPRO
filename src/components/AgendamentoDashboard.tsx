@@ -243,7 +243,12 @@ export default function AgendamentoDashboard({
   const markedDays = markedDaysFromPosts(shownPosts);
 
   // Totais do perfil ativo (puxados do sistema).
-  const publishedCount = shownPosts.filter((p) => p.status === "published").length;
+  const nowD = new Date();
+  const publishedThisMonth = shownPosts.filter((p) => {
+    if (p.status !== "published") return false;
+    const d = new Date(p.scheduled_at);
+    return d.getMonth() === nowD.getMonth() && d.getFullYear() === nowD.getFullYear();
+  }).length;
   const scheduledPosts = shownPosts.filter((p) => p.status === "scheduled");
   const scheduledCount = scheduledPosts.length;
   const upcomingScheduled = scheduledPosts.slice(0, 4); // só as 4 próximas na lista
@@ -452,14 +457,7 @@ export default function AgendamentoDashboard({
         <h2 className="mb-4 text-lg font-semibold">Suas postagens</h2>
 
         {/* Totais do perfil */}
-        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-3">
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand to-brand-2 p-4 text-white">
-            <div>
-              <p className="text-sm font-medium text-white/90">Publicadas</p>
-              <p className="font-display text-3xl font-extrabold leading-tight">{publishedCount}</p>
-            </div>
-            <svg viewBox="0 0 24 24" className="h-7 w-7 text-white/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8.5 12.2l2.3 2.3 4.7-4.7" /></svg>
-          </div>
+        <div className="mb-5 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-sky-500 to-blue-600 p-4 text-white">
             <div>
               <p className="text-sm font-medium text-white/90">Agendadas</p>
@@ -467,12 +465,12 @@ export default function AgendamentoDashboard({
             </div>
             <svg viewBox="0 0 24 24" className="h-7 w-7 text-white/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4.5" width="18" height="16" rx="2.5" /><path d="M3 9h18M8 2.5v4M16 2.5v4" /></svg>
           </div>
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 p-4 text-white">
+          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-br from-brand to-brand-2 p-4 text-white">
             <div>
-              <p className="text-sm font-medium text-white/90">Total de postagens</p>
-              <p className="font-display text-3xl font-extrabold leading-tight">{shownPosts.length}</p>
+              <p className="text-sm font-medium text-white/90">Publicadas no mês</p>
+              <p className="font-display text-3xl font-extrabold leading-tight">{publishedThisMonth}</p>
             </div>
-            <svg viewBox="0 0 24 24" className="h-7 w-7 text-white/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="2.5" /><path d="M3 9h18M9 21V9" /></svg>
+            <svg viewBox="0 0 24 24" className="h-7 w-7 text-white/70" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="9" /><path d="M8.5 12.2l2.3 2.3 4.7-4.7" /></svg>
           </div>
         </div>
 
