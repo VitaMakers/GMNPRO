@@ -58,12 +58,12 @@ export default async function ChecklistPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl font-bold tracking-tight">
             Checklist do Google Meu Negócio
           </h1>
-          <p className="mt-2 text-muted">
+          <p className="mt-1 text-sm text-muted">
             O sistema analisa o seu perfil automaticamente, dá a nota de 0 a 100 e mostra
             o que falta para concluir a otimização.
           </p>

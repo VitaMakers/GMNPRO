@@ -140,7 +140,7 @@ export default function ChecklistTool({
       )}
 
       {/* Nota */}
-      <div className="sticky top-16 z-20 flex items-center gap-4 rounded-2xl border border-border bg-surface/95 p-4 backdrop-blur">
+      <div className="sticky top-16 z-20 flex items-center gap-4 rounded-3xl border border-border bg-white card-soft/95 p-4 backdrop-blur">
         <div
           className="grid h-20 w-20 shrink-0 place-items-center rounded-full"
           style={{ background: `conic-gradient(${ring} ${score * 3.6}deg, var(--surface-2) 0deg)` }}
@@ -167,7 +167,7 @@ export default function ChecklistTool({
 
       {/* Prioridades */}
       {top.length > 0 && (
-        <div className="rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-3xl border border-border bg-white card-soft p-5">
           <h2 className="mb-3 font-semibold">O que falta para concluir</h2>
           <ol className="space-y-2">
             {top.map((item, i) => (
@@ -193,7 +193,7 @@ export default function ChecklistTool({
       {CHECKLIST.map((cat) => {
         const catDone = cat.items.filter((i) => checked[i.id]).length;
         return (
-          <div key={cat.id} className="rounded-2xl border border-border bg-surface p-5">
+          <div key={cat.id} className="rounded-3xl border border-border bg-white card-soft p-5">
             <div className="mb-3 flex items-center justify-between">
               <h3 className="font-semibold">{cat.title}</h3>
               <span className="text-xs text-muted">

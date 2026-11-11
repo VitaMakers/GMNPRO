@@ -867,7 +867,7 @@ function Step({
   children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-2xl border border-border bg-surface p-5">
+    <section className="rounded-3xl border border-border bg-white card-soft p-5">
       <div className="mb-4 flex items-center gap-3">
         <span
           className={`grid h-7 w-7 place-items-center rounded-full text-sm font-bold ${

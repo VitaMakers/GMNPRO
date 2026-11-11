@@ -29,11 +29,11 @@ export default async function AgendamentoPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-5xl px-4 py-10">
+      <main className="mx-auto max-w-5xl px-4 py-8">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
-            <h1 className="text-3xl font-bold tracking-tight">Agendamento de Postagens</h1>
-            <p className="mt-2 text-muted">
+            <h1 className="font-display text-2xl font-bold tracking-tight">Agendamento de Postagens</h1>
+            <p className="mt-1 text-sm text-muted">
               Monte suas postagens, programe a data e deixe a publicação automática
               cuidar do resto.
             </p>

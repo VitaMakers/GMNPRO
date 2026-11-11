@@ -255,7 +255,7 @@ export default function AgendamentoDashboard({
       )}
 
       {/* Conta + Google */}
-      <div className="flex flex-col gap-3 rounded-2xl border border-border bg-surface p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-3xl border border-border bg-white card-soft p-4 sm:flex-row sm:items-center sm:justify-between">
         <div className="text-sm">
           <span className="text-muted">Conta: </span>
           <span className="font-medium">{userEmail}</span>
@@ -305,7 +305,7 @@ export default function AgendamentoDashboard({
       <ScheduleCalendar posts={posts} />
 
       {/* Compositor */}
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="rounded-3xl border border-border bg-white card-soft p-5">
         <h2 className="mb-4 text-lg font-semibold">Nova postagem</h2>
 
         {/* Aviso em destaque do perfil escolhido — evita publicar no perfil errado */}
@@ -434,7 +434,7 @@ export default function AgendamentoDashboard({
       </div>
 
       {/* Lista */}
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="rounded-3xl border border-border bg-white card-soft p-5">
         <h2 className="mb-4 text-lg font-semibold">Suas postagens</h2>
         {loading ? (
           <p className="text-sm text-muted">Carregando…</p>

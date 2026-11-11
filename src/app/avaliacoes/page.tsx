@@ -31,10 +31,10 @@ export default async function AvaliacoesPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-4xl px-4 py-10">
+      <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Avaliações com IA</h1>
-          <p className="mt-2 text-muted">
+          <h1 className="font-display text-2xl font-bold tracking-tight">Avaliações com IA</h1>
+          <p className="mt-1 text-sm text-muted">
             A IA gera respostas personalizadas para as avaliações do seu Google — citando o
             nome da pessoa e usando as palavras-chave do seu negócio. Você revisa e envia.
             Avaliações negativas vêm só como sugestão, para você aprovar.

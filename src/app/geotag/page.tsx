@@ -27,12 +27,12 @@ export default async function GeotagPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 py-10">
+      <main className="mx-auto max-w-3xl px-4 py-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">
+          <h1 className="font-display text-2xl font-bold tracking-tight">
             Prepare suas fotos para o Google Meu Negócio
           </h1>
-          <p className="mt-2 text-muted">
+          <p className="mt-1 text-sm text-muted">
             Otimize suas fotos nas specs ideais do Google, com título, descrição,
             palavras-chave e localização — prontas para subir no perfil.{" "}
             <span className="text-foreground">
@@ -42,7 +42,7 @@ export default async function GeotagPage() {
         </div>
         <GeotagTool />
 
-        <section className="mt-12 rounded-2xl border border-border bg-surface p-6">
+        <section className="mt-12 rounded-3xl border border-border bg-white card-soft p-6">
           <h2 className="text-lg font-bold">O que realmente melhora sua foto no GMB</h2>
           <p className="mt-2 text-sm text-muted">
             Sejamos transparentes: o Google remove boa parte dos metadados (como o
@@ -59,7 +59,7 @@ export default async function GeotagPage() {
           </ul>
         </section>
 
-        <section className="mt-8 rounded-2xl border border-border bg-surface p-6">
+        <section className="mt-8 rounded-3xl border border-border bg-white card-soft p-6">
           <h2 className="text-lg font-bold">Guia de boa foto</h2>
           <p className="mt-2 text-sm text-muted">
             A foto que mais ajuda é a que o Google e o cliente entendem bem:

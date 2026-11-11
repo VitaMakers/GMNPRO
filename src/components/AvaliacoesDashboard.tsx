@@ -211,7 +211,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
   return (
     <div className="space-y-6">
       {/* Configurações */}
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="rounded-3xl border border-border bg-white card-soft p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-semibold">Como a IA deve responder</h2>
           <select
@@ -391,7 +391,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
       )}
 
       {reviews && pending.length === 0 && answered.length === 0 && (
-        <div className="rounded-2xl border border-border bg-surface p-5 text-sm text-muted">
+        <div className="rounded-3xl border border-border bg-white card-soft p-5 text-sm text-muted">
           Nenhuma avaliação encontrada para este perfil.
         </div>
       )}
@@ -416,7 +416,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         <div className="space-y-4">
           <h2 className="font-semibold text-muted">Já respondidas ({answered.length})</h2>
           {answered.map((r) => (
-            <div key={r.name} className="rounded-2xl border border-border bg-surface p-5 opacity-80">
+            <div key={r.name} className="rounded-3xl border border-border bg-white card-soft p-5 opacity-80">
               <ReviewHeader review={r} />
               <div className="mt-3 rounded-lg border border-brand-2/30 bg-brand-2/5 p-3 text-sm">
                 <span className="text-xs font-medium text-brand-2">Sua resposta:</span>
@@ -494,7 +494,7 @@ function ReviewCard({
 }) {
   const r = row ?? { draft: "", generating: false, sending: false, sent: false, error: "" };
   return (
-    <div className="rounded-2xl border border-border bg-surface p-5">
+    <div className="rounded-3xl border border-border bg-white card-soft p-5">
       <ReviewHeader review={review} />
 
       {r.sent ? (

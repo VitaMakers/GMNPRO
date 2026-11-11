@@ -69,7 +69,7 @@ export default function AuditTool() {
   return (
     <div className="space-y-6">
       {!report && (
-        <div className="rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-3xl border border-border bg-white card-soft p-5">
           <label className="mb-2 block text-sm font-medium">Nome da empresa</label>
           <div className="flex flex-col gap-3 sm:flex-row">
             <input
@@ -134,7 +134,7 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col items-center gap-4 rounded-2xl border border-border bg-surface p-6 sm:flex-row sm:items-center">
+      <div className="flex flex-col items-center gap-4 rounded-3xl border border-border bg-white card-soft p-6 sm:flex-row sm:items-center">
         <div
           className="grid h-28 w-28 shrink-0 place-items-center rounded-full"
           style={{ background: `conic-gradient(${ring} ${report.score * 3.6}deg, var(--surface-2) 0deg)` }}
@@ -155,7 +155,7 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
       </div>
 
       {report.priorities.length > 0 && (
-        <div className="rounded-2xl border border-border bg-surface p-5">
+        <div className="rounded-3xl border border-border bg-white card-soft p-5">
           <h3 className="mb-3 font-semibold">O que melhorar primeiro</h3>
           <ol className="space-y-2">
             {report.priorities.slice(0, 5).map((p, i) => (
@@ -168,7 +168,7 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
         </div>
       )}
 
-      <div className="rounded-2xl border border-border bg-surface p-5">
+      <div className="rounded-3xl border border-border bg-white card-soft p-5">
         <h3 className="mb-3 font-semibold">Checklist completo</h3>
         <div className="space-y-2">
           {report.checks.map((c) => (
