@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 import {
   AUTO_ITEM_IDS,
   CHECKLIST,
@@ -26,7 +27,9 @@ export default function ChecklistTool({
   const [manual, setManual] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
   const [auto, setAuto] = useState<AutoResult | null>(null);
-  const [selected, setSelected] = useState(locations[0]?.location_name ?? "");
+  const active = useActiveProfile();
+  const selected = active ?? locations[0]?.location_name ?? "";
+  const selectedTitle = locations.find((l) => l.location_name === selected)?.title ?? "perfil";
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzedAt, setAnalyzedAt] = useState<string | null>(null);
   const [error, setError] = useState("");
@@ -40,6 +43,17 @@ export default function ChecklistTool({
     }
     setLoaded(true);
   }, []);
+
+  useEffect(() => {
+    if (locations[0]) initActiveProfile(locations[0].location_name);
+  }, [locations]);
+
+  // Ao trocar de perfil no topo, limpa a análise anterior.
+  useEffect(() => {
+    setAuto(null);
+    setAnalyzedAt(null);
+    setError("");
+  }, [selected]);
 
   useEffect(() => {
     if (!loaded) return;
@@ -103,17 +117,10 @@ export default function ChecklistTool({
             calcula a nota e mostra o que falta.
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
-            <select
-              value={selected}
-              onChange={(e) => setSelected(e.target.value)}
-              className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand sm:max-w-xs"
-            >
-              {locations.map((l) => (
-                <option key={l.location_name} value={l.location_name}>
-                  {l.title ?? l.location_name}
-                </option>
-              ))}
-            </select>
+            <span className="inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2.5 text-sm font-medium text-brand-2 sm:max-w-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+              {selectedTitle}
+            </span>
             <button
               onClick={analyze}
               disabled={analyzing}

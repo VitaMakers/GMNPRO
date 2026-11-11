@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import ScheduleCalendar from "@/components/ScheduleCalendar";
 import DateTimePicker, { markedDaysFromPosts } from "@/components/DateTimePicker";
+import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 import GalleryVerifier from "@/components/GalleryVerifier";
 
 type Topic = "STANDARD" | "EVENT" | "OFFER";
@@ -85,6 +86,7 @@ export default function AgendamentoDashboard({
   }, []);
 
   const [posts, setPosts] = useState<Post[]>([]);
+  const active = useActiveProfile();
   const [locations, setLocations] = useState<{ location_name: string; title: string | null }[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -119,8 +121,7 @@ export default function AgendamentoDashboard({
       .order("title", { ascending: true });
     const locs = (data as { location_name: string; title: string | null }[]) ?? [];
     setLocations(locs);
-    // Só pré-seleciona quando há UM único perfil. Com vários, força a escolha.
-    if (locs.length === 1) setProfile((cur) => cur || locs[0].location_name);
+    if (locs[0]) initActiveProfile(locs[0].location_name);
   }, [supabase]);
 
   const syncLocations = useCallback(async () => {
@@ -148,6 +149,11 @@ export default function AgendamentoDashboard({
     loadPosts();
     loadLocations();
   }, [loadPosts, loadLocations]);
+
+  // O form de nova postagem acompanha o perfil escolhido lá no topo.
+  useEffect(() => {
+    if (active) setProfile(active);
+  }, [active]);
 
   async function logout() {
     await supabase.auth.signOut();
@@ -232,7 +238,9 @@ export default function AgendamentoDashboard({
   const locationTitle = (name: string) =>
     locations.find((l) => l.location_name === name)?.title ?? name;
 
-  const markedDays = markedDaysFromPosts(posts);
+  // Mostra apenas os posts do perfil selecionado no topo.
+  const shownPosts = active ? posts.filter((p) => p.location_name === active) : posts;
+  const markedDays = markedDaysFromPosts(shownPosts);
 
   function toLocalInput(iso: string) {
     const d = new Date(iso);
@@ -302,7 +310,7 @@ export default function AgendamentoDashboard({
       )}
 
       {/* Calendário (topo) — sempre visível */}
-      <ScheduleCalendar posts={posts} />
+      <ScheduleCalendar posts={shownPosts} />
 
       {/* Compositor */}
       <div className="rounded-3xl border border-border bg-white card-soft p-5">
@@ -438,11 +446,11 @@ export default function AgendamentoDashboard({
         <h2 className="mb-4 text-lg font-semibold">Suas postagens</h2>
         {loading ? (
           <p className="text-sm text-muted">Carregando…</p>
-        ) : posts.length === 0 ? (
-          <p className="text-sm text-muted">Nenhuma postagem ainda. Crie a primeira acima.</p>
+        ) : shownPosts.length === 0 ? (
+          <p className="text-sm text-muted">Nenhuma postagem ainda para este perfil. Crie a primeira acima.</p>
         ) : (
           <ul className="space-y-3">
-            {posts.map((p) => {
+            {shownPosts.map((p) => {
               const st = STATUS_LABEL[p.status];
               return (
                 <li key={p.id} className="flex gap-3 rounded-xl border border-border bg-surface-2 p-3">

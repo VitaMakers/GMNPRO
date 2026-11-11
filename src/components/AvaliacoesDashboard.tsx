@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 
 type LocationOption = { location_name: string; title: string | null };
 type AiProvider = "claude" | "openai" | "gemini" | "groq";
@@ -52,7 +53,10 @@ const EMPTY_EXAMPLES: Example[] = [
 ];
 
 export default function AvaliacoesDashboard({ locations }: { locations: LocationOption[] }) {
-  const [selected, setSelected] = useState(locations[0]?.location_name ?? "");
+  const active = useActiveProfile();
+  const selected = active ?? locations[0]?.location_name ?? "";
+  const selectedTitle =
+    locations.find((l) => l.location_name === selected)?.title ?? "perfil";
   const [settings, setSettings] = useState<Settings>(EMPTY_SETTINGS);
   const [examples, setExamples] = useState<Example[]>(EMPTY_EXAMPLES);
   const [hasApiKey, setHasApiKey] = useState(false);
@@ -93,6 +97,10 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
     setReviews(null);
     setRows({});
   }, [loadSettings]);
+
+  useEffect(() => {
+    if (locations[0]) initActiveProfile(locations[0].location_name);
+  }, [locations]);
 
   async function saveSettings() {
     setSavingSettings(true);
@@ -214,17 +222,10 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
       <div className="rounded-3xl border border-border bg-white card-soft p-5">
         <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <h2 className="font-semibold">Como a IA deve responder</h2>
-          <select
-            value={selected}
-            onChange={(e) => setSelected(e.target.value)}
-            className="rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
-          >
-            {locations.map((l) => (
-              <option key={l.location_name} value={l.location_name}>
-                {l.title ?? l.location_name}
-              </option>
-            ))}
-          </select>
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/5 px-3 py-1.5 text-sm font-medium text-brand-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+            {selectedTitle}
+          </span>
         </div>
 
         <div className="grid gap-4 sm:grid-cols-2">

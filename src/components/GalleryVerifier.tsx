@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 
 interface Item {
   thumbnailUrl: string | null;
@@ -25,11 +26,24 @@ export default function GalleryVerifier({
 }: {
   locations: { location_name: string; title: string | null }[];
 }) {
-  const [location, setLocation] = useState(locations[0]?.location_name ?? "");
+  const active = useActiveProfile();
+  const location = active ?? locations[0]?.location_name ?? "";
+  const locationTitle = locations.find((l) => l.location_name === location)?.title ?? "perfil";
   const [loading, setLoading] = useState(false);
   const [items, setItems] = useState<Item[] | null>(null);
   const [totals, setTotals] = useState<Totals | null>(null);
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (locations[0]) initActiveProfile(locations[0].location_name);
+  }, [locations]);
+
+  // Ao trocar de perfil no topo, limpa a galeria carregada.
+  useEffect(() => {
+    setItems(null);
+    setTotals(null);
+    setError("");
+  }, [location]);
 
   async function load() {
     if (!location) return;
@@ -62,18 +76,11 @@ export default function GalleryVerifier({
       <p className="mb-4 text-sm text-muted">
         Veja, direto do Google, as fotos que estão na galeria deste perfil.
       </p>
-      <div className="flex flex-col gap-2 sm:flex-row">
-        <select
-          value={location}
-          onChange={(e) => setLocation(e.target.value)}
-          className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
-        >
-          {locations.map((l) => (
-            <option key={l.location_name} value={l.location_name}>
-              {l.title ?? l.location_name}
-            </option>
-          ))}
-        </select>
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+        <span className="inline-flex flex-1 items-center gap-2 rounded-lg border border-brand/30 bg-brand/5 px-3 py-2 text-sm font-medium text-brand-2">
+          <span className="h-1.5 w-1.5 rounded-full bg-brand" />
+          {locationTitle}
+        </span>
         <button
           onClick={load}
           disabled={loading || !location}
