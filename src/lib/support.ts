@@ -1,7 +1,6 @@
 // Número de WhatsApp do suporte GMN PRO.
 // Formato internacional só com dígitos: 55 (Brasil) + DDD + número.
-// TODO: trocar pelo número real do suporte.
-export const SUPPORT_WHATSAPP = "5515999999999";
+export const SUPPORT_WHATSAPP = "5515991876671";
 
 export const SUPPORT_EMAIL = "contato@vitamakers.com.br";
 

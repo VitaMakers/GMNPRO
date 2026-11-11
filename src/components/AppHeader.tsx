@@ -7,6 +7,7 @@ import { createClient } from "@/lib/supabase/client";
 import { GoogleG } from "@/components/GoogleBadge";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import AppSidebar from "@/components/AppSidebar";
+import OnboardingTour from "@/components/OnboardingTour";
 
 const links = [
   { href: "/desempenho", label: "Desempenho" },
@@ -80,6 +81,17 @@ export default function AppHeader() {
             </div>
 
             <div className="flex shrink-0 items-center gap-2 text-sm">
+              <button
+                onClick={() => window.dispatchEvent(new Event("gmnpro:open-tour"))}
+                title="Ver tutorial"
+                aria-label="Ver tutorial"
+                className="grid h-8 w-8 place-items-center rounded-full border border-border text-muted transition hover:bg-surface hover:text-foreground"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="9" />
+                  <path d="M9.5 9a2.5 2.5 0 0 1 4.5 1.5c0 1.5-2 1.8-2 3M12 17h.01" />
+                </svg>
+              </button>
               <Link
                 href="/assinar"
                 className="hidden rounded-full border border-border px-3.5 py-1.5 font-medium text-muted transition hover:bg-surface hover:text-foreground sm:inline-flex"
@@ -126,6 +138,7 @@ export default function AppHeader() {
       </header>
 
       <AppSidebar isAdmin={isAdmin} />
+      <OnboardingTour />
     </>
   );
 }

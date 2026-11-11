@@ -87,30 +87,33 @@ export default function GalleryVerifier({
 
       {items && totals && (
         <div className="mt-4">
-          {/* Resumo de visualizações */}
-          <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-            <div className="rounded-2xl border border-border bg-surface-2 p-3">
-              <p className="text-xl font-bold">{nf(totals.totalViews)}</p>
-              <p className="text-xs text-muted">Visualizações no total</p>
-            </div>
+          {/* Resumo da galeria */}
+          <div className="mb-4 grid grid-cols-3 gap-2 sm:grid-cols-4">
             <div className="rounded-2xl border border-border bg-surface-2 p-3">
               <p className="text-xl font-bold">{nf(totals.photoCount)}</p>
-              <p className="text-xs text-muted">Imagens · {nf(totals.photoViews)} views</p>
+              <p className="text-xs text-muted">Imagens</p>
             </div>
             <div className="rounded-2xl border border-border bg-surface-2 p-3">
               <p className="text-xl font-bold">{nf(totals.videoCount)}</p>
-              <p className="text-xs text-muted">Vídeos · {nf(totals.videoViews)} views</p>
+              <p className="text-xs text-muted">Vídeos</p>
             </div>
             <div className="rounded-2xl border border-border bg-surface-2 p-3">
               <p className="text-xl font-bold">{nf(totals.total)}</p>
               <p className="text-xs text-muted">Mídias na galeria</p>
             </div>
+            {totals.totalViews > 0 && (
+              <div className="rounded-2xl border border-border bg-surface-2 p-3">
+                <p className="text-xl font-bold">{nf(totals.totalViews)}</p>
+                <p className="text-xs text-muted">Visualizações no total</p>
+              </div>
+            )}
           </div>
 
-          <p className="mb-2 text-xs text-muted">
-            As visualizações por mídia são o total acumulado desde a publicação (o Google não
-            informa mais a janela de 30 dias por foto).
-          </p>
+          {totals.totalViews > 0 && (
+            <p className="mb-2 text-xs text-muted">
+              As visualizações por mídia são o total acumulado desde a publicação.
+            </p>
+          )}
 
           {items.length === 0 ? (
             <p className="text-sm text-muted">Nenhuma foto encontrada.</p>
@@ -133,13 +136,15 @@ export default function GalleryVerifier({
                         </svg>
                       </span>
                     )}
-                    <span className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 text-[11px] font-medium text-white">
-                      <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
-                        <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
-                      {nf(it.views)}
-                    </span>
+                    {it.views > 0 && (
+                      <span className="absolute inset-x-0 bottom-0 flex items-center gap-1 bg-gradient-to-t from-black/70 to-transparent px-1.5 py-1 text-[11px] font-medium text-white">
+                        <svg viewBox="0 0 24 24" className="h-3 w-3" fill="none" stroke="currentColor" strokeWidth="2">
+                          <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7Z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                        {nf(it.views)}
+                      </span>
+                    )}
                   </div>
                 ) : null,
               )}
