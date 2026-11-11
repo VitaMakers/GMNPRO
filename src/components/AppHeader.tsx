@@ -6,6 +6,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleG } from "@/components/GoogleBadge";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
+import AppSidebar from "@/components/AppSidebar";
 
 const links = [
   { href: "/desempenho", label: "Desempenho" },
@@ -93,8 +94,8 @@ export default function AppHeader() {
             </div>
           </div>
 
-          {/* Linha 2: abas */}
-          <nav className="flex items-center gap-1 overflow-x-auto pb-2 text-sm">
+          {/* Linha 2: abas (horizontais no mobile/tablet; viram trilho lateral no desktop) */}
+          <nav className="flex items-center gap-1 overflow-x-auto pb-2 text-sm xl:hidden">
             {links.map((l) => {
               const active = pathname === l.href;
               return (
@@ -122,6 +123,8 @@ export default function AppHeader() {
           </nav>
         </div>
       </header>
+
+      <AppSidebar isAdmin={isAdmin} />
     </>
   );
 }
