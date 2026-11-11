@@ -5,11 +5,12 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleG } from "@/components/GoogleBadge";
+import ProfileSwitcher from "@/components/ProfileSwitcher";
 
 const links = [
+  { href: "/desempenho", label: "Desempenho" },
   { href: "/geotag", label: "Geotag" },
   { href: "/agendamento", label: "Agendamentos" },
-  { href: "/desempenho", label: "Desempenho" },
   { href: "/avaliacoes", label: "Avaliações" },
   { href: "/checklist", label: "Checklist" },
   { href: "/auditoria", label: "Auditoria" },
@@ -53,61 +54,73 @@ export default function AppHeader() {
           </Link>
         </div>
       )}
-      <header className="sticky top-0 z-30 border-b border-border bg-background/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3.5">
-        <div className="flex items-center gap-3">
-          <Link href="/agendamento" className="font-display text-lg font-semibold tracking-tight">
-            GMN <span className="text-brand-2">PRO</span>
-          </Link>
-          <span
-            title="Integração oficial com a API do Google Perfil da Empresa"
-            className="hidden items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted lg:inline-flex"
-          >
-            <GoogleG className="h-3.5 w-3.5" />
-            API oficial do Google
-          </span>
-        </div>
-        <nav className="flex items-center gap-1 text-sm">
-          {links.map((l) => {
-            const active = pathname === l.href;
-            return (
+
+      <header className="sticky top-0 z-30 border-b border-border bg-background/80 backdrop-blur-xl">
+        <div className="mx-auto max-w-6xl px-4">
+          {/* Linha 1: marca · seletor de perfis · ações */}
+          <div className="flex items-center gap-3 py-3">
+            <Link
+              href="/desempenho"
+              className="flex shrink-0 items-center gap-2 font-display text-lg font-semibold tracking-tight"
+            >
+              GMN <span className="text-brand-2">PRO</span>
+            </Link>
+            <span
+              title="Integração oficial com a API do Google Perfil da Empresa"
+              className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted xl:inline-flex"
+            >
+              <GoogleG className="h-3.5 w-3.5" />
+              API oficial
+            </span>
+
+            <div className="min-w-0 flex-1">
+              <ProfileSwitcher />
+            </div>
+
+            <div className="flex shrink-0 items-center gap-2 text-sm">
               <Link
-                key={l.href}
-                href={l.href}
-                className={`rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground ${
-                  active ? "bg-surface text-foreground" : "text-muted"
+                href="/assinar"
+                className="hidden rounded-full border border-border px-3.5 py-1.5 font-medium text-muted transition hover:bg-surface hover:text-foreground sm:inline-flex"
+              >
+                Assinatura
+              </Link>
+              <button
+                onClick={sair}
+                className="rounded-full border border-border px-3.5 py-1.5 text-muted transition hover:bg-surface hover:text-foreground"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+
+          {/* Linha 2: abas */}
+          <nav className="flex items-center gap-1 overflow-x-auto pb-2 text-sm">
+            {links.map((l) => {
+              const active = pathname === l.href;
+              return (
+                <Link
+                  key={l.href}
+                  href={l.href}
+                  className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                    active ? "bg-brand/10 text-brand-2" : "text-muted"
+                  }`}
+                >
+                  {l.label}
+                </Link>
+              );
+            })}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                  pathname === "/admin" ? "bg-brand/10 text-brand-2" : "text-muted"
                 }`}
               >
-                {l.label}
+                Admin
               </Link>
-            );
-          })}
-          {isAdmin && (
-            <Link
-              href="/admin"
-              className={`rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground ${
-                pathname === "/admin" ? "bg-surface text-foreground" : "text-brand-2"
-              }`}
-            >
-              Admin
-            </Link>
-          )}
-          <Link
-            href="/assinar"
-            className={`rounded-lg px-3 py-1.5 transition hover:bg-surface hover:text-foreground ${
-              pathname === "/assinar" ? "bg-surface text-foreground" : "text-muted"
-            }`}
-          >
-            Assinatura
-          </Link>
-          <button
-            onClick={sair}
-            className="ml-1 rounded-lg border border-border px-3 py-1.5 text-muted transition hover:bg-surface hover:text-foreground"
-          >
-            Sair
-          </button>
-        </nav>
-      </div>
+            )}
+          </nav>
+        </div>
       </header>
     </>
   );

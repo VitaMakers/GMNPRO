@@ -3,6 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/stripe";
 import AdminGrantButton from "@/components/AdminGrantButton";
+import MetricChart from "@/components/MetricChart";
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Painel Admin — GMN PRO" };
@@ -26,7 +27,7 @@ export default async function AdminPage() {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
-  if (!user.email || !ADMIN_EMAILS.includes(user.email.toLowerCase())) redirect("/agendamento");
+  if (!user.email || !ADMIN_EMAILS.includes(user.email.toLowerCase())) redirect("/desempenho");
 
   const admin = createAdminClient();
 
@@ -53,6 +54,7 @@ export default async function AdminPage() {
     plano: string | null;
     valor: number;
     manual: boolean;
+    periodEnd: string | null;
   };
   const rows: Row[] = [];
   let emTeste = 0;
@@ -117,10 +119,37 @@ export default async function AdminPage() {
       plano: plan,
       valor,
       manual,
+      periodEnd: s?.current_period_end ?? null,
     });
   }
 
   rows.sort((a, b) => a.rank - b.rank || +new Date(b.created) - +new Date(a.created));
+
+  // Série de cadastros por dia (últimos 30 dias).
+  const series: { date: string; value: number }[] = [];
+  const dayCount = new Map<string, number>();
+  for (const r of rows) {
+    const key = new Date(r.created).toISOString().slice(0, 10);
+    dayCount.set(key, (dayCount.get(key) ?? 0) + 1);
+  }
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    const key = d.toISOString().slice(0, 10);
+    series.push({ date: key, value: dayCount.get(key) ?? 0 });
+  }
+
+  // Conversão para pago (donut): ativos vs em teste vs a cobrar.
+  const pagantes = ativos;
+  const testando = emTeste + assinouTeste;
+  const convDen = pagantes + testando + semFechar;
+  const convPct = convDen > 0 ? Math.round((pagantes / convDen) * 100) : 0;
+
+  // Próximas cobranças: quem paga/testa, por data de vencimento.
+  const proximas = rows
+    .filter((r) => (r.categoria.startsWith("Assinante") || r.categoria.startsWith("Assinou")) && r.periodEnd)
+    .sort((a, b) => +new Date(a.periodEnd!) - +new Date(b.periodEnd!))
+    .slice(0, 4);
 
   const cards = [
     { label: "Contas cadastradas", value: String(users.length) },
@@ -128,7 +157,6 @@ export default async function AdminPage() {
     { label: "Assinantes ativos", value: String(ativos) },
     { label: "Assinaram (em teste)", value: String(assinouTeste) },
     { label: "Perfis Google conectados", value: String(perfis ?? 0) },
-    { label: "Liberados (agência)", value: String(liberados) },
     { label: "A cobrar (não fecharam)", value: String(semFechar) },
   ];
 
@@ -136,39 +164,160 @@ export default async function AdminPage() {
     c.startsWith("Assinante")
       ? "text-brand-2"
       : c.startsWith("Liberado")
-        ? "text-sky-400"
+        ? "text-sky-500"
         : c.startsWith("Em teste") || c.startsWith("Assinou")
           ? "text-accent"
-          : "text-red-400";
+          : "text-red-500";
+
+  // Donut (SVG estático) — conversão.
+  const donutSegs = [
+    { label: "Pagando", value: pagantes, color: "#059669" },
+    { label: "Em teste", value: testando, color: "#d97706" },
+    { label: "A cobrar", value: semFechar, color: "#ef4444" },
+  ];
+  const donutTotal = donutSegs.reduce((s, x) => s + x.value, 0);
+  const R = 56;
+  const SW = 20;
+  const CIRC = 2 * Math.PI * R;
+  let off = 0;
 
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-6xl px-4 py-10">
-        <h1 className="text-3xl font-bold tracking-tight">Painel Admin</h1>
-        <p className="mt-2 text-muted">Visão geral do negócio — testes, assinaturas e receita.</p>
-
-        {/* Receita em destaque */}
-        <div className="mt-6 rounded-2xl border border-brand/40 bg-brand/5 p-6">
-          <p className="text-sm text-muted">Receita recorrente mensal (MRR) — só de quem está pagando</p>
-          <p className="mt-1 font-display text-4xl font-extrabold text-brand-2">{brl(mrr)}</p>
-          <p className="mt-1 text-xs text-muted">
-            {ativos} assinante(s) ativo(s). (Quem está em teste ainda não entra no valor.)
-          </p>
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mb-6">
+          <h1 className="font-display text-2xl font-bold tracking-tight">Painel Admin</h1>
+          <p className="mt-1 text-sm text-muted">Visão geral do negócio — testes, assinaturas e receita.</p>
         </div>
 
-        {/* Cards */}
-        <div className="mt-5 grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+        {/* Herói: MRR grande + card verde */}
+        <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Receita recorrente mensal (MRR)</p>
+            <p className="mt-1 font-display text-5xl font-extrabold leading-none tracking-tight text-foreground sm:text-6xl">
+              {brl(mrr)}
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
+              <div>
+                <p className="text-xl font-bold">{users.length}</p>
+                <p className="text-xs text-muted">Contas</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-accent">{emTeste + assinouTeste}</p>
+                <p className="text-xs text-muted">Em teste</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-brand-2">{ativos}</p>
+                <p className="text-xs text-muted">Assinantes</p>
+              </div>
+              <div>
+                <p className="text-xl font-bold text-red-500">{semFechar}</p>
+                <p className="text-xs text-muted">A cobrar</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="flex flex-col justify-between rounded-3xl bg-brand-2 p-6 text-white card-soft">
+            <div>
+              <div className="flex items-center gap-2.5">
+                <span className="grid h-9 w-9 place-items-center rounded-full bg-white/15 text-sm font-bold">R$</span>
+                <div>
+                  <p className="text-sm font-semibold">Resumo do mês</p>
+                  <p className="text-xs text-white/70">Onde o negócio está</p>
+                </div>
+              </div>
+              <p className="mt-4 text-sm leading-relaxed text-white/90">
+                {ativos > 0
+                  ? `Você tem ${ativos} assinante(s) ativo(s) gerando ${brl(mrr)}/mês. `
+                  : "Ainda sem assinantes pagantes. "}
+                {emTeste + assinouTeste > 0
+                  ? `${emTeste + assinouTeste} em teste podem virar receita. `
+                  : ""}
+                {semFechar > 0 ? `${semFechar} pessoa(s) para reativar com contato.` : "Nenhuma conta parada no momento."}
+              </p>
+            </div>
+            <p className="mt-5 text-xs text-white/70">{liberados} liberado(s) pela agência (não entram no MRR).</p>
+          </div>
+        </div>
+
+        {/* Cards de métricas */}
+        <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
           {cards.map((c) => (
-            <div key={c.label} className="rounded-2xl border border-border bg-surface p-4">
+            <div key={c.label} className="rounded-2xl border border-border bg-white p-4 card-soft">
               <p className="text-2xl font-bold">{c.value}</p>
               <p className="mt-1 text-xs text-muted">{c.label}</p>
             </div>
           ))}
         </div>
 
-        {/* Tabela */}
-        <div className="mt-8 overflow-x-auto rounded-2xl border border-border bg-surface">
+        {/* 3 cards: cadastros/dia · conversão · próximas cobranças */}
+        <div className="mt-4 grid gap-4 lg:grid-cols-3">
+          <div className="rounded-3xl border border-border bg-white p-6 card-soft lg:col-span-1">
+            <p className="text-sm font-semibold">Cadastros por dia</p>
+            <p className="mb-3 text-xs text-muted">Novas contas nos últimos 30 dias</p>
+            <MetricChart data={series} label="Cadastros por dia" />
+          </div>
+
+          <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+            <p className="text-sm font-semibold">Conversão para pago</p>
+            <p className="mb-4 text-xs text-muted">Pagando vs. em teste vs. a cobrar</p>
+            <div className="flex flex-col items-center gap-4">
+              <div className="relative h-32 w-32 shrink-0">
+                <svg viewBox="0 0 140 140" className="h-32 w-32 -rotate-90">
+                  {donutTotal === 0 ? (
+                    <circle cx="70" cy="70" r={R} fill="none" stroke="var(--surface-2)" strokeWidth={SW} />
+                  ) : (
+                    donutSegs.map((s) => {
+                      const len = (s.value / donutTotal) * CIRC;
+                      const gap = len > 4 ? 2 : 0;
+                      const seg = (
+                        <circle key={s.label} cx="70" cy="70" r={R} fill="none" stroke={s.color} strokeWidth={SW} strokeDasharray={`${Math.max(0, len - gap)} ${CIRC - Math.max(0, len - gap)}`} strokeDashoffset={-off} />
+                      );
+                      off += len;
+                      return seg;
+                    })
+                  )}
+                </svg>
+                <div className="absolute inset-0 grid place-items-center">
+                  <span className="text-2xl font-bold">{convPct}%</span>
+                </div>
+              </div>
+              <ul className="w-full space-y-1.5">
+                {donutSegs.map((s) => (
+                  <li key={s.label} className="flex items-center gap-2 text-sm">
+                    <span className="h-2.5 w-2.5 rounded-full" style={{ background: s.color }} />
+                    <span className="flex-1 text-xs text-muted">{s.label}</span>
+                    <span className="font-semibold">{s.value}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+            <p className="text-sm font-semibold">Próximas cobranças</p>
+            <p className="mb-4 text-xs text-muted">Vencimentos mais próximos</p>
+            {proximas.length === 0 ? (
+              <p className="mt-6 text-center text-xs text-muted">Nenhuma cobrança agendada ainda.</p>
+            ) : (
+              <ul className="space-y-2">
+                {proximas.map((r, i) => (
+                  <li key={i} className="flex items-center justify-between rounded-2xl border border-border bg-surface-2 px-3 py-2.5">
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-medium">{r.email || "—"}</p>
+                      <p className="text-xs text-muted">{r.plano ?? "—"} · vence {dt(r.periodEnd)}</p>
+                    </div>
+                    <span className="shrink-0 text-sm font-semibold text-brand-2">{r.valor ? brl(r.valor) : "—"}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </div>
+
+        {/* Tabela completa (demais informações) */}
+        <h2 className="mb-3 mt-8 text-base font-semibold">Todas as contas</h2>
+        <div className="overflow-x-auto rounded-3xl border border-border bg-white card-soft">
           <table className="w-full min-w-[640px] text-sm">
             <thead className="border-b border-border text-left text-xs text-muted">
               <tr>
@@ -187,12 +336,7 @@ export default async function AdminPage() {
                   <td className="px-4 py-3">{r.email}</td>
                   <td className="px-4 py-3">
                     {r.phone ? (
-                      <a
-                        href={`https://wa.me/${r.phone.replace(/\D/g, "")}`}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-brand-2 hover:underline"
-                      >
+                      <a href={`https://wa.me/${r.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-brand-2 hover:underline">
                         {r.phone}
                       </a>
                     ) : (
@@ -210,17 +354,14 @@ export default async function AdminPage() {
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-muted">
-                    Nenhuma conta ainda.
-                  </td>
+                  <td colSpan={7} className="px-4 py-6 text-center text-muted">Nenhuma conta ainda.</td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
         <p className="mt-3 text-xs text-muted">
-          As pessoas em vermelho (teste expirado / cancelou / pagamento falhou) são as de contato
-          prioritário para fechar a mensalidade.
+          As pessoas em vermelho (teste expirado / cancelou / pagamento falhou) são as de contato prioritário para fechar a mensalidade.
         </p>
       </main>
     </div>

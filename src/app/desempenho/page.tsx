@@ -25,12 +25,11 @@ export default async function DesempenhoPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-5xl px-4 py-10">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold tracking-tight">Desempenho</h1>
-          <p className="mt-2 text-muted">
-            Evolução do seu perfil no Google: visualizações, ações e avaliações, com
-            comparação de crescimento por período.
+      <main className="mx-auto max-w-6xl px-4 py-8">
+        <div className="mb-6">
+          <h1 className="font-display text-2xl font-bold tracking-tight">Desempenho</h1>
+          <p className="mt-1 text-sm text-muted">
+            Como seu perfil do Google vem crescendo — visualizações, ações e avaliações.
           </p>
         </div>
         {locations.length === 0 ? (
