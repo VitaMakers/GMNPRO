@@ -63,6 +63,7 @@ export default async function AdminPage() {
   let semFechar = 0;
   let liberados = 0;
   let mrr = 0;
+  let potencialTeste = 0;
 
   for (const u of users) {
     const s = subMap.get(u.id);
@@ -91,6 +92,7 @@ export default async function AdminPage() {
       rank = 3;
       assinouTeste++;
       valor = PLAN_MONTHLY[plan ?? ""] ?? 0;
+      potencialTeste += valor;
     } else if (status === "past_due") {
       categoria = "Pagamento falhou";
       rank = 0;
@@ -144,6 +146,7 @@ export default async function AdminPage() {
   const testando = emTeste + assinouTeste;
   const convDen = pagantes + testando + semFechar;
   const convPct = convDen > 0 ? Math.round((pagantes / convDen) * 100) : 0;
+  const previstoTotal = mrr + potencialTeste;
 
   // Próximas cobranças: quem paga/testa, por data de vencimento.
   const proximas = rows
@@ -193,26 +196,33 @@ export default async function AdminPage() {
         {/* Herói: MRR grande + card verde */}
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
           <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Receita recorrente mensal (MRR)</p>
-            <p className="mt-1 font-display text-5xl font-extrabold leading-none tracking-tight text-foreground sm:text-6xl">
-              {brl(mrr)}
+            <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+              Receita recorrente do mês (MRR)
             </p>
+            <div className="mt-1 flex items-end gap-3">
+              <p className="font-display text-5xl font-extrabold leading-none tracking-tight text-foreground sm:text-6xl">
+                {brl(mrr)}
+              </p>
+              <span className="mb-1 rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand-2">
+                {ativos} ativo(s)
+              </span>
+            </div>
             <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-4">
               <div>
-                <p className="text-xl font-bold">{users.length}</p>
-                <p className="text-xs text-muted">Contas</p>
+                <p className="text-xs uppercase tracking-wide text-muted">Recebido/mês</p>
+                <p className="mt-0.5 text-lg font-bold">{brl(mrr)}</p>
               </div>
               <div>
-                <p className="text-xl font-bold text-accent">{emTeste + assinouTeste}</p>
-                <p className="text-xs text-muted">Em teste</p>
+                <p className="text-xs uppercase tracking-wide text-muted">Potencial em teste</p>
+                <p className="mt-0.5 text-lg font-bold text-accent">{brl(potencialTeste)}</p>
               </div>
               <div>
-                <p className="text-xl font-bold text-brand-2">{ativos}</p>
-                <p className="text-xs text-muted">Assinantes</p>
+                <p className="text-xs uppercase tracking-wide text-muted">Previsto/mês</p>
+                <p className="mt-0.5 text-lg font-bold text-brand-2">{brl(previstoTotal)}</p>
               </div>
               <div>
-                <p className="text-xl font-bold text-red-500">{semFechar}</p>
-                <p className="text-xs text-muted">A cobrar</p>
+                <p className="text-xs uppercase tracking-wide text-muted">Contas</p>
+                <p className="mt-0.5 text-lg font-bold">{users.length}</p>
               </div>
             </div>
           </div>
@@ -238,16 +248,6 @@ export default async function AdminPage() {
             </div>
             <p className="mt-5 text-xs text-white/70">{liberados} liberado(s) pela agência (não entram no MRR).</p>
           </div>
-        </div>
-
-        {/* Cards de métricas */}
-        <div className="mt-4 grid gap-3 grid-cols-2 sm:grid-cols-3 lg:grid-cols-6">
-          {cards.map((c) => (
-            <div key={c.label} className="rounded-2xl border border-border bg-white p-4 card-soft">
-              <p className="text-2xl font-bold">{c.value}</p>
-              <p className="mt-1 text-xs text-muted">{c.label}</p>
-            </div>
-          ))}
         </div>
 
         {/* 3 cards: cadastros/dia · conversão · próximas cobranças */}
@@ -313,6 +313,48 @@ export default async function AdminPage() {
               </ul>
             )}
           </div>
+        </div>
+
+        {/* Fluxo do mês (cópia do layout de referência) */}
+        <div className="mt-4 rounded-3xl border border-border bg-white p-6 card-soft">
+          <p className="text-sm font-semibold">Fluxo do mês</p>
+          <p className="mb-5 text-xs text-muted">Receita ativa, potencial em teste e previsto do período.</p>
+          <div className="grid gap-6 sm:grid-cols-3">
+            {[
+              { label: "Receita ativa", value: mrr, color: "#059669", hint: `${ativos} assinante(s)` },
+              { label: "Potencial em teste", value: potencialTeste, color: "#d97706", hint: `${assinouTeste} em teste pago` },
+              { label: "Previsto total", value: previstoTotal, color: "#0ea5e9", hint: "se os testes fecharem" },
+            ].map((col) => {
+              const frac = previstoTotal > 0 ? Math.max(0.06, col.value / previstoTotal) : 0.06;
+              const segs = Math.max(1, Math.round(frac * 10));
+              return (
+                <div key={col.label}>
+                  <p className="text-xs uppercase tracking-wide text-muted">{col.label}</p>
+                  <p className="mt-1 font-display text-2xl font-extrabold tracking-tight">{brl(col.value)}</p>
+                  <div className="mt-2 flex gap-1">
+                    {Array.from({ length: 10 }).map((_, i) => (
+                      <span
+                        key={i}
+                        className="h-1.5 flex-1 rounded-full"
+                        style={{ background: i < segs ? col.color : "var(--surface-2)" }}
+                      />
+                    ))}
+                  </div>
+                  <p className="mt-1.5 text-xs text-muted">{col.hint}</p>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Cards de métricas (detalhes) */}
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
+          {cards.map((c) => (
+            <div key={c.label} className="rounded-2xl border border-border bg-white p-4 card-soft">
+              <p className="text-2xl font-bold">{c.value}</p>
+              <p className="mt-1 text-xs text-muted">{c.label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Tabela completa (demais informações) */}

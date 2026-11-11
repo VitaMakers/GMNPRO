@@ -95,7 +95,7 @@ export default function AppHeader() {
           </div>
 
           {/* Linha 2: abas (horizontais no mobile/tablet; viram trilho lateral no desktop) */}
-          <nav className="flex items-center gap-1 overflow-x-auto pb-2 text-sm xl:hidden">
+          <nav className="flex items-center gap-1 overflow-x-auto pb-2 text-sm min-[1320px]:hidden">
             {links.map((l) => {
               const active = pathname === l.href;
               return (

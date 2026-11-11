@@ -78,8 +78,8 @@ export default function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
   const items = isAdmin ? [...ITEMS, { href: "/admin", label: "Admin", Icon: IAdmin }] : ITEMS;
 
   return (
-    <nav className="fixed left-2 top-1/2 z-30 hidden -translate-y-1/2 xl:block">
-      <div className="flex flex-col items-center gap-1 rounded-full border border-border bg-white p-1.5 card-soft">
+    <nav className="fixed left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1320px]:block">
+      <div className="flex flex-col items-center gap-1.5 rounded-full border border-border bg-white p-2 card-soft">
         {items.map(({ href, label, Icon }) => {
           const active = pathname === href;
           return (
@@ -88,12 +88,12 @@ export default function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
               href={href}
               title={label}
               aria-label={label}
-              className={`group relative grid h-10 w-10 place-items-center rounded-full transition ${
+              className={`group relative grid h-12 w-12 place-items-center rounded-full transition ${
                 active ? "bg-brand/12 text-brand-2" : "text-muted hover:bg-surface-2 hover:text-foreground"
               }`}
             >
-              <Icon className="h-5 w-5" />
-              <span className="pointer-events-none absolute left-12 z-10 hidden whitespace-nowrap rounded-lg bg-foreground px-2 py-1 text-xs font-medium text-white group-hover:block">
+              <Icon className="h-[22px] w-[22px]" />
+              <span className="pointer-events-none absolute left-14 z-10 hidden whitespace-nowrap rounded-lg bg-foreground px-2 py-1 text-xs font-medium text-white group-hover:block">
                 {label}
               </span>
             </Link>
