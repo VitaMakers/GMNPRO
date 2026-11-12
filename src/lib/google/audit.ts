@@ -20,13 +20,14 @@ interface LocationDetails {
     primaryCategory?: { displayName?: string };
     additionalCategories?: { displayName?: string }[];
   };
-  storefrontAddress?: { addressLines?: string[] };
+  storefrontAddress?: { addressLines?: string[]; locality?: string; administrativeArea?: string };
   serviceArea?: unknown;
   phoneNumbers?: { primaryPhone?: string };
   websiteUri?: string;
   regularHours?: { periods?: unknown[] };
   specialHours?: { specialHourPeriods?: unknown[] };
   profile?: { description?: string };
+  attributes?: { name?: string }[];
 }
 
 async function getLocationDetails(token: string, accountLocation: string): Promise<LocationDetails> {
@@ -36,9 +37,45 @@ async function getLocationDetails(token: string, accountLocation: string): Promi
   return getJson<LocationDetails>(`${BUSINESS_INFO}/${loc}?readMask=${readMask}`, token);
 }
 
+/** Atributos do local (wi-fi, acessibilidade, etc.) — endpoint separado. */
+async function getAttributes(token: string, accountLocation: string): Promise<number> {
+  try {
+    const loc = locationId(accountLocation);
+    const data = await getJson<{ attributes?: { name?: string }[] }>(
+      `${BUSINESS_INFO}/${loc}/attributes`,
+      token,
+    );
+    return (data.attributes ?? []).length;
+  } catch {
+    return -1; // -1 = não deu para ler
+  }
+}
+
+/** Perguntas e respostas (Q&A) do perfil. */
+async function getQandA(
+  token: string,
+  accountLocation: string,
+): Promise<{ total: number; answered: number } | null> {
+  try {
+    const loc = locationId(accountLocation);
+    const data = await getJson<{ questions?: { totalAnswerCount?: number }[] }>(
+      `https://mybusinessqanda.googleapis.com/v1/${loc}/questions?pageSize=30`,
+      token,
+    );
+    const qs = data.questions ?? [];
+    const answered = qs.filter((q) => (q.totalAnswerCount ?? 0) > 0).length;
+    return { total: qs.length, answered };
+  } catch {
+    return null;
+  }
+}
+
 interface MediaItem {
   locationAssociation?: { category?: string };
   createTime?: string;
+  mediaFormat?: string;
+  googleUrl?: string;
+  thumbnailUrl?: string;
 }
 
 async function listMediaRaw(token: string, accountLocation: string): Promise<MediaItem[]> {
@@ -87,12 +124,35 @@ async function listReviews(
 export type AutoResult = Record<string, { done: boolean; detail?: string }>;
 
 /** Lê o perfil e devolve, por item do checklist, se está feito (e um detalhe). */
+export interface AuditProfile {
+  title: string;
+  category: string;
+  address: string;
+  phone: string;
+  website: string;
+  description: string;
+  rating: number;
+  reviewCount: number;
+  photoUrl: string | null;
+}
+
 export async function runProfileAudit(
   token: string,
   accountLocation: string,
-): Promise<{ auto: AutoResult; stats: Record<string, unknown> }> {
+): Promise<{ auto: AutoResult; stats: Record<string, unknown>; profile: AuditProfile }> {
   const auto: AutoResult = {};
   const stats: Record<string, unknown> = {};
+  const profile: AuditProfile = {
+    title: "",
+    category: "",
+    address: "",
+    phone: "",
+    website: "",
+    description: "",
+    rating: 0,
+    reviewCount: 0,
+    photoUrl: null,
+  };
   const now = Date.now();
   const daysSince = (ms: number) => Math.floor((now - ms) / 86_400_000);
 
@@ -100,19 +160,40 @@ export async function runProfileAudit(
   try {
     const d = await getLocationDetails(token, accountLocation);
     if (d.title) auto.nome = { done: true, detail: d.title };
+    profile.title = d.title ?? "";
     const primary = d.categories?.primaryCategory?.displayName;
+    profile.category = primary ?? "";
     auto.cat_principal = { done: !!primary, detail: primary };
     const sec = d.categories?.additionalCategories?.length ?? 0;
     auto.cat_secundarias = { done: sec > 0, detail: sec ? `${sec} categoria(s)` : undefined };
+    const addrLine = (d.storefrontAddress?.addressLines ?? []).join(", ");
+    const city = [d.storefrontAddress?.locality, d.storefrontAddress?.administrativeArea].filter(Boolean).join(" - ");
+    profile.address = [addrLine, city].filter(Boolean).join(", ");
     const hasAddr = (d.storefrontAddress?.addressLines?.length ?? 0) > 0 || !!d.serviceArea;
     auto.endereco = { done: hasAddr };
     auto.horarios = { done: (d.regularHours?.periods?.length ?? 0) > 0 };
+    profile.phone = d.phoneNumbers?.primaryPhone ?? "";
     auto.telefone = { done: !!d.phoneNumbers?.primaryPhone, detail: d.phoneNumbers?.primaryPhone };
+    profile.website = d.websiteUri ?? "";
     auto.site = { done: !!d.websiteUri, detail: d.websiteUri };
     const desc = (d.profile?.description ?? "").trim();
+    profile.description = desc;
     auto.descricao = { done: desc.length >= 50, detail: desc ? `${desc.length} caracteres` : undefined };
   } catch (e) {
     stats.infoError = (e as Error).message;
+  }
+
+  // Atributos (endpoint separado)
+  const attrCount = await getAttributes(token, accountLocation);
+  if (attrCount >= 0) auto.atributos = { done: attrCount > 0, detail: attrCount ? `${attrCount} atributo(s)` : "nenhum" };
+
+  // Q&A
+  const qa = await getQandA(token, accountLocation);
+  if (qa) {
+    auto.qa = {
+      done: qa.total > 0 && qa.answered > 0,
+      detail: qa.total ? `${qa.answered}/${qa.total} respondidas` : "sem perguntas",
+    };
   }
 
   // Fotos
@@ -131,6 +212,13 @@ export async function runProfileAudit(
     const recent = media.some((m) => m.createTime && daysSince(new Date(m.createTime).getTime()) <= 31);
     auto.fotos_recentes = { done: recent };
     stats.photos = media.length;
+    // Foto para o card do perfil (capa/logo/qualquer).
+    const pick =
+      media.find((m) => m.locationAssociation?.category === "COVER") ??
+      media.find((m) => m.locationAssociation?.category === "PROFILE") ??
+      media.find((m) => m.mediaFormat === "PHOTO") ??
+      media[0];
+    profile.photoUrl = pick?.googleUrl ?? pick?.thumbnailUrl ?? null;
   } catch (e) {
     stats.mediaError = (e as Error).message;
   }
@@ -172,9 +260,11 @@ export async function runProfileAudit(
     }
     stats.reviewsTotal = total;
     stats.reviewsAvg = average;
+    profile.rating = average;
+    profile.reviewCount = total;
   } catch (e) {
     stats.reviewsError = (e as Error).message;
   }
 
-  return { auto, stats };
+  return { auto, stats, profile };
 }

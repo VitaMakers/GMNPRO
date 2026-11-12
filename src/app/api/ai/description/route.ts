@@ -40,6 +40,29 @@ export async function POST(request: Request) {
     .eq("location_name", location)
     .maybeSingle();
 
+  // Limite de 3 gerações por perfil por mês (best-effort; não bloqueia se a
+  // tabela ainda não existir). Conta só a geração, não a publicação.
+  const LIMIT = 3;
+  const ym = new Date().toISOString().slice(0, 7);
+  try {
+    const { data: usage } = await supabase
+      .from("ai_usage")
+      .select("count")
+      .eq("user_id", user.id)
+      .eq("location_name", location)
+      .eq("ym", ym)
+      .eq("kind", "description")
+      .maybeSingle();
+    if ((usage?.count ?? 0) >= LIMIT) {
+      return NextResponse.json(
+        { error: "limite", detail: `Você já gerou ${LIMIT} descrições para este perfil neste mês.` },
+        { status: 429 },
+      );
+    }
+  } catch {
+    /* tabela ausente: não aplica limite */
+  }
+
   // Para "melhorar", lê a descrição atual direto do Google.
   let current = "";
   if (mode === "improve") {
@@ -51,7 +74,11 @@ export async function POST(request: Request) {
     }
   }
 
-  const provider = (body.provider ?? settings?.provider ?? "claude") as Provider;
+  // Se houver uma chave OpenAI do sistema (sua, escondida), as descrições
+  // usam o ChatGPT com ela. Senão, usa o provedor/chave configurados no perfil.
+  const ownGpt = !!process.env.OPENAI_API_KEY;
+  const provider = (ownGpt ? "openai" : body.provider ?? settings?.provider ?? "claude") as Provider;
+  const keyToUse = ownGpt ? undefined : clientKey;
 
   try {
     const description = await generateBusinessDescription(
@@ -63,8 +90,27 @@ export async function POST(request: Request) {
         current,
         extra: typeof extra === "string" ? extra : "",
       },
-      clientKey,
+      keyToUse,
     );
+
+    // Registra o uso (best-effort).
+    try {
+      const { data: u } = await supabase
+        .from("ai_usage")
+        .select("count")
+        .eq("user_id", user.id)
+        .eq("location_name", location)
+        .eq("ym", ym)
+        .eq("kind", "description")
+        .maybeSingle();
+      await supabase.from("ai_usage").upsert(
+        { user_id: user.id, location_name: location, ym, kind: "description", count: (u?.count ?? 0) + 1 },
+        { onConflict: "user_id,location_name,ym,kind" },
+      );
+    } catch {
+      /* ignora */
+    }
+
     return NextResponse.json({ ok: true, description, current });
   } catch (e) {
     return NextResponse.json(

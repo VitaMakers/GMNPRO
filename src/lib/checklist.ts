@@ -86,6 +86,8 @@ export const AUTO_ITEM_IDS = new Set<string>([
   "volume",
   "posts",
   "botao",
+  "atributos",
+  "qa",
 ]);
 
 export const TOTAL_WEIGHT = CHECKLIST.reduce(

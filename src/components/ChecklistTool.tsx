@@ -14,6 +14,11 @@ const STORAGE_KEY = "gmnpro.checklist";
 
 type AutoResult = Record<string, { done: boolean; detail?: string }>;
 type LocationOption = { location_name: string; title: string | null };
+type AuditProfile = {
+  title: string; category: string; address: string; phone: string;
+  website: string; description: string; rating: number; reviewCount: number;
+  photoUrl: string | null;
+};
 
 export default function ChecklistTool({
   locations = [],
@@ -27,6 +32,7 @@ export default function ChecklistTool({
   const [manual, setManual] = useState<Record<string, boolean>>({});
   const [loaded, setLoaded] = useState(false);
   const [auto, setAuto] = useState<AutoResult | null>(null);
+  const [profile, setProfile] = useState<AuditProfile | null>(null);
   const active = useActiveProfile();
   const selected = active ?? locations[0]?.location_name ?? "";
   const selectedTitle = locations.find((l) => l.location_name === selected)?.title ?? "perfil";
@@ -51,6 +57,7 @@ export default function ChecklistTool({
   // Ao trocar de perfil no topo, limpa a análise anterior.
   useEffect(() => {
     setAuto(null);
+    setProfile(null);
     setAnalyzedAt(null);
     setError("");
   }, [selected]);
@@ -95,6 +102,7 @@ export default function ChecklistTool({
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Falha ao analisar.");
       setAuto(data.auto as AutoResult);
+      if (data.profile) setProfile(data.profile as AuditProfile);
       setAnalyzedAt(new Date().toLocaleString("pt-BR"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível analisar o perfil.");
@@ -105,6 +113,16 @@ export default function ChecklistTool({
 
   const color = score >= 75 ? "text-brand-2" : score >= 50 ? "text-accent" : "text-red-400";
   const ring = score >= 75 ? "#34a853" : score >= 50 ? "#fbbc05" : "#f87171";
+
+  // Pontuação detalhada: Bom (feito), Fraco (falta e importante), Razoável (falta leve).
+  const detail = { bom: 0, fraco: 0, razoavel: 0 };
+  for (const cat of CHECKLIST) {
+    for (const it of cat.items) {
+      if (checked[it.id]) detail.bom++;
+      else if (it.weight >= 5) detail.fraco++;
+      else detail.razoavel++;
+    }
+  }
 
   return (
     <div className="space-y-6">
@@ -171,6 +189,58 @@ export default function ChecklistTool({
           </button>
         )}
       </div>
+
+      {/* Pontuação detalhada + card do perfil (após a análise) */}
+      {profile && (
+        <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+          <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+            <p className="mb-4 text-sm font-semibold">Pontuação detalhada</p>
+            <ul className="space-y-3">
+              {[
+                { n: detail.fraco, label: "Fraco", sub: "Precisam de atenção", c: "#ef4444" },
+                { n: detail.razoavel, label: "Razoável", sub: "Dá para melhorar", c: "#d97706" },
+                { n: detail.bom, label: "Bom", sub: "Em ótimo estado", c: "#059669" },
+              ].map((r) => (
+                <li key={r.label} className="flex items-center gap-3">
+                  <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-sm font-bold text-white" style={{ background: r.c }}>{r.n}</span>
+                  <span>
+                    <span className="block text-sm font-semibold" style={{ color: r.c }}>{r.label}</span>
+                    <span className="block text-xs text-muted">{r.sub}</span>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Card do perfil */}
+          <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
+            {profile.photoUrl && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={profile.photoUrl} alt="" className="h-32 w-full object-cover" />
+            )}
+            <div className="p-5">
+              <p className="font-display text-lg font-bold tracking-tight">{profile.title || selectedTitle}</p>
+              <div className="mt-1 flex items-center gap-2 text-sm">
+                {profile.rating > 0 && (
+                  <span className="font-semibold text-accent">{profile.rating.toFixed(1)} ★</span>
+                )}
+                {profile.reviewCount > 0 && <span className="text-muted">({profile.reviewCount})</span>}
+                {profile.category && <span className="text-muted">· {profile.category}</span>}
+              </div>
+              {profile.address && <p className="mt-2 text-sm text-muted">{profile.address}</p>}
+              {profile.phone && <p className="text-sm text-muted">{profile.phone}</p>}
+              {profile.website && (
+                <a href={profile.website} target="_blank" rel="noopener noreferrer" className="mt-1 block truncate text-sm text-brand-2 hover:underline">
+                  {profile.website}
+                </a>
+              )}
+              {profile.description && (
+                <p className="mt-3 line-clamp-4 text-xs text-muted">{profile.description}</p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Prioridades */}
       {top.length > 0 && (
