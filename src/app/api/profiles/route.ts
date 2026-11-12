@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
 import { fetchProfilePhoto } from "@/lib/google/media";
+import { getLocationGeo } from "@/lib/google/audit";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 30;
@@ -73,6 +74,34 @@ export async function GET() {
       );
     } catch {
       /* sem conexão Google / sem token: segue sem fotos */
+    }
+  }
+
+  // Backfill de coordenadas (até 8 por chamada) para o Mapa de Locais.
+  const noCoords = locs.filter((l) => l.lat == null || l.lng == null).slice(0, 8);
+  if (noCoords.length > 0 && "lat" in (locs[0] ?? {})) {
+    try {
+      const admin = createAdminClient();
+      const token = await getValidAccessToken(admin, user.id);
+      const got = new Map<string, { lat: number; lng: number }>();
+      await Promise.all(
+        noCoords.map(async (l) => {
+          try {
+            const g = await getLocationGeo(token, l.location_name);
+            if (g.lat != null && g.lng != null) got.set(l.location_name, { lat: g.lat, lng: g.lng });
+          } catch {
+            /* ignora */
+          }
+        }),
+      );
+      await Promise.all(
+        [...got.entries()].map(([location_name, c]) =>
+          admin.from("gmb_locations").update(c).eq("user_id", user.id).eq("location_name", location_name),
+        ),
+      );
+      locs = locs.map((l) => (got.has(l.location_name) ? { ...l, ...got.get(l.location_name)! } : l));
+    } catch {
+      /* sem token: segue sem coordenadas */
     }
   }
 

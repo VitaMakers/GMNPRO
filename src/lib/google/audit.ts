@@ -46,6 +46,21 @@ async function getLocationDetails(token: string, accountLocation: string): Promi
   return getJson<LocationDetails>(`${BUSINESS_INFO}/${loc}?readMask=${readMask}`, token);
 }
 
+/** Coordenadas + placeId + título do local (para geo-grid e mapa). */
+export async function getLocationGeo(
+  token: string,
+  accountLocation: string,
+): Promise<{ lat: number | null; lng: number | null; placeId: string | null; title: string }> {
+  const loc = locationId(accountLocation);
+  const d = await getJson<LocationDetails>(`${BUSINESS_INFO}/${loc}?readMask=title,latlng,metadata`, token);
+  return {
+    lat: typeof d.latlng?.latitude === "number" ? d.latlng.latitude : null,
+    lng: typeof d.latlng?.longitude === "number" ? d.latlng.longitude : null,
+    placeId: d.metadata?.placeId ?? null,
+    title: d.title ?? "",
+  };
+}
+
 /** Atributos do local (wi-fi, acessibilidade, etc.) — endpoint separado. */
 async function getAttributes(token: string, accountLocation: string): Promise<number> {
   try {

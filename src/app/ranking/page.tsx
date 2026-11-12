@@ -3,6 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import RankingTool from "@/components/RankingTool";
+import { getCredits } from "@/lib/credits";
 
 export const metadata = { title: "Análise de Ranking — GMN PRO" };
 
@@ -23,6 +24,7 @@ export default async function RankingPage() {
     .select("location_name, title")
     .order("title", { ascending: true });
   const locations = (locs as { location_name: string; title: string | null }[]) ?? [];
+  const credits = await getCredits(supabase, user.id, access);
 
   return (
     <div className="min-h-screen">
@@ -35,7 +37,7 @@ export default async function RankingPage() {
             você domina e onde some.
           </p>
         </div>
-        <RankingTool locations={locations} trial={access.trial} credits={0} />
+        <RankingTool locations={locations} trial={access.trial} credits={credits} />
       </main>
     </div>
   );

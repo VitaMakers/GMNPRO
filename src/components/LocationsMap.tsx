@@ -15,7 +15,7 @@ const LEAFLET_JS = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
 
 // Carrega o Leaflet uma única vez (via CDN).
 let leafletPromise: Promise<unknown> | null = null;
-function loadLeaflet(): Promise<unknown> {
+export function loadLeaflet(): Promise<unknown> {
   if (typeof window === "undefined") return Promise.reject();
   const w = window as unknown as { L?: unknown };
   if (w.L) return Promise.resolve(w.L);

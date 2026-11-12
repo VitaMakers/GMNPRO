@@ -58,6 +58,22 @@ export default function ChecklistTool({
   const [analyzing, setAnalyzing] = useState(false);
   const [analyzedAt, setAnalyzedAt] = useState<string | null>(null);
   const [error, setError] = useState("");
+  // Coordenadas de todos os perfis (vindas do /api/profiles, que faz o backfill).
+  const [coords, setCoords] = useState<Record<string, { lat: number; lng: number }>>({});
+
+  useEffect(() => {
+    if (!autoEnabled) return;
+    fetch("/api/profiles")
+      .then((r) => r.json())
+      .then((d) => {
+        const map: Record<string, { lat: number; lng: number }> = {};
+        for (const p of (d.profiles ?? []) as { location_name: string; lat: number | null; lng: number | null }[]) {
+          if (typeof p.lat === "number" && typeof p.lng === "number") map[p.location_name] = { lat: p.lat, lng: p.lng };
+        }
+        setCoords(map);
+      })
+      .catch(() => undefined);
+  }, [autoEnabled]);
 
   useEffect(() => {
     try {
@@ -163,14 +179,15 @@ export default function ChecklistTool({
     for (const l of locations) {
       const isSel = l.location_name === selected;
       // Perfil analisado agora traz coordenadas ao vivo.
-      const lat = isSel && profile?.lat != null ? profile.lat : l.lat;
-      const lng = isSel && profile?.lng != null ? profile.lng : l.lng;
+      const c = coords[l.location_name];
+      const lat = isSel && profile?.lat != null ? profile.lat : (c?.lat ?? l.lat);
+      const lng = isSel && profile?.lng != null ? profile.lng : (c?.lng ?? l.lng);
       if (typeof lat === "number" && typeof lng === "number") {
         pts.push({ title: l.title ?? "Perfil", lat, lng, active: isSel, detail: isSel ? "Perfil selecionado" : undefined });
       }
     }
     return pts;
-  }, [locations, selected, profile]);
+  }, [locations, selected, profile, coords]);
 
   return (
     <div className="space-y-6">

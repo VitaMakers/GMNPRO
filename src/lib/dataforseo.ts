@@ -1,0 +1,117 @@
+/**
+ * Cliente DataForSEO — SERP Google Maps (live/advanced).
+ * Usado pelo geo-grid: para cada ponto da grade, busca a palavra-chave no
+ * Google Maps "a partir daquela coordenada" e descobre a posição do perfil.
+ *
+ * Credenciais (Vercel): DATAFORSEO_LOGIN e DATAFORSEO_PASSWORD.
+ */
+
+const BASE = "https://api.dataforseo.com/v3";
+
+export function dataForSeoConfigured(): boolean {
+  return !!(process.env.DATAFORSEO_LOGIN && process.env.DATAFORSEO_PASSWORD);
+}
+
+function authHeader(): string {
+  const login = process.env.DATAFORSEO_LOGIN ?? "";
+  const pass = process.env.DATAFORSEO_PASSWORD ?? "";
+  return "Basic " + Buffer.from(`${login}:${pass}`).toString("base64");
+}
+
+interface MapsItem {
+  type?: string;
+  rank_group?: number;
+  rank_absolute?: number;
+  title?: string;
+  place_id?: string;
+  cid?: string;
+  rating?: { value?: number; votes_count?: number };
+  address?: string;
+}
+
+interface MapsResponse {
+  status_code?: number;
+  status_message?: string;
+  tasks?: {
+    status_code?: number;
+    status_message?: string;
+    result?: { items?: MapsItem[] }[];
+  }[];
+}
+
+export interface MapsTarget {
+  placeId?: string | null;
+  cid?: string | null;
+  title?: string | null;
+}
+
+function norm(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function matches(item: MapsItem, target: MapsTarget): boolean {
+  if (target.placeId && item.place_id && item.place_id === target.placeId) return true;
+  if (target.cid && item.cid && item.cid === target.cid) return true;
+  if (target.title && item.title) {
+    const a = norm(item.title);
+    const b = norm(target.title);
+    if (a === b || a.includes(b) || b.includes(a)) return true;
+  }
+  return false;
+}
+
+/**
+ * Posição do perfil no Google Maps para a keyword, buscando a partir de
+ * (lat,lng). Retorna null se não aparecer no top 20.
+ */
+export async function mapsRankAt(
+  keyword: string,
+  lat: number,
+  lng: number,
+  target: MapsTarget,
+  opts: { zoom?: number; depth?: number } = {},
+): Promise<{ rank: number | null; top: { title: string; rank: number }[] }> {
+  const zoom = opts.zoom ?? 14;
+  const depth = opts.depth ?? 20;
+  const res = await fetch(`${BASE}/serp/google/maps/live/advanced`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify([
+      {
+        keyword,
+        location_coordinate: `${lat.toFixed(6)},${lng.toFixed(6)},${zoom}z`,
+        language_code: "pt",
+        depth,
+      },
+    ]),
+  });
+  if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as MapsResponse;
+  const task = data.tasks?.[0];
+  if (!task || (task.status_code && task.status_code >= 40000)) {
+    throw new Error(`DataForSEO: ${task?.status_message ?? data.status_message ?? "erro"}`);
+  }
+  const items = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search");
+  const hit = items.find((i) => matches(i, target));
+  const top = items.slice(0, 3).map((i) => ({ title: i.title ?? "", rank: i.rank_group ?? 0 }));
+  return { rank: hit?.rank_group ?? null, top };
+}
+
+/** Executa várias consultas com concorrência limitada. */
+export async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Promise<R>): Promise<R[]> {
+  const out: R[] = new Array(items.length);
+  let i = 0;
+  async function worker() {
+    while (i < items.length) {
+      const idx = i++;
+      out[idx] = await fn(items[idx]);
+    }
+  }
+  await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
+  return out;
+}
