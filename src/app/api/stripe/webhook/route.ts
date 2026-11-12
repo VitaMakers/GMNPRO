@@ -61,6 +61,7 @@ export async function POST(request: Request) {
             status,
             plan,
             tier,
+            plan_chosen: true,
             current_period_end: cpe,
             updated_at: ts(),
           },

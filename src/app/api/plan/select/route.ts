@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const { error } = await supabase
     .from("subscriptions")
-    .upsert({ user_id: user.id, tier }, { onConflict: "user_id" });
+    .upsert({ user_id: user.id, tier, plan_chosen: true }, { onConflict: "user_id" });
 
   if (error) return NextResponse.json({ error: "falha_ao_salvar" }, { status: 500 });
 

@@ -22,7 +22,12 @@ export default async function AssinarPage() {
       <main className="mx-auto max-w-4xl px-4 py-12">
         <div className="mb-8 text-center">
           <h1 className="font-display text-3xl font-bold tracking-tight">Assine o GMN PRO</h1>
-          {access.trial ? (
+          {access.needsPlan ? (
+            <p className="mt-2 text-muted">
+              Escolha um plano para começar seu <span className="font-semibold text-foreground">teste grátis de 7 dias</span> —
+              sem cartão. A cobrança só começa depois do teste.
+            </p>
+          ) : access.trial ? (
             <p className="mt-2 text-muted">
               Seu teste grátis termina em <span className="font-semibold text-foreground">{access.daysLeft} dia(s)</span>.
               Assine agora e a cobrança só começa quando o teste acabar.
@@ -49,7 +54,7 @@ export default async function AssinarPage() {
           </div>
         )}
 
-        <AssinarPlans trial={access.trial} currentTier={access.tier} />
+        <AssinarPlans trial={access.trial || !!access.needsPlan} currentTier={access.tier} />
         <ManageSubscriptionButton />
       </main>
     </div>

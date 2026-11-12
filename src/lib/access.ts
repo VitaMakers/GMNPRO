@@ -11,6 +11,8 @@ export interface Access {
   entitlements: Entitlements;
   /** Dias até a exclusão automática da conta (só quando bloqueado por falta de pagamento). */
   deletionInDays?: number | null;
+  /** true quando a pessoa ainda não escolheu um plano (precisa escolher para entrar). */
+  needsPlan?: boolean;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -36,7 +38,7 @@ export async function getAccess(
 
   let { data } = await supabase
     .from("subscriptions")
-    .select("trial_ends_at, status, manual_access, tier")
+    .select("trial_ends_at, status, manual_access, tier, plan_chosen")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -45,7 +47,7 @@ export async function getAccess(
     await supabase
       .from("subscriptions")
       .upsert({ user_id: userId, trial_ends_at: trialEnds }, { onConflict: "user_id" });
-    data = { trial_ends_at: trialEnds, status: null, manual_access: false, tier: "essencial" };
+    data = { trial_ends_at: trialEnds, status: null, manual_access: false, tier: "essencial", plan_chosen: false };
   }
 
   const tier = (data.tier as string) ?? "essencial";
@@ -59,6 +61,11 @@ export async function getAccess(
   const status = data.status ?? null;
   if (status === "active" || status === "trialing") {
     return { allowed: true, trial: false, daysLeft: 0, status, tier, entitlements: ent };
+  }
+
+  // Ainda não escolheu um plano: precisa escolher antes de entrar (mesmo o teste).
+  if (!data.plan_chosen) {
+    return { allowed: false, trial: false, daysLeft: 0, status, tier, entitlements: ent, needsPlan: true };
   }
 
   const trialEnds = data.trial_ends_at ? new Date(data.trial_ends_at).getTime() : 0;
