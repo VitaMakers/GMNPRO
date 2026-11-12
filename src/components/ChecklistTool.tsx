@@ -456,6 +456,20 @@ function ProfileCard({ profile, fallbackTitle }: { profile: AuditProfile; fallba
           )}
         </div>
 
+        {/* Botões (no topo, como no GBP) */}
+        <div className="mt-3 flex flex-wrap gap-2">
+          {profile.searchUri && (
+            <a href={profile.searchUri} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-medium transition hover:bg-surface-2">
+              <GoogleG className="h-4 w-4" /> Ver na Pesquisa
+            </a>
+          )}
+          {profile.mapsUri && (
+            <a href={profile.mapsUri} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-medium transition hover:bg-surface-2">
+              <span className="text-brand-2"><IconPin /></span> Ver no Maps
+            </a>
+          )}
+        </div>
+
         {/* Dados com ícones */}
         <div className="mt-3 space-y-1.5 text-sm">
           {profile.address && <InfoRow icon={<IconPin />} text={profile.address} />}
@@ -487,20 +501,6 @@ function ProfileCard({ profile, fallbackTitle }: { profile: AuditProfile; fallba
             <p className="mt-1 max-h-32 overflow-y-auto whitespace-pre-line text-xs text-foreground/80">{profile.description}</p>
           </div>
         )}
-
-        {/* Botões */}
-        <div className="mt-4 flex flex-wrap gap-2">
-          {profile.searchUri && (
-            <a href={profile.searchUri} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-medium transition hover:bg-surface-2">
-              <GoogleG className="h-4 w-4" /> Ver na Pesquisa
-            </a>
-          )}
-          {profile.mapsUri && (
-            <a href={profile.mapsUri} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-xl border border-border bg-white px-3 py-2 text-xs font-medium transition hover:bg-surface-2">
-              <IconPin /> Ver no Maps
-            </a>
-          )}
-        </div>
       </div>
     </div>
   );

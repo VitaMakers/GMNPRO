@@ -224,14 +224,16 @@ export async function runProfileAudit(
     }
     profile.mapsUri = d.metadata?.mapsUri ?? null;
     profile.verified = !!d.metadata?.hasVoiceOfMerchant;
+    auto.verificado = { done: profile.verified, detail: profile.verified ? "verificado" : "não verificado" };
     profile.open = d.openInfo?.status ? d.openInfo.status === "OPEN" : true;
     const od = d.openInfo?.openingDate;
     if (od?.year) {
       profile.foundingDate = [od.day, od.month, od.year].filter(Boolean).join("/");
     }
-    // Link "Ver na Pesquisa": usa o placeId quando disponível.
+    auto.fundacao = { done: !!profile.foundingDate, detail: profile.foundingDate ?? undefined };
+    // Link "Ver na Pesquisa": abre direto a aba de AVALIAÇÕES do perfil no Google.
     if (d.metadata?.placeId) {
-      profile.searchUri = `https://search.google.com/local/writereview?placeid=${d.metadata.placeId}`;
+      profile.searchUri = `https://search.google.com/local/reviews?placeid=${d.metadata.placeId}`;
     }
   } catch (e) {
     stats.infoError = (e as Error).message;
@@ -258,15 +260,18 @@ export async function runProfileAudit(
     );
     const hasCover = cats.has("COVER");
     const hasLogo = cats.has("PROFILE") || cats.has("LOGO");
-    auto.foto_capa = { done: hasCover && hasLogo };
+    auto.foto_capa = { done: hasCover, detail: hasCover ? "capa definida" : "sem capa" };
+    auto.logo = { done: hasLogo, detail: hasLogo ? "logo definido" : "sem logo" };
     const variety = ["EXTERIOR", "INTERIOR", "PRODUCT", "TEAM", "FOOD_AND_DRINK", "AT_WORK", "MENU"].filter(
       (c) => cats.has(c),
     ).length;
     auto.fotos_variadas = { done: variety >= 2, detail: `${variety} tipo(s) de foto` };
     const recent = media.some((m) => m.createTime && daysSince(new Date(m.createTime).getTime()) <= 31);
     auto.fotos_recentes = { done: recent };
+    const videoCount = media.filter((m) => m.mediaFormat === "VIDEO").length;
+    auto.videos = { done: videoCount > 0, detail: videoCount ? `${videoCount} vídeo(s)` : "sem vídeos" };
     stats.photos = media.length;
-    profile.photoCount = media.length;
+    profile.photoCount = media.filter((m) => m.mediaFormat !== "VIDEO").length;
     // Foto para o card do perfil (capa/logo/qualquer).
     const pick =
       media.find((m) => m.locationAssociation?.category === "COVER") ??

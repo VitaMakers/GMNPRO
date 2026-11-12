@@ -68,13 +68,14 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
         const bounds: [number, number][] = [];
         for (const p of points) {
           const color = p.active ? "#059669" : "#2563eb";
-          const marker = L.circleMarker([p.lat, p.lng], {
-            radius: p.active ? 10 : 7,
-            color: "#fff",
-            weight: 2,
-            fillColor: color,
-            fillOpacity: 1,
-          }).addTo(map);
+          const icon = L.divIcon({
+            className: "",
+            html: pinSvg(color, !!p.active),
+            iconSize: [p.active ? 34 : 28, p.active ? 44 : 36],
+            iconAnchor: [p.active ? 17 : 14, p.active ? 44 : 36],
+            popupAnchor: [0, p.active ? -40 : -32],
+          });
+          const marker = L.marker([p.lat, p.lng], { icon, zIndexOffset: p.active ? 1000 : 0 }).addTo(map);
           marker.bindPopup(
             `<strong>${escapeHtml(p.title)}</strong>${p.detail ? `<br/>${escapeHtml(p.detail)}` : ""}`,
           );
@@ -116,6 +117,16 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
   }
 
   return <div ref={ref} className="h-full min-h-[280px] w-full rounded-2xl" />;
+}
+
+// Pino teardrop (igual ao do Google Maps), com sombra.
+function pinSvg(color: string, active: boolean): string {
+  const w = active ? 34 : 28;
+  const h = active ? 44 : 36;
+  return `<svg width="${w}" height="${h}" viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.4))">
+    <path d="M14 0C6.3 0 0 6.3 0 14c0 9.8 12.6 21.1 13.1 21.6.5.5 1.3.5 1.8 0C15.4 35.1 28 23.8 28 14 28 6.3 21.7 0 14 0z" fill="${color}"/>
+    <circle cx="14" cy="14" r="5.2" fill="#fff"/>
+  </svg>`;
 }
 
 function escapeHtml(s: string): string {

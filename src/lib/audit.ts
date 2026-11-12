@@ -19,6 +19,7 @@ export interface CheckResult {
 
 /** Dados normalizados que a auditoria consome (vindos da Places API). */
 export interface PlaceData {
+  placeId?: string;
   name: string;
   address?: string;
   primaryType?: string;
@@ -28,10 +29,16 @@ export interface PlaceData {
   rating?: number;
   reviewCount?: number;
   hasHours?: boolean;
+  weekdayDescriptions?: string[];
+  openNow?: boolean;
   photoCount?: number;
   businessStatus?: string;
   description?: string;
   googleMapsUri?: string;
+  searchUri?: string;
+  priceLevel?: string;
+  lat?: number;
+  lng?: number;
 }
 
 export interface AuditReport {

@@ -20,11 +20,13 @@ interface PlacesDetails {
   websiteUri?: string;
   rating?: number;
   userRatingCount?: number;
-  regularOpeningHours?: { weekdayDescriptions?: string[] };
+  regularOpeningHours?: { weekdayDescriptions?: string[]; openNow?: boolean };
   photos?: unknown[];
   businessStatus?: string;
   editorialSummary?: { text: string };
   googleMapsUri?: string;
+  priceLevel?: string;
+  location?: { latitude?: number; longitude?: number };
 }
 
 async function searchPlaces(query: string, key: string) {
@@ -65,6 +67,8 @@ async function placeDetails(id: string, key: string) {
     "businessStatus",
     "editorialSummary",
     "googleMapsUri",
+    "priceLevel",
+    "location",
   ].join(",");
 
   const res = await fetch(`${PLACES_BASE}/places/${id}?languageCode=pt-BR`, {
@@ -74,8 +78,17 @@ async function placeDetails(id: string, key: string) {
   return (await res.json()) as PlacesDetails;
 }
 
-function toPlaceData(d: PlacesDetails): PlaceData {
+const PRICE_LEVEL: Record<string, string> = {
+  PRICE_LEVEL_FREE: "Grátis",
+  PRICE_LEVEL_INEXPENSIVE: "$",
+  PRICE_LEVEL_MODERATE: "$$",
+  PRICE_LEVEL_EXPENSIVE: "$$$",
+  PRICE_LEVEL_VERY_EXPENSIVE: "$$$$",
+};
+
+function toPlaceData(d: PlacesDetails, placeId: string): PlaceData {
   return {
+    placeId,
     name: d.displayName?.text ?? "Empresa",
     address: d.formattedAddress,
     primaryType: d.primaryTypeDisplayName?.text ?? d.primaryType,
@@ -85,10 +98,16 @@ function toPlaceData(d: PlacesDetails): PlaceData {
     rating: d.rating,
     reviewCount: d.userRatingCount,
     hasHours: !!(d.regularOpeningHours?.weekdayDescriptions?.length),
+    weekdayDescriptions: d.regularOpeningHours?.weekdayDescriptions,
+    openNow: d.regularOpeningHours?.openNow,
     photoCount: Array.isArray(d.photos) ? d.photos.length : 0,
     businessStatus: d.businessStatus,
     description: d.editorialSummary?.text,
     googleMapsUri: d.googleMapsUri,
+    searchUri: `https://search.google.com/local/reviews?placeid=${placeId}`,
+    priceLevel: d.priceLevel ? PRICE_LEVEL[d.priceLevel] : undefined,
+    lat: d.location?.latitude,
+    lng: d.location?.longitude,
   };
 }
 
@@ -123,7 +142,7 @@ export async function GET(request: Request) {
 
     // Fase 2: auditar o lugar escolhido
     const details = await placeDetails(placeId!, key);
-    const report = auditPlace(toPlaceData(details));
+    const report = auditPlace(toPlaceData(details, placeId!));
     return NextResponse.json({ report });
   } catch (e) {
     return NextResponse.json(
