@@ -36,9 +36,11 @@ export async function getAccess(
     return { allowed: true, trial: false, daysLeft: 0, status: "admin", tier: "agencia4", entitlements: ADMIN_ENTITLEMENTS };
   }
 
+  // select("*") para não quebrar caso a coluna plan_chosen ainda não exista
+  // no banco (migração não aplicada) — aí o campo vem undefined e não bloqueia.
   let { data } = await supabase
     .from("subscriptions")
-    .select("trial_ends_at, status, manual_access, tier, plan_chosen")
+    .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
@@ -64,7 +66,9 @@ export async function getAccess(
   }
 
   // Ainda não escolheu um plano: precisa escolher antes de entrar (mesmo o teste).
-  if (!data.plan_chosen) {
+  // Só bloqueia quando o campo é explicitamente false (se a coluna não existe,
+  // vem undefined e não trava contas já existentes).
+  if (data.plan_chosen === false) {
     return { allowed: false, trial: false, daysLeft: 0, status, tier, entitlements: ent, needsPlan: true };
   }
 
