@@ -161,7 +161,7 @@ function MailModal({ title, to, setTo, note, setNote, monthly, setMonthly, busy,
   monthly: boolean; setMonthly: (v: boolean) => void; busy: boolean; onSend: () => void; onClose: () => void;
 }) {
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" onClick={onClose}>
+    <div className="fixed inset-0 z-[9999] grid place-items-center bg-black/40 p-4" onClick={onClose}>
       <div className="w-full max-w-md rounded-3xl bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
         <p className="text-base font-semibold">Enviar relatório por e-mail</p>
         <p className="mt-0.5 text-xs text-muted">{title}</p>

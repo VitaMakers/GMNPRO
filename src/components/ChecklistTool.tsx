@@ -53,6 +53,7 @@ export default function ChecklistTool({
   const [loaded, setLoaded] = useState(false);
   const [auto, setAuto] = useState<AutoResult | null>(null);
   const [profile, setProfile] = useState<AuditProfile | null>(null);
+  const [failedBlocks, setFailedBlocks] = useState<string[]>([]);
   const active = useActiveProfile();
   const selected = active ?? locations[0]?.location_name ?? "";
   const selectedTitle = locations.find((l) => l.location_name === selected)?.title ?? "perfil";
@@ -115,6 +116,7 @@ export default function ChecklistTool({
     setAnalyzedAt(null);
     setError("");
     setShareUrl("");
+    setFailedBlocks([]);
   }, [selected]);
 
   useEffect(() => {
@@ -185,6 +187,9 @@ export default function ChecklistTool({
       if (!res.ok) throw new Error(data.error ?? "Falha ao analisar.");
       setAuto(data.auto as AutoResult);
       if (data.profile) setProfile(data.profile as AuditProfile);
+      const st = (data.stats ?? {}) as Record<string, unknown>;
+      const names: Record<string, string> = { infoError: "informações", mediaError: "fotos", postsError: "postagens", reviewsError: "avaliações" };
+      setFailedBlocks(Object.keys(names).filter((k) => st[k]).map((k) => names[k]));
       setAnalyzedAt(new Date().toLocaleString("pt-BR"));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível analisar o perfil.");
@@ -241,9 +246,9 @@ export default function ChecklistTool({
               {analyzing ? "Analisando…" : analyzedAt ? "Analisar de novo" : "Analisar meu perfil"}
             </button>
           </div>
-          {analyzedAt && unverifiable.length > 0 && (
+          {analyzedAt && failedBlocks.length > 0 && (
             <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
-              ⚠️ O Google não respondeu {unverifiable.length} item(ns) nesta análise (ex.: fotos). Eles ficaram fora da nota — clique em <strong>Analisar de novo</strong>.
+              ⚠️ O Google não respondeu o bloco de <strong>{failedBlocks.join(", ")}</strong> nesta análise. Esses itens ficaram fora da nota — clique em <strong>Analisar de novo</strong>.
             </p>
           )}
           {analyzedAt && !error && (
@@ -692,7 +697,7 @@ function Row({
             )}
             {pending && (
               <span className="mt-0.5 block text-xs text-muted">
-                {unavailable ? "O Google não respondeu este item agora — não entrou na nota. Analise de novo." : "Será verificado na análise."}
+                {unavailable ? "Não disponível pela API do Google para este perfil — não entra na nota." : "Será verificado na análise."}
               </span>
             )}
           </span>
