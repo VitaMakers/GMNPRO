@@ -38,6 +38,9 @@ export async function POST() {
     return NextResponse.json({ ok: true, count, accounts: accounts.length });
   } catch (e) {
     const message = e instanceof Error ? e.message : "erro";
+    if (/ACCESS_TOKEN_SCOPE_INSUFFICIENT|insufficient authentication scopes|PERMISSION_DENIED/i.test(message)) {
+      return NextResponse.json({ error: "escopo_insuficiente" }, { status: 403 });
+    }
     return NextResponse.json({ error: message }, { status: 502 });
   }
 }

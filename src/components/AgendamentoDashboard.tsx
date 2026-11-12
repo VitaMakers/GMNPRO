@@ -54,6 +54,8 @@ const ERROR_LABELS: Record<string, string> = {
   estado_invalido: "Sessão de segurança expirou. Tente conectar de novo.",
   falha_na_troca: "Falha ao trocar o código por um token. Verifique o Client ID/Secret e a URL de redirecionamento.",
   access_denied: "Você cancelou ou negou a autorização no Google.",
+  escopo_insuficiente:
+    "Conexão feita, mas a permissão do Perfil da Empresa (Google Meu Negócio) não foi concedida. Clique em Reconectar e, na tela do Google, MARQUE a caixa de permissão (ou \"Selecionar tudo\") antes de continuar.",
 };
 
 export default function AgendamentoDashboard({
@@ -68,6 +70,7 @@ export default function AgendamentoDashboard({
   const router = useRouter();
   const supabase = createClient();
   const [flash, setFlash] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  const [needReconnect, setNeedReconnect] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -77,6 +80,7 @@ export default function AgendamentoDashboard({
     if (err) {
       const base = ERROR_LABELS[err] ?? `Erro na conexão: ${err}`;
       setFlash({ type: "err", text: detail ? `${base} (Google: ${detail})` : base });
+      if (err === "escopo_insuficiente") setNeedReconnect(true);
     } else if (ok) {
       setFlash({ type: "ok", text: "Google conectado com sucesso!" });
     }
@@ -131,7 +135,9 @@ export default function AgendamentoDashboard({
       const res = await fetch("/api/google/sync-locations", { method: "POST" });
       const data = await res.json();
       if (!res.ok) {
-        setFlash({ type: "err", text: `Não foi possível buscar os locais: ${data.error ?? res.status}` });
+        const text = data.error === "escopo_insuficiente" ? ERROR_LABELS.escopo_insuficiente : `Não foi possível buscar os locais: ${data.error ?? res.status}`;
+        setFlash({ type: "err", text });
+        if (data.error === "escopo_insuficiente") setNeedReconnect(true);
       } else if (data.count === 0) {
         setFlash({ type: "err", text: "Conectado, mas nenhum local foi encontrado nesta conta. Confira se o perfil está nela." });
       } else {
@@ -270,6 +276,11 @@ export default function AgendamentoDashboard({
           }`}
         >
           {flash.text}
+          {needReconnect && (
+            <a href="/api/google/connect" className="mt-2 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90">
+              Reconectar o Google (marque a permissão)
+            </a>
+          )}
         </div>
       )}
 

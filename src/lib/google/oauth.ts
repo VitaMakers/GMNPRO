@@ -13,6 +13,11 @@ export const GOOGLE_SCOPES = [
   "email",
 ];
 
+/** O token concede o escopo de gerenciar o perfil? (caixa marcada no consentimento) */
+export function hasBusinessScope(scope?: string | null): boolean {
+  return !!scope && scope.includes("https://www.googleapis.com/auth/business.manage");
+}
+
 export function redirectUri(): string {
   const base = process.env.APP_BASE_URL ?? "";
   return `${base.replace(/\/$/, "")}/api/google/callback`;

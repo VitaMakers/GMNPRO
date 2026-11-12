@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
-import { exchangeCode, fetchUserEmail } from "@/lib/google/oauth";
+import { exchangeCode, fetchUserEmail, hasBusinessScope } from "@/lib/google/oauth";
 import { listAccounts, listLocations } from "@/lib/google/business";
 
 function back(path: string) {
@@ -30,6 +30,11 @@ export async function GET(request: Request) {
 
   try {
     const token = await exchangeCode(code);
+    // Se o usuário não marcou a permissão do Perfil da Empresa, o token vem
+    // sem o escopo e todas as chamadas dão 403. Avisa na hora, sem salvar quebrado.
+    if (!hasBusinessScope(token.scope)) {
+      return back("/agendamento?error=escopo_insuficiente");
+    }
     const email = await fetchUserEmail(token.access_token);
     const expiry = new Date(Date.now() + token.expires_in * 1000).toISOString();
 
