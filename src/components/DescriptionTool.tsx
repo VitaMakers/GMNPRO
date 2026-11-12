@@ -11,6 +11,7 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
   const selectedTitle = locations.find((l) => l.location_name === selected)?.title ?? "perfil";
 
   const [text, setText] = useState("");
+  const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState<"" | "new" | "improve" | "save">("");
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
 
@@ -32,7 +33,7 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
       const res = await fetch("/api/ai/description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location: selected, mode }),
+        body: JSON.stringify({ location: selected, mode, extra: extra.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "falha");
@@ -77,6 +78,17 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
         Gere uma descrição nova ou melhore a atual — a IA escreve no padrão do Google, você revisa e
         publica direto no perfil.
       </p>
+
+      <label className="mb-3 block">
+        <span className="mb-1 block text-xs text-muted">Informações extras do negócio (opcional)</span>
+        <textarea
+          value={extra}
+          onChange={(e) => setExtra(e.target.value)}
+          rows={2}
+          placeholder="Diferenciais, serviços, bairros atendidos… deixa a sugestão mais assertiva."
+          className="w-full rounded-2xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand"
+        />
+      </label>
 
       <div className="flex flex-wrap gap-2">
         <button

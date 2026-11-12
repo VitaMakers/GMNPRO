@@ -123,7 +123,7 @@ async function complete(
 /** Gera ou melhora a descrição do perfil (campo "do estabelecimento" no Google). */
 export async function generateBusinessDescription(
   provider: Provider,
-  input: { mode: "new" | "improve"; businessName: string; category?: string; keywords?: string; current?: string },
+  input: { mode: "new" | "improve"; businessName: string; category?: string; keywords?: string; current?: string; extra?: string },
   apiKey?: string,
 ): Promise<string> {
   const system =
@@ -141,6 +141,7 @@ export async function generateBusinessDescription(
     `Empresa: ${input.businessName}.`,
     input.category ? `Segmento: ${input.category}.` : "",
     input.keywords ? `Palavras-chave do negócio: ${input.keywords}.` : "",
+    input.extra?.trim() ? `Informações extras do negócio: ${input.extra.trim()}.` : "",
   ].filter(Boolean).join("\n");
 
   const user =
