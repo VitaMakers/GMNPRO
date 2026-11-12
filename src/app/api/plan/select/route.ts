@@ -49,5 +49,9 @@ export async function POST(request: Request) {
   //    não existir no banco, para não travar a escolha do plano).
   await supabase.from("subscriptions").update({ tier }).eq("user_id", user.id);
 
+  // 3) Marca "escolheu plano" nos metadados do usuário (fonte do portão de
+  //    acesso — não depende de migração).
+  await supabase.auth.updateUser({ data: { plan_chosen: true, plan_tier: tier } });
+
   return NextResponse.json({ ok: true, tier });
 }

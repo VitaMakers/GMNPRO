@@ -36,41 +36,38 @@ export async function getAccess(
     return { allowed: true, trial: false, daysLeft: 0, status: "admin", tier: "agencia4", entitlements: ADMIN_ENTITLEMENTS };
   }
 
+  // "Escolheu plano?" fica nos metadados do usuário (não depende de migração
+  // nem é criado pelo gatilho do banco). plan_tier também guarda o plano.
+  const { data: authData } = await supabase.auth.getUser();
+  const meta = (authData?.user?.user_metadata ?? {}) as Record<string, unknown>;
+  const planChosen = meta.plan_chosen === true;
+  const metaTier = typeof meta.plan_tier === "string" ? (meta.plan_tier as string) : null;
+
   const { data } = await supabase
     .from("subscriptions")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
-  // Sem linha de assinatura = ainda não escolheu nenhum plano → precisa
-  // escolher antes de entrar (a linha e o teste de 7 dias nascem na escolha).
-  if (!data) {
-    return {
-      allowed: false,
-      trial: false,
-      daysLeft: 0,
-      status: null,
-      tier: "essencial",
-      entitlements: entitlementsFor("essencial"),
-      needsPlan: true,
-    };
-  }
-
-  const tier = (data.tier as string) ?? "essencial";
+  const tier = metaTier ?? (data?.tier as string) ?? "essencial";
   const ent = entitlementsFor(tier);
 
   // Acesso liberado pela agência: sempre permitido, sem cobrança.
-  if (data.manual_access) {
+  if (data?.manual_access) {
     return { allowed: true, trial: false, daysLeft: 0, status: "comp", tier, entitlements: ent };
   }
 
-  const status = data.status ?? null;
+  const status = data?.status ?? null;
   if (status === "active" || status === "trialing") {
     return { allowed: true, trial: false, daysLeft: 0, status, tier, entitlements: ent };
   }
 
+  // Ainda não escolheu um plano → precisa escolher antes de entrar.
+  if (!planChosen) {
+    return { allowed: false, trial: false, daysLeft: 0, status, tier, entitlements: ent, needsPlan: true };
+  }
 
-  const trialEnds = data.trial_ends_at ? new Date(data.trial_ends_at).getTime() : 0;
+  const trialEnds = data?.trial_ends_at ? new Date(data.trial_ends_at).getTime() : 0;
   const now = Date.now();
   if (trialEnds > now) {
     return { allowed: true, trial: true, daysLeft: Math.ceil((trialEnds - now) / DAY), status, tier, entitlements: ent };
