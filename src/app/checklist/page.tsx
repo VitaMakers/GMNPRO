@@ -69,7 +69,7 @@ export default async function ChecklistPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold tracking-tight">
             Análise Completa

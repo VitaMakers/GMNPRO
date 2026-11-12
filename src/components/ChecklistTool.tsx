@@ -60,6 +60,7 @@ export default function ChecklistTool({
   const [error, setError] = useState("");
   // Coordenadas de todos os perfis (vindas do /api/profiles, que faz o backfill).
   const [coords, setCoords] = useState<Record<string, { lat: number; lng: number }>>({});
+  const [mapMode, setMapMode] = useState<"pins" | "heat">("pins");
 
   useEffect(() => {
     if (!autoEnabled) return;
@@ -229,94 +230,109 @@ export default function ChecklistTool({
         </div>
       )}
 
-      {/* Mapa de locais + card do perfil (após a análise) */}
-      {profile && (
-        <div className="grid gap-4 lg:grid-cols-[1.1fr_1fr]">
-          {/* Mapa */}
-          <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
-            <div className="flex items-center justify-between border-b border-border/60 px-5 py-3">
-              <p className="text-sm font-semibold">Mapa de locais</p>
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted">
-                <span className="h-2 w-2 rounded-full" style={{ background: "#059669" }} /> selecionado
-                <span className="ml-2 h-2 w-2 rounded-full" style={{ background: "#2563eb" }} /> outros
-              </span>
+      {/* Layout principal (igual ao GBP): mapa + notas à esquerda, card do perfil à direita */}
+      {autoEnabled ? (
+        <div className="grid gap-4 lg:grid-cols-[1.7fr_1fr]">
+          <div className="space-y-4">
+            {/* Mapa com abas */}
+            <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
+              <div className="grid grid-cols-2 gap-2 p-2">
+                {(["pins", "heat"] as const).map((m) => (
+                  <button
+                    key={m}
+                    onClick={() => setMapMode(m)}
+                    className={`rounded-xl px-4 py-2.5 text-sm font-semibold transition ${
+                      mapMode === m ? "bg-brand text-white" : "border border-border bg-white text-foreground hover:bg-surface-2"
+                    }`}
+                  >
+                    {m === "pins" ? "Mapa de Locais" : "Mapa de Calor"}
+                  </button>
+                ))}
+              </div>
+              <div className="px-2 pb-2">
+                {mapPoints.length > 0 ? (
+                  <LocationsMap points={mapPoints} mode={mapMode} height={340} />
+                ) : (
+                  <div className="grid h-[340px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 px-4 text-center text-sm text-muted">
+                    Carregando a localização dos seus perfis…
+                  </div>
+                )}
+              </div>
             </div>
-            <div className="p-3">
-              {mapPoints.length > 0 ? (
-                <LocationsMap points={mapPoints} />
-              ) : (
-                <div className="grid h-full min-h-[280px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 px-4 text-center text-sm text-muted">
-                  Sem coordenadas ainda. Analise um perfil para ele aparecer no mapa.
-                </div>
-              )}
-            </div>
-          </div>
 
-          {/* Card do perfil (detalhado, estilo Google) */}
-          <ProfileCard profile={profile} fallbackTitle={selectedTitle} />
-        </div>
-      )}
+            {/* Pontuação geral (velocímetro) + Pontuação detalhada */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div className="flex flex-col items-center rounded-3xl border border-border bg-white p-6 card-soft">
+                <p className="font-display text-lg font-bold">Pontuação Geral</p>
+                <p className="text-xs text-muted">Desempenho do negócio</p>
+                <Gauge value={analyzedAt ? score : 0} />
+                <p className={`-mt-2 text-4xl font-bold ${analyzedAt ? color : "text-muted"}`}>{analyzedAt ? score : "—"}</p>
+                <span
+                  className="mt-2 rounded-full border px-4 py-1 text-xs font-bold uppercase tracking-wide"
+                  style={analyzedAt ? { borderColor: `${ring}66`, background: `${ring}14`, color: ring } : { borderColor: "var(--border)", color: "var(--muted)" }}
+                >
+                  {analyzedAt ? label : "Analise o perfil"}
+                </span>
+                <p className="mt-2 text-xs text-muted">{doneItems} de {totalItems} itens concluídos</p>
+              </div>
 
-      {/* Nota + Pontuação detalhada */}
-      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
-        {/* Nota (velocímetro) */}
-        <div className="flex flex-col items-center justify-center rounded-3xl border border-border bg-white p-6 card-soft">
-          <p className="text-sm font-semibold">Pontuação geral</p>
-          <p className="text-xs text-muted">Desempenho do perfil</p>
-          <div className="relative mt-4">
-            <div
-              className="grid h-28 w-28 place-items-center rounded-full"
-              style={{ background: `conic-gradient(${ring} ${score * 3.6}deg, var(--surface-2) 0deg)` }}
-            >
-              <div className="grid h-20 w-20 place-items-center rounded-full bg-white">
-                <span className={`text-3xl font-bold ${color}`}>{score}</span>
+              <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+                <p className="mb-4 text-center font-display text-lg font-bold">Pontuação Detalhada</p>
+                <ul className="space-y-3">
+                  {[
+                    { n: detail.fraco, label: "Fraco", sub: "Métricas que precisam de atenção", c: STATUS_COLOR.fraco.dot },
+                    { n: detail.razoavel, label: "Razoável", sub: "Métricas com potencial de melhoria", c: STATUS_COLOR.razoavel.dot },
+                    { n: detail.bom, label: "Bom", sub: "Métricas em excelente estado", c: STATUS_COLOR.bom.dot },
+                  ].map((r) => (
+                    <li key={r.label} className="flex items-center gap-3 rounded-2xl border border-border/70 p-3">
+                      <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base font-bold text-white shadow" style={{ background: analyzedAt ? r.c : "#cbd5e1" }}>{analyzedAt ? r.n : "–"}</span>
+                      <span>
+                        <span className="block text-sm font-semibold">{r.label}</span>
+                        <span className="block text-xs text-muted">{r.sub}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </div>
           </div>
-          <span
-            className="mt-3 rounded-full px-3 py-1 text-xs font-semibold"
-            style={{ background: `${ring}1a`, color: ring }}
-          >
-            {label}
-          </span>
-          <p className="mt-2 text-xs text-muted">{doneItems} de {totalItems} itens concluídos</p>
-          {!autoEnabled && (
-            <button
-              onClick={reset}
-              className="mt-3 rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition hover:bg-surface-2"
-            >
-              Limpar
-            </button>
-          )}
-        </div>
 
-        {/* Pontuação detalhada */}
-        <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-          <p className="mb-4 text-sm font-semibold">Pontuação detalhada</p>
-          <ul className="space-y-3">
-            {[
-              { n: detail.fraco, label: "Fraco", sub: "Métricas que precisam de atenção", c: STATUS_COLOR.fraco.dot },
-              { n: detail.razoavel, label: "Razoável", sub: "Métricas com potencial de melhoria", c: STATUS_COLOR.razoavel.dot },
-              { n: detail.bom, label: "Bom", sub: "Métricas em excelente estado", c: STATUS_COLOR.bom.dot },
-            ].map((r) => (
-              <li key={r.label} className="flex items-center gap-3 rounded-2xl border border-border/70 p-3">
-                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base font-bold text-white" style={{ background: r.c }}>{r.n}</span>
-                <span>
-                  <span className="block text-sm font-semibold" style={{ color: r.c }}>{r.label}</span>
-                  <span className="block text-xs text-muted">{r.sub}</span>
-                </span>
-              </li>
-            ))}
-          </ul>
-          {manualItems.length > 0 && (
-            <p className="mt-4 border-t border-border/60 pt-3 text-xs text-muted">
-              A nota considera só o que dá para verificar no Google. Há{" "}
-              <span className="font-medium text-foreground">{manualItems.length} itens de hábito</span>{" "}
-              (ex.: pedir avaliações, mensagens) que só você confirma — marque-os na lista abaixo.
-            </p>
+          {/* Card do perfil (coluna da direita) */}
+          {profile ? (
+            <ProfileCard profile={profile} fallbackTitle={selectedTitle} />
+          ) : (
+            <div className="grid min-h-[400px] place-items-center rounded-3xl border border-dashed border-border bg-white p-6 text-center card-soft">
+              <div>
+                <GoogleG className="mx-auto h-10 w-10" />
+                <p className="mt-3 font-semibold">{selectedTitle}</p>
+                <p className="mt-1 text-sm text-muted">Clique em <strong>Analisar meu perfil</strong> para ver o card completo do Google.</p>
+              </div>
+            </div>
           )}
         </div>
-      </div>
+      ) : (
+        /* Modo manual (sem Google conectado) */
+        <div className="sticky top-16 z-20 flex items-center gap-4 rounded-3xl border border-border bg-white card-soft/95 p-4 backdrop-blur">
+          <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full" style={{ background: `conic-gradient(${ring} ${score * 3.6}deg, var(--surface-2) 0deg)` }}>
+            <div className="grid h-14 w-14 place-items-center rounded-full bg-white">
+              <span className={`text-xl font-bold ${color}`}>{score}</span>
+            </div>
+          </div>
+          <div className="flex-1">
+            <p className="text-sm font-semibold">Sua nota de otimização</p>
+            <p className="text-xs text-muted">{doneItems} de {totalItems} itens concluídos</p>
+          </div>
+          <button onClick={reset} className="rounded-lg border border-border px-3 py-1.5 text-xs text-muted transition hover:bg-surface-2">Limpar</button>
+        </div>
+      )}
+
+      {autoEnabled && manualItems.length > 0 && analyzedAt && (
+        <p className="rounded-2xl border border-border bg-white p-3 text-xs text-muted card-soft">
+          A nota considera só o que dá para verificar no Google. Há{" "}
+          <span className="font-medium text-foreground">{manualItems.length} itens de hábito</span>{" "}
+          (ex.: pedir avaliações, mensagens) que só você confirma — marque-os na lista abaixo.
+        </p>
+      )}
 
       {/* Prioridades */}
       {top.length > 0 && (
@@ -379,6 +395,32 @@ function AutoBadge() {
     <span className="ml-1 inline-flex items-center gap-1 rounded-full border border-brand/40 bg-brand/10 px-1.5 py-0.5 text-[10px] font-medium text-brand-2 align-middle">
       ⚡ auto
     </span>
+  );
+}
+
+/** Velocímetro semicircular (vermelho → amarelo → verde) com ponteiro. */
+function Gauge({ value }: { value: number }) {
+  const v = Math.max(0, Math.min(100, value));
+  const angle = -90 + (v / 100) * 180; // -90 (esq) a +90 (dir)
+  const arc = (from: number, to: number, color: string) => {
+    const r = 70, cx = 100, cy = 100;
+    const a0 = (Math.PI * (180 + from * 1.8)) / 180;
+    const a1 = (Math.PI * (180 + to * 1.8)) / 180;
+    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    return <path d={`M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`} stroke={color} strokeWidth="22" fill="none" strokeLinecap="butt" />;
+  };
+  return (
+    <svg viewBox="0 0 200 115" className="mt-3 w-full max-w-[260px]">
+      {arc(0, 50, "#dc2626")}
+      {arc(50, 75, "#f59e0b")}
+      {arc(75, 100, "#059669")}
+      <g transform={`rotate(${angle} 100 100)`}>
+        <path d="M 100 100 L 96 100 L 100 38 L 104 100 Z" fill="#1f2937" />
+      </g>
+      <circle cx="100" cy="100" r="8" fill="#1f2937" />
+      <circle cx="100" cy="100" r="3.5" fill="#fff" />
+    </svg>
   );
 }
 

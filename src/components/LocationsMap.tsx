@@ -37,8 +37,33 @@ export function loadLeaflet(): Promise<unknown> {
   return leafletPromise;
 }
 
+const HEAT_JS = "https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js";
+let heatPromise: Promise<void> | null = null;
+function loadHeat(): Promise<void> {
+  const w = window as unknown as { L?: { heatLayer?: unknown } };
+  if (w.L?.heatLayer) return Promise.resolve();
+  if (heatPromise) return heatPromise;
+  heatPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = HEAT_JS;
+    script.async = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("heat"));
+    document.head.appendChild(script);
+  });
+  return heatPromise;
+}
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
-export default function LocationsMap({ points }: { points: MapPoint[] }) {
+export default function LocationsMap({
+  points,
+  mode = "pins",
+  height = 320,
+}: {
+  points: MapPoint[];
+  mode?: "pins" | "heat";
+  height?: number;
+}) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
   const [failed, setFailed] = useState(false);
@@ -48,7 +73,8 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
     if (points.length === 0) return;
 
     loadLeaflet()
-      .then((L: any) => {
+      .then(async (L: any) => {
+        if (mode === "heat") await loadHeat().catch(() => undefined);
         if (cancelled || !ref.current) return;
 
         if (!mapRef.current) {
@@ -60,12 +86,24 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
         }
 
         const map = mapRef.current;
-        // Limpa marcadores antigos.
+        // Limpa marcadores/camadas antigas.
         map.eachLayer((layer: any) => {
-          if (layer instanceof L.Marker || layer instanceof L.CircleMarker) map.removeLayer(layer);
+          if (layer instanceof L.Marker || layer instanceof L.CircleMarker || layer._heat) map.removeLayer(layer);
         });
 
         const bounds: [number, number][] = [];
+        if (mode === "heat" && L.heatLayer) {
+          L.heatLayer(
+            points.map((p) => [p.lat, p.lng, p.active ? 1 : 0.7]),
+            { radius: 35, blur: 25, maxZoom: 12, minOpacity: 0.35 },
+          ).addTo(map);
+          for (const p of points) bounds.push([p.lat, p.lng]);
+          const act = points.find((p) => p.active);
+          if (act) {
+            const icon = L.divIcon({ className: "", html: pinSvg("#059669", true), iconSize: [34, 44], iconAnchor: [17, 44] });
+            L.marker([act.lat, act.lng], { icon, zIndexOffset: 1000 }).addTo(map).bindPopup(`<strong>${escapeHtml(act.title)}</strong>`);
+          }
+        } else
         for (const p of points) {
           const color = p.active ? "#059669" : "#2563eb";
           const icon = L.divIcon({
@@ -85,7 +123,7 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
 
         if (bounds.length === 1) {
           map.setView(bounds[0], 15);
-        } else {
+        } else if (bounds.length > 1) {
           map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 });
         }
         setTimeout(() => map.invalidateSize(), 100);
@@ -97,7 +135,7 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
     return () => {
       cancelled = true;
     };
-  }, [points]);
+  }, [points, mode]);
 
   useEffect(() => {
     return () => {
@@ -116,7 +154,7 @@ export default function LocationsMap({ points }: { points: MapPoint[] }) {
     );
   }
 
-  return <div ref={ref} className="h-full min-h-[280px] w-full rounded-2xl" />;
+  return <div ref={ref} className="w-full rounded-2xl" style={{ height }} />;
 }
 
 // Pino teardrop (igual ao do Google Maps), com sombra.
