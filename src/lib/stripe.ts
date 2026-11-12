@@ -36,6 +36,51 @@ export function priceIdFor(tier: Tier, cycle: Cycle): string | undefined {
   return PRICE_IDS[tier]?.[cycle] || undefined;
 }
 
+// Valores dos planos (em centavos) — usados para criar o preço na hora do
+// checkout (price_data), sem precisar cadastrar nada na Stripe.
+export interface PlanPricing {
+  amount: number;
+  interval: "month" | "year";
+  label: string;
+}
+export const PLAN_PRICING: Record<Tier, Record<Cycle, PlanPricing>> = {
+  essencial: {
+    mensal: { amount: 2000, interval: "month", label: "GMN PRO — Essencial (Mensal)" },
+    anual: { amount: 22500, interval: "year", label: "GMN PRO — Essencial (Anual)" },
+  },
+  agencia2: {
+    mensal: { amount: 9700, interval: "month", label: "GMN PRO — Agência 2 (Mensal)" },
+    anual: { amount: 109100, interval: "year", label: "GMN PRO — Agência 2 (Anual)" },
+  },
+  agencia4: {
+    mensal: { amount: 13000, interval: "month", label: "GMN PRO — Agência 4 (Mensal)" },
+    anual: { amount: 146300, interval: "year", label: "GMN PRO — Agência 4 (Anual)" },
+  },
+};
+
+/**
+ * Monta o line_item do checkout:
+ * - se houver um Price ID configurado (Essencial já tem; agência só se você
+ *   criar na Stripe e colocar no env), usa ele;
+ * - senão, cria o preço inline (price_data) com o valor da tabela acima.
+ */
+export function buildLineItem(tier: Tier, cycle: Cycle) {
+  const existing = PRICE_IDS[tier]?.[cycle];
+  if (existing) {
+    return { price: existing, quantity: 1 as const };
+  }
+  const p = PLAN_PRICING[tier][cycle];
+  return {
+    quantity: 1 as const,
+    price_data: {
+      currency: "brl",
+      unit_amount: p.amount,
+      recurring: { interval: p.interval },
+      product_data: { name: p.label },
+    },
+  };
+}
+
 /** Descobre o tier a partir de um Price ID (para o webhook). */
 export function tierFromPriceId(priceId: string): Tier | null {
   for (const tier of Object.keys(PRICE_IDS) as Tier[]) {

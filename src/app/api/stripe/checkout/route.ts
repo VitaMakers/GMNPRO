@@ -1,8 +1,9 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe, priceIdFor } from "@/lib/stripe";
+import { getStripe, buildLineItem } from "@/lib/stripe";
 import type { Tier, Cycle } from "@/lib/entitlements";
+import { ENTITLEMENTS } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -21,13 +22,10 @@ export async function POST(request: Request) {
   // Compat: chamadas antigas mandam só { plan: "mensal"|"anual" } (= Essencial).
   const cycle: Cycle = body.cycle ?? body.plan ?? "mensal";
   const tier: Tier = body.tier ?? "essencial";
-  const priceId = priceIdFor(tier, cycle);
-  if (!priceId) {
-    return NextResponse.json(
-      { error: "plano_indisponivel", detail: "Price ID não configurado para este plano." },
-      { status: 400 },
-    );
+  if (!ENTITLEMENTS[tier]) {
+    return NextResponse.json({ error: "plano_invalido" }, { status: 400 });
   }
+  const lineItem = buildLineItem(tier, cycle);
 
   const base = process.env.APP_BASE_URL || new URL(request.url).origin;
 
@@ -64,7 +62,7 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ price: priceId, quantity: 1 }],
+      line_items: [lineItem],
       subscription_data,
       client_reference_id: user.id,
       allow_promotion_codes: true,
