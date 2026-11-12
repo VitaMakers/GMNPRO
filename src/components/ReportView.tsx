@@ -19,7 +19,16 @@ export default function ReportView({ snapshot: s, branding, createdAt }: { snaps
 
   return (
     <div className="min-h-screen bg-[#f6f7f8] text-[#111827] print:bg-white">
-      <style>{`@media print { .no-print{display:none!important} .page{box-shadow:none!important;margin:0!important;max-width:none!important} }`}</style>
+      <style>{`
+        * { -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important; }
+        @page { size: A4; margin: 10mm; }
+        @media print {
+          .no-print { display: none !important }
+          .page { box-shadow: none !important; margin: 0 !important; max-width: none !important; padding: 8mm !important; border-radius: 0 !important }
+          .avoid { break-inside: avoid; page-break-inside: avoid }
+          body { background: #fff !important }
+        }
+      `}</style>
       <div className="page mx-auto my-6 max-w-4xl rounded-3xl bg-white p-8 shadow-sm print:my-0">
         {/* Cabeçalho white-label */}
         <header className="flex items-center justify-between gap-4 border-b pb-5" style={{ borderColor: `${brand}33` }}>
@@ -44,7 +53,7 @@ export default function ReportView({ snapshot: s, branding, createdAt }: { snaps
         </header>
 
         {/* Empresa + nota */}
-        <section className="mt-6 grid gap-6 md:grid-cols-[1fr_auto]">
+        <section className="avoid mt-6 grid gap-6 md:grid-cols-[1fr_auto]">
           <div className="flex gap-4">
             {s.profile?.photoUrl && (
               // eslint-disable-next-line @next/next/no-img-element
@@ -77,7 +86,7 @@ export default function ReportView({ snapshot: s, branding, createdAt }: { snaps
         {/* Resumo */}
         <section className="mt-6 grid grid-cols-3 gap-3">
           {(["fraco", "razoavel", "bom"] as const).map((k) => (
-            <div key={k} className="flex items-center gap-3 rounded-2xl border p-3" style={{ borderColor: `${C[k]}55` }}>
+            <div key={k} className="avoid flex items-center gap-3 rounded-2xl border p-3" style={{ borderColor: `${C[k]}55` }}>
               <span className="grid h-10 w-10 place-items-center rounded-full text-base font-bold text-white" style={{ background: C[k] }}>{s[k]}</span>
               <div><p className="text-sm font-semibold" style={{ color: C[k] }}>{L[k]}</p><p className="text-[11px] text-gray-500">{k === "fraco" ? "precisam de atenção" : k === "razoavel" ? "podem melhorar" : "em excelente estado"}</p></div>
             </div>
@@ -90,7 +99,7 @@ export default function ReportView({ snapshot: s, branding, createdAt }: { snaps
             <h2 className="mb-2 text-base font-bold">O que fazer primeiro</h2>
             <ol className="space-y-2">
               {pend.slice(0, 6).map((i, n) => (
-                <li key={i.id} className="flex gap-3 rounded-xl border border-gray-200 p-3 text-sm">
+                <li key={i.id} className="avoid flex gap-3 rounded-xl border border-gray-200 p-3 text-sm">
                   <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold text-white" style={{ background: C[i.status] }}>{n + 1}</span>
                   <div><p className="font-medium">{i.label}</p><p className="text-xs text-gray-500">{i.tip}</p></div>
                 </li>
@@ -104,7 +113,7 @@ export default function ReportView({ snapshot: s, branding, createdAt }: { snaps
           <h2 className="mb-2 text-base font-bold">Análise detalhada</h2>
           <div className="grid gap-4 md:grid-cols-2">
             {cats.map((c) => (
-              <div key={c} className="rounded-2xl border border-gray-200 p-3">
+              <div key={c} className="avoid rounded-2xl border border-gray-200 p-3">
                 <p className="mb-2 text-sm font-semibold">{c}</p>
                 <ul className="space-y-1.5">
                   {s.items.filter((i) => i.category === c).map((i) => (
