@@ -131,7 +131,7 @@ export default function AssinarPlans() {
             </div>
             <p className="mt-2 text-sm text-muted">Até 4 usuários · usuário extra R$ 48,50</p>
             <ul className="mt-5 space-y-2 text-sm">
-              {["Tudo do Essencial", "Perfis ilimitados", "Até 4 usuários", "Mesmo valor por usuário extra", "Análise de Ranking (500 créditos/mês)", "Prioridade no suporte"].map((f) => (
+              {["Tudo do Essencial", "Perfis ilimitados", "Até 4 usuários", "Mesmo valor por usuário extra", "Análise de Ranking (500 créditos/mês)"].map((f) => (
                 <li key={f} className="flex gap-2"><Check />{f}</li>
               ))}
             </ul>
