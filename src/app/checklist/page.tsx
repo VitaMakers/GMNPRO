@@ -5,6 +5,7 @@ import SiteFooter from "@/components/SiteFooter";
 import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import ChecklistTool from "@/components/ChecklistTool";
+import DescriptionTool from "@/components/DescriptionTool";
 import CtaSection from "@/components/CtaSection";
 import Faq from "@/components/Faq";
 
@@ -69,6 +70,11 @@ export default async function ChecklistPage() {
           </p>
         </div>
         <ChecklistTool locations={locations} connected={connected} />
+        {connected && locations.length > 0 && (
+          <div className="mt-8">
+            <DescriptionTool locations={locations} />
+          </div>
+        )}
         <CtaSection />
         <Faq items={faq} />
       </main>

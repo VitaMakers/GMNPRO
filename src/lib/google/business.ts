@@ -119,6 +119,45 @@ export async function listMedia(
   return data.mediaItems ?? [];
 }
 
+/** "accounts/1/locations/2" → "locations/2" (recurso da Business Information API). */
+function locationResource(accountLocation: string): string {
+  const m = accountLocation.match(/locations\/[^/]+$/);
+  return m ? m[0] : accountLocation;
+}
+
+/** Lê a descrição atual do perfil (campo profile.description). */
+export async function getProfileDescription(
+  accessToken: string,
+  accountLocation: string,
+): Promise<string> {
+  const loc = locationResource(accountLocation);
+  try {
+    const data = await getJson<{ profile?: { description?: string } }>(
+      `${BUSINESS_INFO}/${loc}?readMask=profile.description`,
+      accessToken,
+    );
+    return data.profile?.description ?? "";
+  } catch {
+    return "";
+  }
+}
+
+/** Atualiza (publica) a descrição do perfil no Google. */
+export async function updateProfileDescription(
+  accessToken: string,
+  accountLocation: string,
+  description: string,
+): Promise<void> {
+  const loc = locationResource(accountLocation);
+  const url = `${BUSINESS_INFO}/${loc}?updateMask=profile.description`;
+  const res = await fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${accessToken}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ profile: { description } }),
+  });
+  if (!res.ok) throw new Error(`updateDescription ${res.status}: ${await res.text()}`);
+}
+
 /** Coordenadas (lat/lng) de um local do perfil, se disponíveis. */
 export async function getLocationLatLng(
   accessToken: string,

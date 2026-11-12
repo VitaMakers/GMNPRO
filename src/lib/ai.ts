@@ -120,6 +120,39 @@ async function complete(
   return claudeReply(system, user, apiKey);
 }
 
+/** Gera ou melhora a descrição do perfil (campo "do estabelecimento" no Google). */
+export async function generateBusinessDescription(
+  provider: Provider,
+  input: { mode: "new" | "improve"; businessName: string; category?: string; keywords?: string; current?: string },
+  apiKey?: string,
+): Promise<string> {
+  const system =
+    "Você é redator especialista em perfis do Google Meu Negócio (Google Business Profile). Escreve descrições de empresa que soam humanas, geram confiança e ajudam no ranqueamento local, sem encher de palavra-chave.";
+  const rules = [
+    "Regras da descrição:",
+    "- Português do Brasil, tom profissional e acolhedor.",
+    "- No máximo 700 caracteres (o Google corta em 750).",
+    "- Comece pelo que a empresa faz e para quem; cite diferenciais reais e a região.",
+    "- Use as palavras-chave de forma natural, sem repetir nem forçar.",
+    "- Não invente prêmios, números ou fatos. Nada de aspas, emojis ou links.",
+    "- Responda APENAS com o texto final da descrição, sem comentários.",
+  ].join("\n");
+  const ctx = [
+    `Empresa: ${input.businessName}.`,
+    input.category ? `Segmento: ${input.category}.` : "",
+    input.keywords ? `Palavras-chave do negócio: ${input.keywords}.` : "",
+  ].filter(Boolean).join("\n");
+
+  const user =
+    input.mode === "improve" && input.current?.trim()
+      ? `Melhore a descrição abaixo (mais clara, fluida e otimizada), mantendo o sentido e os fatos:\n\n"""${input.current.trim()}"""\n\n${ctx}\n\n${rules}`
+      : `Crie uma descrição nova para esta empresa:\n\n${ctx}\n\n${rules}`;
+
+  const raw = await complete(provider, system, user, apiKey?.trim() || undefined);
+  // Limpa aspas de cerca e corta no limite do Google.
+  return raw.replace(/^["'`]+|["'`]+$/g, "").trim().slice(0, 750);
+}
+
 export interface GeotagMeta {
   title: string;
   description: string;
