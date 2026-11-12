@@ -1,5 +1,6 @@
 import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
+import MinimalHeader from "@/components/MinimalHeader";
 import AssinarPlans from "@/components/AssinarPlans";
 import ManageSubscriptionButton from "@/components/ManageSubscriptionButton";
 import { createClient } from "@/lib/supabase/server";
@@ -16,9 +17,13 @@ export default async function AssinarPage() {
 
   const access = await getAccess(supabase, user.id, user.email);
 
+  // Novos usuários (sem plano) ou bloqueados veem só a tela de escolher plano,
+  // sem o menu/abas do sistema. Quem já tem acesso vê o cabeçalho completo.
+  const minimal = !access.allowed;
+
   return (
     <div className="min-h-screen">
-      <AppHeader />
+      {minimal ? <MinimalHeader /> : <AppHeader />}
       <main className="mx-auto max-w-4xl px-4 py-12">
         <div className="mb-8 text-center">
           <h1 className="font-display text-3xl font-bold tracking-tight">Assine o GMN PRO</h1>
@@ -55,7 +60,7 @@ export default async function AssinarPage() {
         )}
 
         <AssinarPlans trial={access.trial || !!access.needsPlan} currentTier={access.tier} />
-        <ManageSubscriptionButton />
+        {access.allowed && <ManageSubscriptionButton />}
       </main>
     </div>
   );
