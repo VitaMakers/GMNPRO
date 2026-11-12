@@ -14,6 +14,36 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
   const [extra, setExtra] = useState("");
   const [busy, setBusy] = useState<"" | "new" | "improve" | "save">("");
   const [msg, setMsg] = useState<{ type: "ok" | "err"; text: string } | null>(null);
+  type Kw = { keyword: string; volume: number | null; competition: string | null };
+  const [kws, setKws] = useState<Kw[]>([]);
+  const [picked, setPicked] = useState<Set<string>>(new Set());
+  const [kwBusy, setKwBusy] = useState(false);
+  const [hasVolumes, setHasVolumes] = useState(true);
+
+  async function research() {
+    if (!selected) return;
+    setKwBusy(true);
+    setMsg(null);
+    try {
+      const res = await fetch("/api/ai/keywords", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: selected, extra: extra.trim() }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "falha");
+      setKws(data.keywords ?? []);
+      setHasVolumes(!!data.volumes);
+      // Pré-seleciona as 5 de maior volume.
+      setPicked(new Set((data.keywords ?? []).slice(0, 5).map((k: Kw) => k.keyword)));
+    } catch (e) {
+      setMsg({ type: "err", text: `Não foi possível pesquisar: ${e instanceof Error ? e.message : "erro"}` });
+    } finally {
+      setKwBusy(false);
+    }
+  }
+  const togglePick = (k: string) =>
+    setPicked((p) => { const n = new Set(p); if (n.has(k)) n.delete(k); else n.add(k); return n; });
 
   useEffect(() => {
     if (locations[0]) initActiveProfile(locations[0].location_name);
@@ -23,6 +53,8 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
   useEffect(() => {
     setText("");
     setMsg(null);
+    setKws([]);
+    setPicked(new Set());
   }, [selected]);
 
   async function generate(mode: "new" | "improve") {
@@ -33,7 +65,7 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
       const res = await fetch("/api/ai/description", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location: selected, mode, extra: extra.trim() }),
+        body: JSON.stringify({ location: selected, mode, extra: extra.trim(), keywords: [...picked] }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "falha");
@@ -89,6 +121,52 @@ export default function DescriptionTool({ locations }: { locations: LocationOpti
           className="w-full rounded-2xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand"
         />
       </label>
+
+      {/* Pesquisa de palavras-chave com volume */}
+      <div className="mb-4 rounded-2xl border border-border bg-surface-2 p-3">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div>
+            <p className="text-sm font-semibold">Palavras-chave com volume de busca</p>
+            <p className="text-xs text-muted">A IA sugere o que seus clientes pesquisam; o Google mostra quantas buscas/mês. Marque as que quer na descrição.</p>
+          </div>
+          <button
+            onClick={research}
+            disabled={kwBusy || busy !== ""}
+            className="rounded-xl border border-brand bg-white px-4 py-2 text-sm font-semibold text-brand-2 transition hover:bg-brand/10 disabled:opacity-60"
+          >
+            {kwBusy ? "Pesquisando…" : kws.length ? "Pesquisar de novo" : "Pesquisar palavras-chave"}
+          </button>
+        </div>
+        {kws.length > 0 && (
+          <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
+            {kws.map((k) => {
+              const on = picked.has(k.keyword);
+              return (
+                <li key={k.keyword}>
+                  <button
+                    onClick={() => togglePick(k.keyword)}
+                    className={`flex w-full items-center justify-between gap-2 rounded-xl border px-3 py-2 text-left text-sm transition ${
+                      on ? "border-brand bg-brand/10" : "border-border bg-white hover:bg-surface-2"
+                    }`}
+                  >
+                    <span className="flex items-center gap-2">
+                      <span className={`grid h-4 w-4 place-items-center rounded border text-[10px] font-bold ${on ? "border-brand bg-brand text-white" : "border-border"}`}>{on ? "✓" : ""}</span>
+                      {k.keyword}
+                    </span>
+                    {hasVolumes && (
+                      <span className="shrink-0 text-xs text-muted">
+                        <strong className="text-foreground">{(k.volume ?? 0).toLocaleString("pt-BR")}</strong>/mês
+                        {k.competition ? ` · ${k.competition === "LOW" ? "baixa" : k.competition === "MEDIUM" ? "média" : "alta"}` : ""}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+        {kws.length > 0 && <p className="mt-2 text-xs text-muted">{picked.size} selecionada(s) — entram na próxima geração.</p>}
+      </div>
 
       <div className="flex flex-wrap gap-2">
         <button

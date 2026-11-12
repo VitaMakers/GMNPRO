@@ -129,3 +129,34 @@ export async function mapLimit<T, R>(items: T[], limit: number, fn: (t: T) => Pr
   await Promise.all(Array.from({ length: Math.min(limit, items.length) }, worker));
   return out;
 }
+
+export interface KeywordVolume {
+  keyword: string;
+  volume: number; // média mensal (Brasil)
+  competition: "LOW" | "MEDIUM" | "HIGH" | null;
+}
+
+/** Volume de busca mensal (Google Ads, Brasil, pt) para uma lista de palavras. */
+export async function searchVolumes(keywords: string[]): Promise<KeywordVolume[]> {
+  const list = [...new Set(keywords.map((k) => k.trim().toLowerCase()).filter(Boolean))].slice(0, 100);
+  if (list.length === 0) return [];
+  const res = await fetch(`${BASE}/keywords_data/google_ads/search_volume/live`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify([{ keywords: list, location_code: 2076, language_code: "pt" }]),
+  });
+  if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as {
+    tasks?: { status_code?: number; status_message?: string; result?: { keyword?: string; search_volume?: number | null; competition?: string | null }[] }[];
+  };
+  const task = data.tasks?.[0];
+  if (!task || (task.status_code && task.status_code >= 40000)) throw new Error(task?.status_message ?? "DataForSEO erro");
+  return (task.result ?? [])
+    .map((r) => ({
+      keyword: r.keyword ?? "",
+      volume: r.search_volume ?? 0,
+      competition: (r.competition as KeywordVolume["competition"]) ?? null,
+    }))
+    .filter((r) => r.keyword)
+    .sort((a, b) => b.volume - a.volume);
+}

@@ -16,7 +16,9 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
   const body = await request.json().catch(() => ({}));
-  const { location, mode, extra } = body as { location?: string; mode?: "new" | "improve"; extra?: string };
+  const { location, mode, extra, keywords: kwList } = body as {
+    location?: string; mode?: "new" | "improve"; extra?: string; keywords?: string[];
+  };
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
   const { data: settings } = await supabase
@@ -86,7 +88,7 @@ export async function POST(request: Request) {
       {
         mode: mode === "improve" && current ? "improve" : "new",
         businessName: settings?.business_name || loc?.title || "nossa empresa",
-        keywords: settings?.keywords ?? "",
+        keywords: Array.isArray(kwList) && kwList.length ? kwList.join(", ") : (settings?.keywords ?? ""),
         current,
         extra: typeof extra === "string" ? extra : "",
       },

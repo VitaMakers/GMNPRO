@@ -350,3 +350,30 @@ async function openaiReply(system: string, user: string, apiKey?: string): Promi
   if (!text) throw new Error("A IA (ChatGPT) não retornou texto.");
   return text;
 }
+
+/** Sugere palavras-chave de busca local (como o cliente pesquisa no Google). */
+export async function suggestKeywords(
+  provider: Provider,
+  input: { businessName: string; category?: string; city?: string; extra?: string },
+  apiKey?: string,
+): Promise<string[]> {
+  const system = "Você é especialista em SEO local para Google Meu Negócio no Brasil.";
+  const user = [
+    `Liste 15 palavras-chave que clientes digitam no Google para encontrar este negócio.`,
+    `Empresa: ${input.businessName}.`,
+    input.category ? `Segmento: ${input.category}.` : "",
+    input.city ? `Cidade: ${input.city}.` : "",
+    input.extra?.trim() ? `Extras: ${input.extra.trim()}.` : "",
+    "Regras: termos curtos (2 a 4 palavras), em português, misture com e sem a cidade, sem nome da empresa, sem numeração.",
+    'Responda APENAS com um JSON array de strings, ex.: ["fotógrafo em sorocaba","videomaker casamento"].',
+  ].filter(Boolean).join("\n");
+  const raw = await complete(provider, system, user, apiKey?.trim() || undefined);
+  const m = raw.match(/\[[\s\S]*\]/);
+  try {
+    const arr = JSON.parse(m ? m[0] : raw) as unknown;
+    if (Array.isArray(arr)) return arr.map(String).map((k) => k.trim()).filter(Boolean).slice(0, 15);
+  } catch {
+    /* cai no fallback */
+  }
+  return raw.split(/\n|,/).map((k) => k.replace(/^[\d\-.\s"']+|["']+$/g, "").trim()).filter(Boolean).slice(0, 15);
+}
