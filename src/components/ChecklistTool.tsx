@@ -61,6 +61,21 @@ export default function ChecklistTool({
   // Coordenadas de todos os perfis (vindas do /api/profiles, que faz o backfill).
   const [coords, setCoords] = useState<Record<string, { lat: number; lng: number }>>({});
   const [mapMode, setMapMode] = useState<"pins" | "heat">("pins");
+  const [shareUrl, setShareUrl] = useState("");
+  const [sharing, setSharing] = useState(false);
+  async function share() {
+    setSharing(true);
+    try {
+      const res = await fetch("/api/report/share", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: selected }) });
+      const d = await res.json();
+      if (res.ok) {
+        setShareUrl(d.url);
+        try { await navigator.clipboard.writeText(d.url); } catch { /* ignore */ }
+      } else setError(d.detail ?? d.error ?? "Não foi possível gerar o link.");
+    } finally {
+      setSharing(false);
+    }
+  }
 
   useEffect(() => {
     if (!autoEnabled) return;
@@ -96,6 +111,7 @@ export default function ChecklistTool({
     setProfile(null);
     setAnalyzedAt(null);
     setError("");
+    setShareUrl("");
   }, [selected]);
 
   useEffect(() => {
@@ -215,7 +231,17 @@ export default function ChecklistTool({
             </button>
           </div>
           {analyzedAt && !error && (
-            <p className="mt-3 text-xs text-brand-2">Perfil analisado em {analyzedAt}.</p>
+            <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
+              <span className="text-brand-2">Perfil analisado em {analyzedAt}.</span>
+              <button onClick={share} disabled={sharing} className="rounded-lg bg-foreground px-3 py-1.5 font-semibold text-white disabled:opacity-60">
+                {sharing ? "Gerando…" : "Relatório PDF / Link para o cliente"}
+              </button>
+              {shareUrl && (
+                <a href={shareUrl} target="_blank" rel="noopener noreferrer" className="truncate text-brand-2 underline">
+                  {shareUrl} (copiado)
+                </a>
+              )}
+            </div>
           )}
           {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
           {!analyzedAt && !error && (

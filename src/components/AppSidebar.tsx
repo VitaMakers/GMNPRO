@@ -55,6 +55,14 @@ function IAuditoria({ className }: IconProps) {
     </svg>
   );
 }
+function ILocais({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8">
+      <rect x="3" y="4" width="7" height="7" rx="1.5" /><rect x="14" y="4" width="7" height="7" rx="1.5" />
+      <rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" />
+    </svg>
+  );
+}
 function IRanking({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -95,7 +103,12 @@ export default function AppSidebar({ isAdmin, isAgency = false }: { isAdmin: boo
   const pathname = usePathname();
   const items = [
     ...ITEMS,
-    ...(isAgency ? [{ href: "/ranking", label: "Análise de Ranking", Icon: IRanking }] : []),
+    ...(isAgency
+      ? [
+          { href: "/ranking", label: "Análise de Ranking", Icon: IRanking },
+          { href: "/locais", label: "Gestão de Locais", Icon: ILocais },
+        ]
+      : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin", Icon: IAdmin }] : []),
   ];
 
