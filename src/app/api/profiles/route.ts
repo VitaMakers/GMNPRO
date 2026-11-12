@@ -10,6 +10,8 @@ interface LocRow {
   location_name: string;
   title: string | null;
   photo_url: string | null;
+  lat?: number | null;
+  lng?: number | null;
 }
 
 export async function GET() {
@@ -19,12 +21,25 @@ export async function GET() {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
-  const { data } = await supabase
-    .from("gmb_locations")
-    .select("location_name, title, photo_url")
-    .order("title", { ascending: true });
+  // Tenta trazer coordenadas (coluna pode não existir se a migração 0016 não rodou).
+  let data: LocRow[] | null = null;
+  {
+    const withCoords = await supabase
+      .from("gmb_locations")
+      .select("location_name, title, photo_url, lat, lng")
+      .order("title", { ascending: true });
+    if (withCoords.error) {
+      const base = await supabase
+        .from("gmb_locations")
+        .select("location_name, title, photo_url")
+        .order("title", { ascending: true });
+      data = (base.data as LocRow[] | null) ?? null;
+    } else {
+      data = (withCoords.data as LocRow[] | null) ?? null;
+    }
+  }
 
-  let locs = (data as LocRow[] | null) ?? [];
+  let locs = data ?? [];
 
   // Backfill das fotos ainda não buscadas (no máximo 6, para não travar a UI).
   const pending = locs.filter((l) => l.photo_url === null).slice(0, 6);
@@ -65,6 +80,8 @@ export async function GET() {
     location_name: l.location_name,
     title: l.title,
     photoUrl: l.photo_url && l.photo_url.length > 0 ? l.photo_url : null,
+    lat: typeof l.lat === "number" ? l.lat : null,
+    lng: typeof l.lng === "number" ? l.lng : null,
   }));
 
   return NextResponse.json({ profiles });

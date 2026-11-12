@@ -86,7 +86,7 @@ const ITEMS = [
   { href: "/geotag", label: "Geotag", Icon: IGeotag },
   { href: "/agendamento", label: "Agendamentos", Icon: IAgenda },
   { href: "/avaliacoes", label: "Avaliações", Icon: IAvaliacoes },
-  { href: "/checklist", label: "Checklist", Icon: IChecklist },
+  { href: "/checklist", label: "Análise Completa", Icon: IChecklist },
   { href: "/auditoria", label: "Auditoria", Icon: IAuditoria },
   { href: "/suporte", label: "Suporte", Icon: ISuporte },
 ];

@@ -105,6 +105,19 @@ export function scoreFrom(checked: Record<string, boolean>): number {
   return Math.round((got / TOTAL_WEIGHT) * 100);
 }
 
+export type ItemStatus = "bom" | "razoavel" | "fraco";
+
+/**
+ * Classifica um item para a Pontuação Detalhada:
+ * - "bom": já está feito (verde)
+ * - "fraco": falta e tem peso alto / alto impacto (vermelho)
+ * - "razoavel": falta, mas é de impacto menor (amarelo)
+ */
+export function classify(item: ChecklistItem, done: boolean): ItemStatus {
+  if (done) return "bom";
+  return item.weight >= 5 ? "fraco" : "razoavel";
+}
+
 export function priorities(checked: Record<string, boolean>): ChecklistItem[] {
   const pending: ChecklistItem[] = [];
   for (const cat of CHECKLIST) {

@@ -14,7 +14,7 @@ const links = [
   { href: "/geotag", label: "Geotag" },
   { href: "/agendamento", label: "Agendamentos" },
   { href: "/avaliacoes", label: "Avaliações" },
-  { href: "/checklist", label: "Checklist" },
+  { href: "/checklist", label: "Análise Completa" },
   { href: "/auditoria", label: "Auditoria" },
   { href: "/suporte", label: "Suporte" },
 ];

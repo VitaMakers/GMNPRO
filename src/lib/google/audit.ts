@@ -28,12 +28,21 @@ interface LocationDetails {
   specialHours?: { specialHourPeriods?: unknown[] };
   profile?: { description?: string };
   attributes?: { name?: string }[];
+  latlng?: { latitude?: number; longitude?: number };
+  openInfo?: { status?: string; openingDate?: { year?: number; month?: number; day?: number } };
+  metadata?: {
+    mapsUri?: string;
+    newReviewUri?: string;
+    placeId?: string;
+    hasVoiceOfMerchant?: boolean;
+    canOperateLocalPost?: boolean;
+  };
 }
 
 async function getLocationDetails(token: string, accountLocation: string): Promise<LocationDetails> {
   const loc = locationId(accountLocation); // locations/{id}
   const readMask =
-    "title,categories,storefrontAddress,serviceArea,phoneNumbers,websiteUri,regularHours,specialHours,profile";
+    "title,categories,storefrontAddress,serviceArea,phoneNumbers,websiteUri,regularHours,specialHours,profile,latlng,openInfo,metadata";
   return getJson<LocationDetails>(`${BUSINESS_INFO}/${loc}?readMask=${readMask}`, token);
 }
 
@@ -127,6 +136,7 @@ export type AutoResult = Record<string, { done: boolean; detail?: string }>;
 export interface AuditProfile {
   title: string;
   category: string;
+  secondaryCategories: string[];
   address: string;
   phone: string;
   website: string;
@@ -134,6 +144,16 @@ export interface AuditProfile {
   rating: number;
   reviewCount: number;
   photoUrl: string | null;
+  lat: number | null;
+  lng: number | null;
+  mapsUri: string | null;
+  searchUri: string | null;
+  verified: boolean;
+  open: boolean;
+  foundingDate: string | null;
+  hoursCount: number;
+  photoCount: number;
+  postCount: number;
 }
 
 export async function runProfileAudit(
@@ -145,6 +165,7 @@ export async function runProfileAudit(
   const profile: AuditProfile = {
     title: "",
     category: "",
+    secondaryCategories: [],
     address: "",
     phone: "",
     website: "",
@@ -152,6 +173,16 @@ export async function runProfileAudit(
     rating: 0,
     reviewCount: 0,
     photoUrl: null,
+    lat: null,
+    lng: null,
+    mapsUri: null,
+    searchUri: null,
+    verified: false,
+    open: true,
+    foundingDate: null,
+    hoursCount: 0,
+    photoCount: 0,
+    postCount: 0,
   };
   const now = Date.now();
   const daysSince = (ms: number) => Math.floor((now - ms) / 86_400_000);
@@ -164,14 +195,20 @@ export async function runProfileAudit(
     const primary = d.categories?.primaryCategory?.displayName;
     profile.category = primary ?? "";
     auto.cat_principal = { done: !!primary, detail: primary };
-    const sec = d.categories?.additionalCategories?.length ?? 0;
+    const secList = (d.categories?.additionalCategories ?? [])
+      .map((c) => c.displayName)
+      .filter(Boolean) as string[];
+    profile.secondaryCategories = secList;
+    const sec = secList.length;
     auto.cat_secundarias = { done: sec > 0, detail: sec ? `${sec} categoria(s)` : undefined };
     const addrLine = (d.storefrontAddress?.addressLines ?? []).join(", ");
     const city = [d.storefrontAddress?.locality, d.storefrontAddress?.administrativeArea].filter(Boolean).join(" - ");
     profile.address = [addrLine, city].filter(Boolean).join(", ");
     const hasAddr = (d.storefrontAddress?.addressLines?.length ?? 0) > 0 || !!d.serviceArea;
     auto.endereco = { done: hasAddr };
-    auto.horarios = { done: (d.regularHours?.periods?.length ?? 0) > 0 };
+    const hoursCount = d.regularHours?.periods?.length ?? 0;
+    profile.hoursCount = hoursCount;
+    auto.horarios = { done: hoursCount > 0 };
     profile.phone = d.phoneNumbers?.primaryPhone ?? "";
     auto.telefone = { done: !!d.phoneNumbers?.primaryPhone, detail: d.phoneNumbers?.primaryPhone };
     profile.website = d.websiteUri ?? "";
@@ -179,6 +216,23 @@ export async function runProfileAudit(
     const desc = (d.profile?.description ?? "").trim();
     profile.description = desc;
     auto.descricao = { done: desc.length >= 50, detail: desc ? `${desc.length} caracteres` : undefined };
+
+    // Coordenadas, status e links
+    if (typeof d.latlng?.latitude === "number" && typeof d.latlng?.longitude === "number") {
+      profile.lat = d.latlng.latitude;
+      profile.lng = d.latlng.longitude;
+    }
+    profile.mapsUri = d.metadata?.mapsUri ?? null;
+    profile.verified = !!d.metadata?.hasVoiceOfMerchant;
+    profile.open = d.openInfo?.status ? d.openInfo.status === "OPEN" : true;
+    const od = d.openInfo?.openingDate;
+    if (od?.year) {
+      profile.foundingDate = [od.day, od.month, od.year].filter(Boolean).join("/");
+    }
+    // Link "Ver na Pesquisa": usa o placeId quando disponível.
+    if (d.metadata?.placeId) {
+      profile.searchUri = `https://search.google.com/local/writereview?placeid=${d.metadata.placeId}`;
+    }
   } catch (e) {
     stats.infoError = (e as Error).message;
   }
@@ -212,6 +266,7 @@ export async function runProfileAudit(
     const recent = media.some((m) => m.createTime && daysSince(new Date(m.createTime).getTime()) <= 31);
     auto.fotos_recentes = { done: recent };
     stats.photos = media.length;
+    profile.photoCount = media.length;
     // Foto para o card do perfil (capa/logo/qualquer).
     const pick =
       media.find((m) => m.locationAssociation?.category === "COVER") ??
@@ -236,6 +291,7 @@ export async function runProfileAudit(
     );
     auto.botao = { done: cta };
     stats.posts = posts.length;
+    profile.postCount = posts.length;
   } catch (e) {
     stats.postsError = (e as Error).message;
   }

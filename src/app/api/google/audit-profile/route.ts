@@ -20,6 +20,18 @@ export async function GET(request: Request) {
   try {
     const token = await getValidAccessToken(supabase, user.id);
     const result = await runProfileAudit(token, location);
+    // Cacheia as coordenadas para o Mapa de Locais (best-effort).
+    if (result.profile?.lat != null && result.profile?.lng != null) {
+      try {
+        await supabase
+          .from("gmb_locations")
+          .update({ lat: result.profile.lat, lng: result.profile.lng })
+          .eq("user_id", user.id)
+          .eq("location_name", location);
+      } catch {
+        /* coluna ausente: ignora */
+      }
+    }
     return NextResponse.json({ ok: true, ...result });
   } catch (e) {
     return NextResponse.json(
