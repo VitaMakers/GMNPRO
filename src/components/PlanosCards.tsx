@@ -46,8 +46,11 @@ const PLANS: PlanCard[] = [
       "Tudo do Essencial",
       "Perfis ilimitados",
       "Até 2 usuários",
+      "Gestão de Locais (todos os clientes num painel)",
       "Análise de Ranking (500 créditos/mês)*",
       "Relatório PDF com sua marca",
+      "Link e e-mail do relatório para o cliente",
+      "Atualização automática noturna",
     ],
   },
   {
@@ -62,7 +65,9 @@ const PLANS: PlanCard[] = [
       "Tudo da Agência 2",
       "Até 4 usuários",
       "Mesmo valor por usuário extra",
+      "Gestão de Locais (todos os clientes num painel)",
       "Análise de Ranking (500 créditos/mês)*",
+      "Relatório PDF com sua marca",
     ],
   },
 ];

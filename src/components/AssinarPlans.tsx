@@ -159,7 +159,7 @@ export default function AssinarPlans({
           </div>
           <p className="mt-1 text-sm text-muted">Até 2 usuários · extra R$ 48,50</p>
           <ul className="mt-5 flex-1 space-y-2 text-sm">
-            {["Tudo do Essencial", "Perfis ilimitados", "Até 2 usuários", "Análise de Ranking (500 créditos/mês)", "Relatório PDF com sua marca"].map((f) => (
+            {["Tudo do Essencial", "Perfis ilimitados", "Até 2 usuários", "Gestão de Locais", "Análise de Ranking (500 créditos/mês)", "Relatório PDF com sua marca", "Link e e-mail do relatório para o cliente"].map((f) => (
               <li key={f} className="flex gap-2"><Check />{f}</li>
             ))}
           </ul>
@@ -177,7 +177,7 @@ export default function AssinarPlans({
           </div>
           <p className="mt-1 text-sm text-muted">Até 4 usuários · extra R$ 48,50</p>
           <ul className="mt-5 flex-1 space-y-2 text-sm">
-            {["Tudo do Essencial", "Perfis ilimitados", "Até 4 usuários", "Mesmo valor por usuário extra", "Análise de Ranking (500 créditos/mês)"].map((f) => (
+            {["Tudo do Essencial", "Perfis ilimitados", "Até 4 usuários", "Mesmo valor por usuário extra", "Gestão de Locais", "Análise de Ranking (500 créditos/mês)", "Relatório PDF com sua marca"].map((f) => (
               <li key={f} className="flex gap-2"><Check />{f}</li>
             ))}
           </ul>
