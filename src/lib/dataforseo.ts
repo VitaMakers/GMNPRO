@@ -39,6 +39,14 @@ interface MapsResponse {
   }[];
 }
 
+export interface TopItem {
+  title: string;
+  rank: number;
+  rating: number | null;
+  reviews: number | null;
+  me: boolean;
+}
+
 export interface MapsTarget {
   placeId?: string | null;
   cid?: string | null;
@@ -75,7 +83,7 @@ export async function mapsRankAt(
   lng: number,
   target: MapsTarget,
   opts: { zoom?: number; depth?: number } = {},
-): Promise<{ rank: number | null; top: { title: string; rank: number }[] }> {
+): Promise<{ rank: number | null; top: TopItem[] }> {
   const zoom = opts.zoom ?? 14;
   const depth = opts.depth ?? 20;
   const res = await fetch(`${BASE}/serp/google/maps/live/advanced`, {
@@ -98,7 +106,13 @@ export async function mapsRankAt(
   }
   const items = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search");
   const hit = items.find((i) => matches(i, target));
-  const top = items.slice(0, 3).map((i) => ({ title: i.title ?? "", rank: i.rank_group ?? 0 }));
+  const top = items.slice(0, 5).map((i) => ({
+    title: i.title ?? "",
+    rank: i.rank_group ?? 0,
+    rating: i.rating?.value ?? null,
+    reviews: i.rating?.votes_count ?? null,
+    me: matches(i, target),
+  }));
   return { rank: hit?.rank_group ?? null, top };
 }
 

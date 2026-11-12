@@ -3,7 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import { loadLeaflet } from "@/components/LocationsMap";
 
-export type GridMapPoint = { lat: number; lng: number; rank: number | null };
+export type GridMapPoint = {
+  lat: number;
+  lng: number;
+  rank: number | null;
+  top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean }[];
+};
+
+function esc(s: string) {
+  return s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
+}
 
 export function rankColor(rank: number | null) {
   if (rank == null) return "#6b7280"; // cinza — fora do top 20
@@ -51,7 +60,20 @@ export default function GridMap({
             iconSize: [32, 32],
             iconAnchor: [16, 16],
           });
-          L.marker([p.lat, p.lng], { icon }).addTo(map);
+          const mk = L.marker([p.lat, p.lng], { icon }).addTo(map);
+          const rows = (p.top ?? [])
+            .map(
+              (t) =>
+                `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;${t.me ? "font-weight:700;color:#059669" : ""}">
+                  <span style="width:18px;text-align:right">${t.rank}.</span>
+                  <span style="flex:1">${esc(t.title)}</span>
+                  ${t.rating != null ? `<span style="color:#6b7280;font-size:11px">${t.rating} ★ (${t.reviews ?? 0})</span>` : ""}
+                </div>`,
+            )
+            .join("");
+          mk.bindPopup(
+            `<div style="min-width:220px;font:12px system-ui"><div style="font-weight:700;margin-bottom:4px">Sua posição aqui: ${label}</div>${rows || "<div style='color:#6b7280'>Sem resultados neste ponto.</div>"}</div>`,
+          );
           bounds.push([p.lat, p.lng]);
         }
         // Pino da empresa no centro.

@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     const ranked: RankedPoint[] = await mapLimit(points, 8, async (p) => {
       try {
         const r = await mapsRankAt(keyword, p.lat, p.lng, target);
-        return { ...p, rank: r.rank };
+        return { ...p, rank: r.rank, top: r.top };
       } catch {
         return { ...p, rank: null };
       }

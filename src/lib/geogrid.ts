@@ -38,6 +38,7 @@ export function buildGrid(centerLat: number, centerLng: number, size: number, sp
 
 export interface RankedPoint extends GridPoint {
   rank: number | null; // null = não encontrado no top 20
+  top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean }[];
 }
 
 export function summarize(points: RankedPoint[]) {
