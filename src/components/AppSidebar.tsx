@@ -55,6 +55,15 @@ function IAuditoria({ className }: IconProps) {
     </svg>
   );
 }
+function IRanking({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z" />
+      <circle cx="12" cy="10" r="2.5" />
+      <path d="M4.5 16.5c-.9.5-1.5 1.1-1.5 1.8C3 19.8 7 21 12 21s9-1.2 9-2.7c0-.7-.6-1.3-1.5-1.8" />
+    </svg>
+  );
+}
 function ISuporte({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -82,9 +91,13 @@ const ITEMS = [
   { href: "/suporte", label: "Suporte", Icon: ISuporte },
 ];
 
-export default function AppSidebar({ isAdmin }: { isAdmin: boolean }) {
+export default function AppSidebar({ isAdmin, isAgency = false }: { isAdmin: boolean; isAgency?: boolean }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...ITEMS, { href: "/admin", label: "Admin", Icon: IAdmin }] : ITEMS;
+  const items = [
+    ...ITEMS,
+    ...(isAgency ? [{ href: "/ranking", label: "Análise de Ranking", Icon: IRanking }] : []),
+    ...(isAdmin ? [{ href: "/admin", label: "Admin", Icon: IAdmin }] : []),
+  ];
 
   return (
     <nav className="fixed left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1320px]:block">

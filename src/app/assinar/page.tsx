@@ -35,7 +35,7 @@ export default async function AssinarPage() {
             </p>
           )}
         </div>
-        <AssinarPlans />
+        <AssinarPlans trial={access.trial} currentTier={access.tier} />
         <ManageSubscriptionButton />
       </main>
     </div>

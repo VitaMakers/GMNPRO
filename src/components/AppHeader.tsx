@@ -24,6 +24,7 @@ export default function AppHeader() {
   const pathname = usePathname();
   const [trial, setTrial] = useState<{ daysLeft: number } | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [isAgency, setIsAgency] = useState(false);
 
   useEffect(() => {
     (async () => {
@@ -33,6 +34,7 @@ export default function AppHeader() {
           const d = await res.json();
           if (d.trial) setTrial({ daysLeft: d.daysLeft });
           if (d.status === "admin") setIsAdmin(true);
+          if (d.entitlements?.isAgency) setIsAgency(true);
         }
       } catch {
         /* ignora */
@@ -123,6 +125,16 @@ export default function AppHeader() {
                 </Link>
               );
             })}
+            {isAgency && (
+              <Link
+                href="/ranking"
+                className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                  pathname === "/ranking" ? "bg-brand/10 text-brand-2" : "text-muted"
+                }`}
+              >
+                Ranking
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -137,7 +149,7 @@ export default function AppHeader() {
         </div>
       </header>
 
-      <AppSidebar isAdmin={isAdmin} />
+      <AppSidebar isAdmin={isAdmin} isAgency={isAgency} />
       <OnboardingTour />
     </>
   );
