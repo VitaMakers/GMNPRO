@@ -85,10 +85,31 @@ export default function ChecklistTool({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [manual, auto, autoEnabled]);
 
-  const score = useMemo(() => scoreFrom(checked), [checked]);
-  const top = useMemo(() => priorities(checked).slice(0, 5), [checked]);
-  const totalItems = CHECKLIST.reduce((s, c) => s + c.items.length, 0);
-  const doneItems = Object.values(checked).filter(Boolean).length;
+  // Com perfil conectado, a NOTA considera só os itens que dá para verificar
+  // automático (não penaliza por hábitos que o Google não expõe).
+  const allItems = useMemo(() => CHECKLIST.flatMap((c) => c.items), []);
+  const scored = useMemo(
+    () => (autoEnabled ? allItems.filter((it) => AUTO_ITEM_IDS.has(it.id)) : allItems),
+    [allItems, autoEnabled],
+  );
+  const manualItems = useMemo(
+    () => (autoEnabled ? allItems.filter((it) => !AUTO_ITEM_IDS.has(it.id)) : []),
+    [allItems, autoEnabled],
+  );
+
+  const score = useMemo(() => {
+    if (!autoEnabled) return scoreFrom(checked);
+    const total = scored.reduce((s, i) => s + i.weight, 0);
+    const got = scored.filter((i) => checked[i.id]).reduce((s, i) => s + i.weight, 0);
+    return total ? Math.round((got / total) * 100) : 0;
+  }, [checked, autoEnabled, scored]);
+
+  const top = useMemo(
+    () => priorities(checked).filter((it) => scored.some((s) => s.id === it.id)).slice(0, 5),
+    [checked, scored],
+  );
+  const totalItems = scored.length;
+  const doneItems = scored.filter((i) => checked[i.id]).length;
 
   const toggle = (id: string) => setManual((c) => ({ ...c, [id]: !c[id] }));
   const reset = () => setManual({});
@@ -116,12 +137,10 @@ export default function ChecklistTool({
 
   // Pontuação detalhada: Bom (feito), Fraco (falta e importante), Razoável (falta leve).
   const detail = { bom: 0, fraco: 0, razoavel: 0 };
-  for (const cat of CHECKLIST) {
-    for (const it of cat.items) {
-      if (checked[it.id]) detail.bom++;
-      else if (it.weight >= 5) detail.fraco++;
-      else detail.razoavel++;
-    }
+  for (const it of scored) {
+    if (checked[it.id]) detail.bom++;
+    else if (it.weight >= 5) detail.fraco++;
+    else detail.razoavel++;
   }
 
   return (
@@ -210,6 +229,13 @@ export default function ChecklistTool({
                 </li>
               ))}
             </ul>
+            {manualItems.length > 0 && (
+              <p className="mt-4 border-t border-border/60 pt-3 text-xs text-muted">
+                A nota considera só o que dá para verificar no Google. Há{" "}
+                <span className="font-medium text-foreground">{manualItems.length} itens de hábito</span>{" "}
+                (ex.: pedir avaliações, mensagens) que só você confirma — marque-os na lista abaixo.
+              </p>
+            )}
           </div>
 
           {/* Card do perfil */}
