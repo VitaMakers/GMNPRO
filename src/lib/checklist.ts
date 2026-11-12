@@ -81,6 +81,7 @@ export const AUTO_ITEM_IDS = new Set<string>([
   "horarios",
   "telefone",
   "site",
+  "pedir",
   "verificado",
   "fundacao",
   "descricao",
@@ -121,7 +122,8 @@ export type ItemStatus = "bom" | "razoavel" | "fraco";
  * - "fraco": falta e tem peso alto / alto impacto (vermelho)
  * - "razoavel": falta, mas é de impacto menor (amarelo)
  */
-export function classify(item: ChecklistItem, done: boolean): ItemStatus {
+export function classify(item: ChecklistItem, done: boolean, forced?: ItemStatus): ItemStatus {
+  if (forced) return forced;
   if (done) return "bom";
   return item.weight >= 5 ? "fraco" : "razoavel";
 }

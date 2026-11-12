@@ -18,7 +18,7 @@ const LocationsMap = dynamic(() => import("@/components/LocationsMap"), { ssr: f
 
 const STORAGE_KEY = "gmnpro.checklist";
 
-type AutoResult = Record<string, { done: boolean; detail?: string }>;
+type AutoResult = Record<string, { done: boolean; detail?: string; status?: ItemStatus }>;
 type LocationOption = {
   location_name: string;
   title: string | null;
@@ -172,7 +172,8 @@ export default function ChecklistTool({
 
   // Pontuação detalhada: Bom (feito), Fraco (falta e importante), Razoável (falta leve).
   const detail = { bom: 0, fraco: 0, razoavel: 0 };
-  for (const it of scored) detail[classify(it, !!checked[it.id])]++;
+  const statusOf = (it: ChecklistItem) => classify(it, !!checked[it.id], isAuto(it.id) ? auto?.[it.id]?.status : undefined);
+  for (const it of scored) detail[statusOf(it)]++;
 
   // Pontos do Mapa de Locais: locais com coordenadas em cache + o perfil analisado.
   const mapPoints: MapPoint[] = useMemo(() => {
@@ -375,7 +376,7 @@ export default function ChecklistTool({
                   key={item.id}
                   item={item}
                   checked={!!checked[item.id]}
-                  status={classify(item, !!checked[item.id])}
+                  status={statusOf(item)}
                   auto={isAuto(item.id)}
                   detail={auto?.[item.id]?.detail}
                   analyzed={!!analyzedAt}

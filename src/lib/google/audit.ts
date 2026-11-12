@@ -145,7 +145,7 @@ async function listReviews(
   };
 }
 
-export type AutoResult = Record<string, { done: boolean; detail?: string }>;
+export type AutoResult = Record<string, { done: boolean; detail?: string; status?: "bom" | "razoavel" | "fraco" }>;
 
 /** Lê o perfil e devolve, por item do checklist, se está feito (e um detalhe). */
 export interface AuditProfile {
@@ -333,7 +333,16 @@ export async function runProfileAudit(
         (r) => r.createTime && daysSince(new Date(r.createTime).getTime()) <= 30,
       );
       auto.volume = { done: recentReview };
+      // "Peço avaliações": última avaliação há 1–5 dias = bom; 6–7 = razoável; >7 = fraco.
+      const newest = Math.min(
+        ...reviews.filter((r) => r.createTime).map((r) => daysSince(new Date(r.createTime!).getTime())),
+      );
+      if (Number.isFinite(newest)) {
+        const status = newest <= 5 ? "bom" : newest <= 7 ? "razoavel" : "fraco";
+        auto.pedir = { done: status === "bom", status, detail: `última avaliação há ${newest} dia(s)` };
+      }
     }
+    if (reviews.length === 0) auto.pedir = { done: false, status: "fraco", detail: "sem avaliações" };
     stats.reviewsTotal = total;
     stats.reviewsAvg = average;
     profile.rating = average;
