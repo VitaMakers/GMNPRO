@@ -6,10 +6,23 @@ export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY;
 }
 
+/** Aceita "email@dominio", "Nome <email@dominio>" ou com aspas/espaços sobrando. */
+function normalizeFrom(raw?: string): string {
+  const v = (raw ?? "").trim().replace(/^["']+|["']+$/g, "").trim();
+  if (!v) return "";
+  const m = v.match(/^(.*?)<\s*([^<>\s]+@[^<>\s]+)\s*>$/);
+  if (m) {
+    const name = m[1].trim().replace(/^["']+|["']+$/g, "").trim();
+    return name ? `${name} <${m[2]}>` : m[2];
+  }
+  if (/^[^\s<>]+@[^\s<>]+\.[^\s<>]+$/.test(v)) return `GMN PRO <${v}>`;
+  return "";
+}
+
 export async function sendEmail(opts: { to: string; subject: string; html: string; replyTo?: string }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error("RESEND_API_KEY não configurada");
-  const from = process.env.EMAIL_FROM || "GMN PRO <onboarding@resend.dev>";
+  const from = normalizeFrom(process.env.EMAIL_FROM) || "GMN PRO <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
