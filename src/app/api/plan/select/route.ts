@@ -22,10 +22,9 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "plano_invalido" }, { status: 400 });
   }
 
-  // Garante que exista a linha de assinatura (com teste) e atualiza o tier.
   const { data: existing } = await supabase
     .from("subscriptions")
-    .select("status")
+    .select("status, trial_ends_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
@@ -34,11 +33,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "ja_assinante", detail: "Mude o plano pela gestão de assinatura." }, { status: 409 });
   }
 
+  // Na escolha, inicia (ou mantém) o teste grátis de 7 dias.
+  const trialEnds =
+    existing?.trial_ends_at ?? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+  // 1) Cria/garante a linha só com colunas base (sempre existem) — isto é o
+  //    que faz o portão liberar o acesso.
   const { error } = await supabase
     .from("subscriptions")
-    .upsert({ user_id: user.id, tier, plan_chosen: true }, { onConflict: "user_id" });
+    .upsert({ user_id: user.id, trial_ends_at: trialEnds }, { onConflict: "user_id" });
 
   if (error) return NextResponse.json({ error: "falha_ao_salvar" }, { status: 500 });
+
+  // 2) Salva o tier escolhido — best-effort (ignora se a coluna 'tier' ainda
+  //    não existir no banco, para não travar a escolha do plano).
+  await supabase.from("subscriptions").update({ tier }).eq("user_id", user.id);
 
   return NextResponse.json({ ok: true, tier });
 }

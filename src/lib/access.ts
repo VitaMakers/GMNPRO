@@ -36,20 +36,24 @@ export async function getAccess(
     return { allowed: true, trial: false, daysLeft: 0, status: "admin", tier: "agencia4", entitlements: ADMIN_ENTITLEMENTS };
   }
 
-  // select("*") para não quebrar caso a coluna plan_chosen ainda não exista
-  // no banco (migração não aplicada) — aí o campo vem undefined e não bloqueia.
-  let { data } = await supabase
+  const { data } = await supabase
     .from("subscriptions")
     .select("*")
     .eq("user_id", userId)
     .maybeSingle();
 
+  // Sem linha de assinatura = ainda não escolheu nenhum plano → precisa
+  // escolher antes de entrar (a linha e o teste de 7 dias nascem na escolha).
   if (!data) {
-    const trialEnds = new Date(Date.now() + 7 * DAY).toISOString();
-    await supabase
-      .from("subscriptions")
-      .upsert({ user_id: userId, trial_ends_at: trialEnds }, { onConflict: "user_id" });
-    data = { trial_ends_at: trialEnds, status: null, manual_access: false, tier: "essencial", plan_chosen: false };
+    return {
+      allowed: false,
+      trial: false,
+      daysLeft: 0,
+      status: null,
+      tier: "essencial",
+      entitlements: entitlementsFor("essencial"),
+      needsPlan: true,
+    };
   }
 
   const tier = (data.tier as string) ?? "essencial";
@@ -65,12 +69,6 @@ export async function getAccess(
     return { allowed: true, trial: false, daysLeft: 0, status, tier, entitlements: ent };
   }
 
-  // Ainda não escolheu um plano: precisa escolher antes de entrar (mesmo o teste).
-  // Só bloqueia quando o campo é explicitamente false (se a coluna não existe,
-  // vem undefined e não trava contas já existentes).
-  if (data.plan_chosen === false) {
-    return { allowed: false, trial: false, daysLeft: 0, status, tier, entitlements: ent, needsPlan: true };
-  }
 
   const trialEnds = data.trial_ends_at ? new Date(data.trial_ends_at).getTime() : 0;
   const now = Date.now();

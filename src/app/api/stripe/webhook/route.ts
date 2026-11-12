@@ -60,13 +60,13 @@ export async function POST(request: Request) {
             stripe_subscription_id: subId ?? null,
             status,
             plan,
-            tier,
-            plan_chosen: true,
             current_period_end: cpe,
             updated_at: ts(),
           },
           { onConflict: "user_id" },
         );
+        // tier à parte (best-effort; ignora se a coluna não existir).
+        await admin.from("subscriptions").update({ tier }).eq("user_id", userId);
       }
     } else if (
       event.type === "customer.subscription.updated" ||
@@ -75,12 +75,10 @@ export async function POST(request: Request) {
     ) {
       const sub = event.data.object as Stripe.Subscription & { current_period_end?: number };
       const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
-      const subTier = (sub.metadata?.tier as string) || undefined;
       await updateByCustomer(customerId, {
         stripe_subscription_id: sub.id,
         status: sub.status,
         current_period_end: periodEnd(sub.current_period_end),
-        ...(subTier ? { tier: subTier } : {}),
       });
     } else if (event.type === "invoice.payment_failed") {
       const inv = event.data.object as Stripe.Invoice;
