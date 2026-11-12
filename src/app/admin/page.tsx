@@ -3,6 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/stripe";
 import AdminGrantButton from "@/components/AdminGrantButton";
+import AdminTierSelect from "@/components/AdminTierSelect";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
 import MetricChart from "@/components/MetricChart";
 import { GRACE_DAYS } from "@/lib/access";
@@ -20,6 +21,7 @@ interface SubRow {
   user_id: string;
   status: string | null;
   plan: string | null;
+  tier: string | null;
   trial_ends_at: string | null;
   current_period_end: string | null;
   manual_access: boolean | null;
@@ -37,7 +39,7 @@ export default async function AdminPage() {
 
   const { data: subs } = await admin
     .from("subscriptions")
-    .select("user_id, status, plan, trial_ends_at, current_period_end, manual_access");
+    .select("user_id, status, plan, tier, trial_ends_at, current_period_end, manual_access");
   const subMap = new Map<string, SubRow>((subs as SubRow[] | null)?.map((s) => [s.user_id, s]) ?? []);
 
   const { count: perfis } = await admin
@@ -66,6 +68,7 @@ export default async function AdminPage() {
     plano: string | null;
     valor: number;
     manual: boolean;
+    tier: string;
     periodEnd: string | null;
     deletionInDays: number | null;
     isAdmin: boolean;
@@ -87,6 +90,7 @@ export default async function AdminPage() {
     const manual = s?.manual_access ?? false;
     const meta = (u.user_metadata ?? {}) as Record<string, unknown>;
     const phone = String(meta.phone ?? meta.whatsapp ?? "");
+    const effTier = (typeof meta.plan_tier === "string" ? meta.plan_tier : null) ?? s?.tier ?? "essencial";
     let categoria = "";
     let rank = 5;
     let valor = 0;
@@ -143,6 +147,7 @@ export default async function AdminPage() {
       plano: plan,
       valor,
       manual,
+      tier: effTier,
       periodEnd: s?.current_period_end ?? null,
       deletionInDays,
       isAdmin: isUserAdmin,
@@ -422,6 +427,7 @@ export default async function AdminPage() {
                   <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
+                      {!r.isAdmin && <AdminTierSelect userId={r.userId} tier={r.tier} />}
                       <AdminGrantButton userId={r.userId} granted={r.manual} />
                       {!r.isAdmin && <AdminDeleteButton userId={r.userId} email={r.email} />}
                     </div>

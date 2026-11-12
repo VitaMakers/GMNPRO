@@ -322,6 +322,11 @@ export default function AgendamentoDashboard({
             Autorize o acesso ao seu perfil para publicar as postagens automaticamente
             no horário agendado.
           </p>
+          <p className="mt-2 rounded-lg border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+            ⚠️ Importante: na tela do Google, <strong>marque a caixa de permissão</strong> do Perfil
+            da Empresa (ou &ldquo;Selecionar tudo&rdquo;). Sem isso, o Google bloqueia o acesso aos
+            seus locais.
+          </p>
           <a
             href="/api/google/connect"
             className="mt-3 inline-block rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
