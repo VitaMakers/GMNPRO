@@ -38,7 +38,8 @@ export default function AssinarPlans() {
 
   const essencialPrice = cycle === "mensal" ? "R$ 20" : "R$ 225";
   const essencialSuffix = cycle === "mensal" ? "/mês" : "/ano";
-  const agPrice = cycle === "mensal" ? "R$ 97" : "R$ 1.091";
+  const ag2 = cycle === "mensal" ? "R$ 97" : "R$ 1.091";
+  const ag4 = cycle === "mensal" ? "R$ 130" : "R$ 1.463";
 
   return (
     <div className="space-y-10">
@@ -95,17 +96,42 @@ export default function AssinarPlans() {
           Gerencie perfis ilimitados de vários clientes, com Análise de Ranking (geo-grid) e
           relatórios com a sua marca.
         </p>
-        <div className="mx-auto max-w-md">
-          {/* Agência (até 4 usuários) */}
-          <div className="relative rounded-3xl border border-brand/50 bg-white p-7 shadow-2xl ring-1 ring-brand/30">
-            <h3 className="font-display text-lg font-semibold">Agência</h3>
+        <div className="grid gap-5 sm:grid-cols-2">
+          {/* Agência 2 */}
+          <div className="rounded-3xl border border-border bg-white p-7 card-soft">
+            <h3 className="font-display text-lg font-semibold">Agência 2</h3>
             <div className="mt-3 flex items-end gap-1">
-              <span className="font-display text-4xl font-extrabold">{agPrice}</span>
+              <span className="font-display text-4xl font-extrabold">{ag2}</span>
+              <span className="mb-1 text-muted">{essencialSuffix}</span>
+            </div>
+            <p className="mt-2 text-sm text-muted">Até 2 usuários · usuário extra R$ 48,50</p>
+            <ul className="mt-5 space-y-2 text-sm">
+              {["Tudo do Essencial", "Perfis ilimitados", "Até 2 usuários", "Análise de Ranking (500 créditos/mês)", "Relatório PDF com sua marca"].map((f) => (
+                <li key={f} className="flex gap-2"><Check />{f}</li>
+              ))}
+            </ul>
+            <button
+              onClick={() => go("agencia2")}
+              disabled={busy !== ""}
+              className="mt-6 w-full rounded-xl border border-brand px-6 py-3 text-sm font-semibold text-brand-2 transition hover:bg-brand/10 disabled:opacity-60"
+            >
+              {busy === `agencia2:${cycle}` ? "Abrindo…" : "Assinar Agência 2"}
+            </button>
+          </div>
+
+          {/* Agência 4 (destaque) */}
+          <div className="relative rounded-3xl border border-brand/50 bg-white p-7 shadow-2xl ring-1 ring-brand/30">
+            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
+              Mais popular
+            </div>
+            <h3 className="font-display text-lg font-semibold">Agência 4</h3>
+            <div className="mt-3 flex items-end gap-1">
+              <span className="font-display text-4xl font-extrabold">{ag4}</span>
               <span className="mb-1 text-muted">{essencialSuffix}</span>
             </div>
             <p className="mt-2 text-sm text-muted">Até 4 usuários · usuário extra R$ 48,50</p>
             <ul className="mt-5 space-y-2 text-sm">
-              {["Tudo do Essencial", "Perfis ilimitados", "Até 4 usuários", "Usuário adicional pela metade", "Análise de Ranking (500 créditos/mês)", "Relatório PDF com sua marca", "Prioridade no suporte"].map((f) => (
+              {["Tudo do Essencial", "Perfis ilimitados", "Até 4 usuários", "Mesmo valor por usuário extra", "Análise de Ranking (500 créditos/mês)", "Prioridade no suporte"].map((f) => (
                 <li key={f} className="flex gap-2"><Check />{f}</li>
               ))}
             </ul>
@@ -114,7 +140,7 @@ export default function AssinarPlans() {
               disabled={busy !== ""}
               className="mt-6 w-full rounded-xl bg-brand px-6 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
             >
-              {busy === `agencia4:${cycle}` ? "Abrindo…" : "Assinar Agência"}
+              {busy === `agencia4:${cycle}` ? "Abrindo…" : "Assinar Agência 4"}
             </button>
           </div>
         </div>
