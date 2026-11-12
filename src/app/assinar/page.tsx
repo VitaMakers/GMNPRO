@@ -35,6 +35,20 @@ export default async function AssinarPage() {
             </p>
           )}
         </div>
+
+        {!access.allowed && access.deletionInDays !== null && access.deletionInDays !== undefined && (
+          <div className="mb-8 rounded-2xl border border-red-400/40 bg-red-400/10 p-4 text-center text-sm text-red-600">
+            <p className="font-semibold">
+              ⚠️ Sua conta e seus dados serão excluídos em {access.deletionInDays} dia
+              {access.deletionInDays === 1 ? "" : "s"}.
+            </p>
+            <p className="mt-1 text-red-500">
+              Motivo: o período de teste terminou e não houve pagamento. Assine antes disso para
+              manter seus perfis, posts e configurações. Depois da exclusão, não há como recuperar.
+            </p>
+          </div>
+        )}
+
         <AssinarPlans trial={access.trial} currentTier={access.tier} />
         <ManageSubscriptionButton />
       </main>

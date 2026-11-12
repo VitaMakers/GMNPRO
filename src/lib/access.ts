@@ -9,9 +9,13 @@ export interface Access {
   status: string | null;
   tier: string;
   entitlements: Entitlements;
+  /** Dias até a exclusão automática da conta (só quando bloqueado por falta de pagamento). */
+  deletionInDays?: number | null;
 }
 
 const DAY = 24 * 60 * 60 * 1000;
+// Após o teste, a conta é mantida por este período antes da exclusão automática.
+export const GRACE_DAYS = 90; // 3 meses
 
 /**
  * Decide se o usuário tem acesso ao app:
@@ -63,5 +67,9 @@ export async function getAccess(
     return { allowed: true, trial: true, daysLeft: Math.ceil((trialEnds - now) / DAY), status, tier, entitlements: ent };
   }
 
-  return { allowed: false, trial: false, daysLeft: 0, status, tier, entitlements: ent };
+  // Bloqueado por falta de pagamento: calcula quantos dias faltam para a
+  // exclusão automática da conta (3 meses após o fim do teste).
+  const deletionAt = trialEnds ? trialEnds + GRACE_DAYS * DAY : 0;
+  const deletionInDays = deletionAt ? Math.max(0, Math.ceil((deletionAt - now) / DAY)) : null;
+  return { allowed: false, trial: false, daysLeft: 0, status, tier, entitlements: ent, deletionInDays };
 }

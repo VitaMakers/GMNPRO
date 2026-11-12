@@ -65,6 +65,9 @@ export default function AssinarPlans({
   const ess = cycle === "mensal" ? "R$ 20" : "R$ 225";
   const suffix = cycle === "mensal" ? "/mês" : "/ano";
 
+  // Quem já está em um plano de agência não vê o plano de dono de negócio.
+  const agencyOnly = currentTier.startsWith("agencia");
+
   // Botão de cada plano: no teste, "Usar no teste" (sem cartão); senão, "Assinar".
   function PlanButton({ tier, primary }: { tier: Tier; primary?: boolean }) {
     const isCurrent = currentTier === tier;
@@ -126,8 +129,9 @@ export default function AssinarPlans({
         </div>
       </div>
 
-      <div className="grid items-stretch gap-5 lg:grid-cols-3">
-        {/* Essencial */}
+      <div className={`grid items-stretch gap-5 ${agencyOnly ? "lg:grid-cols-2" : "lg:grid-cols-3"}`}>
+        {/* Essencial — oculto para quem já é agência */}
+        {!agencyOnly && (
         <div className="flex flex-col rounded-3xl border border-border bg-white p-7 card-soft">
           <span className="inline-flex w-fit items-center gap-1.5 rounded-full bg-surface-2 px-2.5 py-1 text-[11px] font-semibold text-muted">🏪 Dono do negócio</span>
           <h3 className="mt-3 font-display text-lg font-semibold">Essencial</h3>
@@ -143,6 +147,7 @@ export default function AssinarPlans({
           </ul>
           <PlanButton tier="essencial" />
         </div>
+        )}
 
         {/* Agência 2 */}
         <div className="flex flex-col rounded-3xl border border-brand/30 bg-brand/5 p-7 card-soft">

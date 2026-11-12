@@ -3,7 +3,11 @@ import AppHeader from "@/components/AppHeader";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/stripe";
 import AdminGrantButton from "@/components/AdminGrantButton";
+import AdminDeleteButton from "@/components/AdminDeleteButton";
 import MetricChart from "@/components/MetricChart";
+import { GRACE_DAYS } from "@/lib/access";
+
+const DAY = 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Painel Admin — GMN PRO" };
@@ -43,6 +47,14 @@ export default async function AdminPage() {
   const { data: usersData } = await admin.auth.admin.listUsers({ page: 1, perPage: 1000 });
   const users = usersData?.users ?? [];
 
+  const { data: lostData } = await admin
+    .from("lost_accounts")
+    .select("email, phone, reason, tier, deleted_at")
+    .order("deleted_at", { ascending: false })
+    .limit(200);
+  const lost =
+    (lostData as { email: string | null; phone: string | null; reason: string | null; tier: string | null; deleted_at: string }[] | null) ?? [];
+
   const now = Date.now();
   type Row = {
     userId: string;
@@ -55,6 +67,8 @@ export default async function AdminPage() {
     valor: number;
     manual: boolean;
     periodEnd: string | null;
+    deletionInDays: number | null;
+    isAdmin: boolean;
   };
   const rows: Row[] = [];
   let emTeste = 0;
@@ -111,6 +125,14 @@ export default async function AdminPage() {
       semFechar++;
     }
 
+    // Dias até a exclusão automática (só para expirados sem pagar).
+    const isUserAdmin = !!u.email && ADMIN_EMAILS.includes(u.email.toLowerCase());
+    let deletionInDays: number | null = null;
+    if (categoria === "Teste expirado (não fechou)" && trialEnds && !isUserAdmin) {
+      const deletionAt = new Date(trialEnds).getTime() + GRACE_DAYS * DAY;
+      deletionInDays = Math.max(0, Math.ceil((deletionAt - now) / DAY));
+    }
+
     rows.push({
       userId: u.id,
       email: u.email ?? "",
@@ -122,6 +144,8 @@ export default async function AdminPage() {
       valor,
       manual,
       periodEnd: s?.current_period_end ?? null,
+      deletionInDays,
+      isAdmin: isUserAdmin,
     });
   }
 
@@ -385,12 +409,22 @@ export default async function AdminPage() {
                       <span className="text-muted">—</span>
                     )}
                   </td>
-                  <td className={`px-4 py-3 font-medium ${corCategoria(r.categoria)}`}>{r.categoria}</td>
+                  <td className={`px-4 py-3 font-medium ${corCategoria(r.categoria)}`}>
+                    {r.categoria}
+                    {r.deletionInDays !== null && (
+                      <span className="mt-0.5 block text-[11px] font-normal text-red-500">
+                        exclui em {r.deletionInDays} dia{r.deletionInDays === 1 ? "" : "s"}
+                      </span>
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-muted">{r.plano ?? "—"}</td>
                   <td className="px-4 py-3">{r.valor ? brl(r.valor) : "—"}</td>
                   <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
                   <td className="px-4 py-3">
-                    <AdminGrantButton userId={r.userId} granted={r.manual} />
+                    <div className="flex items-center gap-2">
+                      <AdminGrantButton userId={r.userId} granted={r.manual} />
+                      {!r.isAdmin && <AdminDeleteButton userId={r.userId} email={r.email} />}
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -404,7 +438,54 @@ export default async function AdminPage() {
         </div>
         <p className="mt-3 text-xs text-muted">
           As pessoas em vermelho (teste expirado / cancelou / pagamento falhou) são as de contato prioritário para fechar a mensalidade.
+          Contas de teste expirado são <strong>excluídas automaticamente {GRACE_DAYS} dias</strong> após o fim do teste (o contato fica salvo abaixo).
         </p>
+
+        {/* Contatos de contas excluídas (follow-up) */}
+        <h2 className="mb-3 mt-8 text-base font-semibold">
+          Contatos de contas excluídas{lost.length > 0 ? ` (${lost.length})` : ""}
+        </h2>
+        <p className="mb-3 text-xs text-muted">
+          Guardamos email e WhatsApp mesmo após a exclusão, para você entender por que a pessoa não
+          fechou e tentar recuperar.
+        </p>
+        <div className="overflow-x-auto rounded-3xl border border-border bg-white card-soft">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead className="border-b border-border text-left text-xs text-muted">
+              <tr>
+                <th className="px-4 py-3">E-mail</th>
+                <th className="px-4 py-3">Contato (WhatsApp)</th>
+                <th className="px-4 py-3">Motivo</th>
+                <th className="px-4 py-3">Plano</th>
+                <th className="px-4 py-3">Excluída em</th>
+              </tr>
+            </thead>
+            <tbody>
+              {lost.map((l, i) => (
+                <tr key={i} className="border-b border-border/60">
+                  <td className="px-4 py-3">{l.email ?? "—"}</td>
+                  <td className="px-4 py-3">
+                    {l.phone ? (
+                      <a href={`https://wa.me/${l.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-brand-2 hover:underline">
+                        {l.phone}
+                      </a>
+                    ) : (
+                      <span className="text-muted">—</span>
+                    )}
+                  </td>
+                  <td className="px-4 py-3 text-muted">{l.reason ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted">{l.tier ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted">{dt(l.deleted_at)}</td>
+                </tr>
+              ))}
+              {lost.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-muted">Nenhuma conta excluída ainda.</td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </main>
     </div>
   );
