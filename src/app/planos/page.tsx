@@ -10,16 +10,6 @@ export const metadata: Metadata = {
     "Teste o GMN PRO grátis por 7 dias. Depois, R$ 20/mês ou R$ 225/ano (6% de desconto) para gerenciar e crescer o seu Google Meu Negócio.",
 };
 
-const FEATURES = [
-  "Agendamento de posts e fotos com publicação automática",
-  "Geotag de fotos com IA (título, descrição e palavras-chave fortes)",
-  "Respostas de avaliações com IA (manual ou automática)",
-  "Desempenho do perfil: visualizações, ações e avaliações",
-  "Checklist automático do perfil (nota e o que falta)",
-  "Auditoria de qualquer empresa pelo Google Maps",
-  "Múltiplos perfis na mesma conta",
-];
-
 export default function PlanosPage() {
   return (
     <div className="min-h-screen">
@@ -43,63 +33,88 @@ export default function PlanosPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-3xl px-4 py-16">
-        <div className="grid gap-5 sm:grid-cols-2">
-          {/* Mensal */}
-          <div className="rounded-3xl border border-border bg-surface p-7">
-            <h2 className="font-display text-lg font-semibold">Mensal</h2>
-            <div className="mt-3 flex items-end gap-1">
-              <span className="font-display text-4xl font-extrabold">R$ 20</span>
-              <span className="mb-1 text-muted">/mês</span>
-            </div>
-            <p className="mt-2 text-sm text-muted">Flexível, cancele quando quiser.</p>
-            <Link
-              href="/entrar?signup=1"
-              className="mt-6 block rounded-xl border border-brand px-6 py-3 text-center text-sm font-semibold text-brand-2 transition hover:bg-brand/10"
-            >
-              Começar teste grátis
-            </Link>
-          </div>
-
-          {/* Anual (destaque) */}
-          <div className="relative rounded-3xl border border-brand/50 bg-surface p-7 shadow-2xl ring-1 ring-brand/30">
-            <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
-              Economize 6%
-            </div>
-            <h2 className="font-display text-lg font-semibold">Anual</h2>
-            <div className="mt-3 flex items-end gap-1">
-              <span className="font-display text-4xl font-extrabold">R$ 225</span>
-              <span className="mb-1 text-muted">/ano</span>
-            </div>
-            <p className="mt-2 text-sm text-muted">
-              Equivale a <span className="text-foreground">R$ 18,75/mês</span> · você economiza R$ 15
-              por ano.
-            </p>
-            <Link
-              href="/entrar?signup=1"
-              className="mt-6 block rounded-xl bg-brand px-6 py-3 text-center text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              Começar teste grátis
-            </Link>
-          </div>
+      <main className="mx-auto max-w-4xl px-4 py-16">
+        {/* BLOCO 1 — Dono do negócio */}
+        <div className="mb-4 flex items-center gap-2">
+          <span className="text-lg">🏪</span>
+          <h2 className="font-display text-xl font-bold tracking-tight">Para o dono do negócio</h2>
         </div>
-
-        <p className="mt-5 text-center text-sm text-muted">
-          Os dois planos começam com <span className="text-foreground">7 dias grátis</span>. Você só
-          paga depois do teste — e pode cancelar quando quiser.
-        </p>
-
-        <div className="mt-10 rounded-2xl border border-border bg-surface p-6">
-          <h3 className="font-semibold">Tudo incluído nos dois planos</h3>
-          <ul className="mt-4 grid gap-2.5 sm:grid-cols-2">
-            {FEATURES.map((f) => (
-              <li key={f} className="flex items-start gap-2 text-sm">
-                <span className="mt-0.5 text-brand-2">✓</span>
-                <span className="text-muted">{f}</span>
-              </li>
+        <div className="mx-auto max-w-md rounded-3xl border border-border bg-white p-7 card-soft">
+          <h3 className="font-display text-lg font-semibold">Essencial</h3>
+          <div className="mt-3 flex items-end gap-1">
+            <span className="font-display text-4xl font-extrabold">R$ 20</span>
+            <span className="mb-1 text-muted">/mês</span>
+          </div>
+          <p className="mt-1 text-sm text-muted">ou R$ 225/ano (−6%) · pra quem cuida do próprio Google.</p>
+          <ul className="mt-5 space-y-2 text-sm">
+            {["Até 3 perfis", "Agendar e publicar posts", "Responder avaliações com IA", "Otimizar e geotaggear fotos", "Desempenho, Checklist e Auditoria", "Suporte no WhatsApp"].map((f) => (
+              <li key={f} className="flex items-start gap-2"><span className="mt-0.5 text-brand-2">✓</span><span>{f}</span></li>
             ))}
           </ul>
+          <Link
+            href="/entrar?signup=1"
+            className="mt-6 block rounded-xl bg-brand px-6 py-3 text-center text-sm font-semibold text-white transition hover:opacity-90"
+          >
+            Começar teste grátis
+          </Link>
         </div>
+
+        {/* BLOCO 2 — Agências e gestores */}
+        <section className="mt-10 rounded-[2rem] border border-brand/20 bg-brand/5 p-6 sm:p-8">
+          <div className="mb-1 flex items-center gap-2">
+            <span className="text-lg">🏢</span>
+            <h2 className="font-display text-xl font-bold tracking-tight">Para agências e gestores</h2>
+          </div>
+          <p className="mb-5 text-sm text-muted">
+            Gerencie perfis ilimitados de vários clientes, com Análise de Ranking (geo-grid) e
+            relatórios com a sua marca.
+          </p>
+          <div className="grid gap-5 sm:grid-cols-2">
+            {/* Agência 2 */}
+            <div className="rounded-3xl border border-border bg-white p-7 card-soft">
+              <h3 className="font-display text-lg font-semibold">Agência 2</h3>
+              <div className="mt-3 flex items-end gap-1">
+                <span className="font-display text-4xl font-extrabold">R$ 97</span>
+                <span className="mb-1 text-muted">/mês</span>
+              </div>
+              <p className="mt-1 text-sm text-muted">Até 2 usuários · usuário extra R$ 48,50</p>
+              <ul className="mt-5 space-y-2 text-sm">
+                {["Tudo do Essencial", "Perfis ilimitados", "Até 2 usuários", "Análise de Ranking (500 créditos/mês)", "Relatório PDF com sua marca"].map((f) => (
+                  <li key={f} className="flex items-start gap-2"><span className="mt-0.5 text-brand-2">✓</span><span>{f}</span></li>
+                ))}
+              </ul>
+              <Link href="/entrar?signup=1" className="mt-6 block rounded-xl border border-brand px-6 py-3 text-center text-sm font-semibold text-brand-2 transition hover:bg-brand/10">
+                Começar teste grátis
+              </Link>
+            </div>
+
+            {/* Agência 4 */}
+            <div className="relative rounded-3xl border border-brand/50 bg-white p-7 shadow-2xl ring-1 ring-brand/30">
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-brand px-3 py-1 text-xs font-semibold text-white">
+                Mais popular
+              </div>
+              <h3 className="font-display text-lg font-semibold">Agência 4</h3>
+              <div className="mt-3 flex items-end gap-1">
+                <span className="font-display text-4xl font-extrabold">R$ 130</span>
+                <span className="mb-1 text-muted">/mês</span>
+              </div>
+              <p className="mt-1 text-sm text-muted">Até 4 usuários · usuário extra R$ 48,50</p>
+              <ul className="mt-5 space-y-2 text-sm">
+                {["Tudo da Agência 2", "Até 4 usuários", "Mesmo valor por usuário extra", "Análise de Ranking (500 créditos/mês)", "Prioridade no suporte"].map((f) => (
+                  <li key={f} className="flex items-start gap-2"><span className="mt-0.5 text-brand-2">✓</span><span>{f}</span></li>
+                ))}
+              </ul>
+              <Link href="/entrar?signup=1" className="mt-6 block rounded-xl bg-brand px-6 py-3 text-center text-sm font-semibold text-white transition hover:opacity-90">
+                Começar teste grátis
+              </Link>
+            </div>
+          </div>
+        </section>
+
+        <p className="mt-6 text-center text-sm text-muted">
+          Todos os planos começam com <span className="text-foreground">7 dias grátis</span> — sem
+          fidelidade, cancele quando quiser.
+        </p>
 
         <p className="mx-auto mt-8 max-w-sm text-center text-xs text-muted">
           Dúvidas? Fale com a gente:{" "}
