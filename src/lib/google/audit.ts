@@ -8,10 +8,21 @@ import { locationId } from "./performance";
 const BUSINESS_INFO = "https://mybusinessbusinessinformation.googleapis.com/v1";
 const LEGACY_V4 = "https://mybusiness.googleapis.com/v4";
 
-async function getJson<T>(url: string, token: string): Promise<T> {
-  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
-  if (!res.ok) throw new Error(`GET ${url} -> ${res.status}: ${await res.text()}`);
-  return res.json();
+async function getJson<T>(url: string, token: string, attempts = 3): Promise<T> {
+  let lastErr: unknown;
+  for (let i = 0; i < attempts; i++) {
+    try {
+      const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+      if (res.ok) return res.json();
+      const body = await res.text();
+      lastErr = new Error(`GET ${url} -> ${res.status}: ${body}`);
+      if (res.status < 500 && res.status !== 429) break; // erro definitivo
+    } catch (e) {
+      lastErr = e;
+    }
+    await new Promise((r) => setTimeout(r, 400 * (i + 1)));
+  }
+  throw lastErr instanceof Error ? lastErr : new Error("falha");
 }
 
 interface LocationDetails {
@@ -280,9 +291,19 @@ export async function runProfileAudit(
     const variety = ["EXTERIOR", "INTERIOR", "PRODUCT", "TEAM", "FOOD_AND_DRINK", "AT_WORK", "MENU"].filter(
       (c) => cats.has(c),
     ).length;
-    auto.fotos_variadas = { done: variety >= 2, detail: `${variety} tipo(s) de foto` };
-    const recent = media.some((m) => m.createTime && daysSince(new Date(m.createTime).getTime()) <= 31);
-    auto.fotos_recentes = { done: recent };
+    const photosOnly = media.filter((m) => m.mediaFormat !== "VIDEO").length;
+    auto.fotos_variadas = {
+      done: photosOnly >= 8 || variety >= 2,
+      status: photosOnly >= 8 || variety >= 2 ? "bom" : photosOnly >= 3 ? "razoavel" : "fraco",
+      detail: `${photosOnly} foto(s)${variety ? ` · ${variety} tipo(s)` : ""}`,
+    };
+    const newestMedia = Math.min(...media.filter((m) => m.createTime).map((m) => daysSince(new Date(m.createTime!).getTime())));
+    const recent = Number.isFinite(newestMedia) && newestMedia <= 31;
+    auto.fotos_recentes = {
+      done: recent,
+      status: recent ? "bom" : Number.isFinite(newestMedia) && newestMedia <= 90 ? "razoavel" : "fraco",
+      detail: Number.isFinite(newestMedia) ? `última foto há ${newestMedia} dia(s)` : "sem fotos",
+    };
     const videoCount = media.filter((m) => m.mediaFormat === "VIDEO").length;
     auto.videos = { done: videoCount > 0, detail: videoCount ? `${videoCount} vídeo(s)` : "sem vídeos" };
     stats.photos = media.length;

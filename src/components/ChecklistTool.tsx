@@ -13,6 +13,7 @@ import {
   type ItemStatus,
 } from "@/lib/checklist";
 import type { MapPoint } from "@/components/LocationsMap";
+import MailModal from "@/components/MailModal";
 
 const LocationsMap = dynamic(() => import("@/components/LocationsMap"), { ssr: false });
 
@@ -62,6 +63,8 @@ export default function ChecklistTool({
   const [coords, setCoords] = useState<Record<string, { lat: number; lng: number }>>({});
   const [mapMode, setMapMode] = useState<"pins" | "heat">("pins");
   const [shareUrl, setShareUrl] = useState("");
+  const [mailOpen, setMailOpen] = useState(false);
+  const [mailMsg, setMailMsg] = useState("");
   const [sharing, setSharing] = useState(false);
   async function share() {
     setSharing(true);
@@ -138,9 +141,17 @@ export default function ChecklistTool({
   }, [manual, auto, autoEnabled]);
 
   const allItems = useMemo(() => CHECKLIST.flatMap((c) => c.items), []);
+  // Itens automáticos que o Google não devolveu nesta análise (erro) ficam fora da nota.
   const scored = useMemo(
-    () => (autoEnabled ? allItems.filter((it) => AUTO_ITEM_IDS.has(it.id)) : allItems),
-    [allItems, autoEnabled],
+    () =>
+      autoEnabled
+        ? allItems.filter((it) => AUTO_ITEM_IDS.has(it.id) && (!analyzedAt || auto?.[it.id] !== undefined))
+        : allItems,
+    [allItems, autoEnabled, analyzedAt, auto],
+  );
+  const unverifiable = useMemo(
+    () => (autoEnabled && analyzedAt ? allItems.filter((it) => AUTO_ITEM_IDS.has(it.id) && auto?.[it.id] === undefined) : []),
+    [allItems, autoEnabled, analyzedAt, auto],
   );
   const manualItems = useMemo(
     () => (autoEnabled ? allItems.filter((it) => !AUTO_ITEM_IDS.has(it.id)) : []),
@@ -230,6 +241,11 @@ export default function ChecklistTool({
               {analyzing ? "Analisando…" : analyzedAt ? "Analisar de novo" : "Analisar meu perfil"}
             </button>
           </div>
+          {analyzedAt && unverifiable.length > 0 && (
+            <p className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-2 text-xs text-amber-800">
+              ⚠️ O Google não respondeu {unverifiable.length} item(ns) nesta análise (ex.: fotos). Eles ficaram fora da nota — clique em <strong>Analisar de novo</strong>.
+            </p>
+          )}
           {analyzedAt && !error && (
             <div className="mt-3 flex flex-wrap items-center gap-3 text-xs">
               <span className="text-brand-2">Perfil analisado em {analyzedAt}.</span>
@@ -241,7 +257,20 @@ export default function ChecklistTool({
                   {shareUrl} (copiado)
                 </a>
               )}
+              <button onClick={() => { setMailMsg(""); setMailOpen(true); }} className="rounded-lg border border-brand px-3 py-1.5 font-semibold text-brand-2 hover:bg-brand/10">
+                Enviar por e-mail
+              </button>
+              {mailMsg && <span className="text-brand-2">{mailMsg}</span>}
             </div>
+          )}
+          {mailOpen && (
+            <MailModal
+              location={selected}
+              title={selectedTitle}
+              onClose={() => setMailOpen(false)}
+              onSent={(m) => { setMailMsg(m); setMailOpen(false); }}
+              onError={(m) => { setError(m); setMailOpen(false); }}
+            />
           )}
           {error && <p className="mt-3 text-xs text-red-400">{error}</p>}
           {!analyzedAt && !error && (
@@ -406,6 +435,7 @@ export default function ChecklistTool({
                   auto={isAuto(item.id)}
                   detail={auto?.[item.id]?.detail}
                   analyzed={!!analyzedAt}
+                  unavailable={unverifiable.some((u) => u.id === item.id)}
                   onToggle={() => toggle(item.id)}
                 />
               ))}
@@ -617,6 +647,7 @@ function Row({
   auto,
   detail,
   analyzed,
+  unavailable,
   onToggle,
 }: {
   item: ChecklistItem;
@@ -625,11 +656,12 @@ function Row({
   auto: boolean;
   detail?: string;
   analyzed: boolean;
+  unavailable?: boolean;
   onToggle: () => void;
 }) {
   // Itens automáticos: só leitura (preenchidos pela análise), com cor por status.
   if (auto) {
-    const pending = !analyzed;
+    const pending = !analyzed || !!unavailable;
     const c = STATUS_COLOR[status];
     return (
       <li>
@@ -659,7 +691,9 @@ function Row({
               <span className="mt-0.5 block text-xs text-muted">{item.tip}</span>
             )}
             {pending && (
-              <span className="mt-0.5 block text-xs text-muted">Será verificado na análise.</span>
+              <span className="mt-0.5 block text-xs text-muted">
+                {unavailable ? "O Google não respondeu este item agora — não entrou na nota. Analise de novo." : "Será verificado na análise."}
+              </span>
             )}
           </span>
         </div>

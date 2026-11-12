@@ -35,7 +35,8 @@ export function buildSnapshot(auto: AutoResult, profile: AuditProfile, fallbackT
     for (const it of cat.items) {
       if (!AUTO_ITEM_IDS.has(it.id)) continue;
       const a = auto[it.id];
-      const done = a?.done ?? false;
+      if (!a) continue; // não foi possível verificar (erro do Google): não pontua
+      const done = a.done;
       const status = classify(it, done, a?.status);
       total += it.weight;
       if (done) got += it.weight;
