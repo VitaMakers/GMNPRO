@@ -19,7 +19,7 @@ export default async function AssinarPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-3xl px-4 py-12">
+      <main className="mx-auto max-w-4xl px-4 py-12">
         <div className="mb-8 text-center">
           <h1 className="font-display text-3xl font-bold tracking-tight">Assine o GMN PRO</h1>
           {access.trial ? (

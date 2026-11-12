@@ -1,7 +1,8 @@
 import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { createClient } from "@/lib/supabase/server";
-import { getStripe, PRICES, type Plan } from "@/lib/stripe";
+import { getStripe, priceIdFor } from "@/lib/stripe";
+import type { Tier, Cycle } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
 
@@ -12,9 +13,21 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
-  const { plan } = (await request.json().catch(() => ({}))) as { plan?: Plan };
-  const priceId = plan ? PRICES[plan] : undefined;
-  if (!priceId) return NextResponse.json({ error: "plano_invalido" }, { status: 400 });
+  const body = (await request.json().catch(() => ({}))) as {
+    plan?: Cycle;
+    cycle?: Cycle;
+    tier?: Tier;
+  };
+  // Compat: chamadas antigas mandam só { plan: "mensal"|"anual" } (= Essencial).
+  const cycle: Cycle = body.cycle ?? body.plan ?? "mensal";
+  const tier: Tier = body.tier ?? "essencial";
+  const priceId = priceIdFor(tier, cycle);
+  if (!priceId) {
+    return NextResponse.json(
+      { error: "plano_indisponivel", detail: "Price ID não configurado para este plano." },
+      { status: 400 },
+    );
+  }
 
   const base = process.env.APP_BASE_URL || new URL(request.url).origin;
 
@@ -40,7 +53,7 @@ export async function POST(request: Request) {
     }
 
     const subscription_data: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
-      metadata: { user_id: user.id, plan: plan ?? "" },
+      metadata: { user_id: user.id, plan: cycle, tier },
     };
     // Não cobra até o fim do teste gratuito que a pessoa já tem.
     const trialEndsMs = sub?.trial_ends_at ? new Date(sub.trial_ends_at).getTime() : 0;

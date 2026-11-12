@@ -44,6 +44,7 @@ export async function POST(request: Request) {
       let status = "active";
       let cpe: string | null = null;
       const plan = (s.metadata?.plan as string) ?? null;
+      const tier = (s.metadata?.tier as string) || "essencial";
       if (subId) {
         const full = (await stripe.subscriptions.retrieve(subId)) as Stripe.Subscription & {
           current_period_end?: number;
@@ -59,6 +60,7 @@ export async function POST(request: Request) {
             stripe_subscription_id: subId ?? null,
             status,
             plan,
+            tier,
             current_period_end: cpe,
             updated_at: ts(),
           },
@@ -72,10 +74,12 @@ export async function POST(request: Request) {
     ) {
       const sub = event.data.object as Stripe.Subscription & { current_period_end?: number };
       const customerId = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+      const subTier = (sub.metadata?.tier as string) || undefined;
       await updateByCustomer(customerId, {
         stripe_subscription_id: sub.id,
         status: sub.status,
         current_period_end: periodEnd(sub.current_period_end),
+        ...(subTier ? { tier: subTier } : {}),
       });
     } else if (event.type === "invoice.payment_failed") {
       const inv = event.data.object as Stripe.Invoice;
