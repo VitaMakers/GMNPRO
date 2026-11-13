@@ -101,12 +101,17 @@
   // Auto-análise ao chegar no Maps vindo da busca (flag na memória da extensão).
   async function autoAnalyze() {
     const banner = showBanner("GMN PRO: abrindo a ficha da empresa…");
-    // Se caiu numa LISTA do Maps (/maps/search), abre o 1º resultado.
-    for (let i = 0; i < 20; i++) {
-      if (document.querySelector('[role="main"] h1')) break;
-      const first = document.querySelector('a.hfpxzc[href*="/maps/place/"], a[href*="/maps/place/"]');
-      if (first) { first.click(); await sleep(1800); }
-      await sleep(500);
+    // Se caiu numa LISTA do Maps, navega direto para a URL da 1ª ficha (recarrega e reanalisa).
+    if (!document.querySelector('[role="main"] h1')) {
+      for (let i = 0; i < 16; i++) {
+        const first = document.querySelector('a.hfpxzc[href*="/maps/place/"]') || document.querySelector('a[href*="/maps/place/"]');
+        if (first && first.href && !/\/maps\/search/.test(first.href)) {
+          chrome.storage.local.set({ gmnPending: Date.now() }, () => location.assign(first.href));
+          return; // o content script roda de novo já na ficha
+        }
+        if (document.querySelector('[role="main"] h1')) break;
+        await sleep(600);
+      }
     }
     banner.textContent = "GMN PRO: analisando a ficha… rolando para carregar tudo";
     for (let i = 0; i < 24; i++) { if (document.querySelector('[role="main"] h1')) break; await sleep(500); }
