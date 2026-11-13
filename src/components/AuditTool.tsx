@@ -314,17 +314,41 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
           {c.segmentAvg != null && <> Nota média dos primeiros colocados: <strong>{c.segmentAvg}★</strong>.</>}
         </p>
 
+        {(() => {
+          const ads = c.list.filter((x) => x.isPaid);
+          return (
+            <div className={`mt-4 rounded-xl border p-3 text-xs ${ads.length ? "border-blue-200 bg-blue-50 text-blue-800" : "border-border/60 bg-surface-2 text-muted"}`}>
+              {ads.length ? (
+                <><strong>📣 Anúncio ativo (Google Ads):</strong> {ads.map((a) => a.name).join(", ")} {ads.length === 1 ? "está pagando" : "estão pagando"} para aparecer no topo deste nicho.</>
+              ) : (
+                <><strong>Anúncios:</strong> nenhuma empresa do top 5 está com anúncio ativo (Google Ads) neste nicho no momento — o ranqueamento é orgânico.</>
+              )}
+            </div>
+          );
+        })()}
+
         <p className="mb-2 mt-5 text-sm font-semibold">Top 5 — quem o Google mostra primeiro</p>
         <ul className="space-y-2">
           {c.list.map((x) => (
-            <li key={x.rank} className={`flex items-center gap-3 rounded-xl border p-3 ${x.isMe ? "border-emerald-300 bg-emerald-50" : "border-border/70"}`}>
-              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white ${x.rank <= 3 ? "bg-emerald-600" : x.rank <= 10 ? "bg-amber-500" : "bg-gray-400"}`}>{x.rank}</span>
+            <li key={x.rank} className={`flex items-center gap-3 rounded-2xl border p-3 ${x.isMe ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200" : "border-border/70 bg-white"}`}>
+              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold text-white ${x.rank <= 3 ? "bg-emerald-600" : x.rank <= 10 ? "bg-amber-500" : "bg-gray-400"}`}>{x.rank}</span>
+              <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2">
+                {x.image ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={x.image} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  <span className="text-sm font-bold text-muted">{(x.name || "?").slice(0, 1).toUpperCase()}</span>
+                )}
+              </span>
               <span className="min-w-0 flex-1">
-                <span className="flex items-center gap-2 text-sm font-medium">
-                  <span className="truncate">{x.isMe ? "⭐ " : ""}{x.name}</span>
-                  {x.isPaid && <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">ANÚNCIO</span>}
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className={`truncate text-sm font-semibold ${x.isMe ? "text-emerald-700" : ""}`}>{x.isMe ? "⭐ " : ""}{x.name}</span>
+                  {x.isPaid && <span className="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">ANÚNCIO</span>}
+                  {x.isMe && <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">VOCÊ</span>}
                 </span>
-                <span className="text-xs text-muted">{x.rating ? `${x.rating}★` : "sem nota"}{x.reviewCount ? ` · ${x.reviewCount} avaliações` : ""}</span>
+                <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+                  {x.rating ? <><span className="font-semibold text-amber-600">{x.rating}★</span>{x.reviewCount ? <span>· {x.reviewCount.toLocaleString("pt-BR")} avaliações</span> : null}</> : "sem nota"}
+                </span>
               </span>
             </li>
           ))}
