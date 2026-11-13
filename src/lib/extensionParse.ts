@@ -21,6 +21,7 @@ export interface ParsedProfile {
   businessStatus?: string; description?: string; photoCount?: number; photoUrl?: string;
   postsCount?: number; qaCount?: number; qaAnswered?: number;
   attributesCount?: number; attributes?: string[]; foundingDate?: string; mapsUri?: string;
+  secondaryCount?: number; hasSpecialHours?: boolean; videoCount?: number; hasLogo?: boolean;
 }
 
 export function parseScrape(x: ExtScrape): ParsedProfile {
@@ -104,14 +105,21 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
   }
 
   const hasHours = /\b(Aberto|Fechado|Horário|Fecha|Abre às|Abre)\b/i.test(T);
+  const hasSpecialHours = /feriado|Horário especial|horário comercial especial|Horas especiais/i.test(T);
+  const verified = !/Reivindicar|Reivindique|É você o propriet|Seja o propriet|É o seu negócio/i.test(T);
+  const videoCount = (() => { const m = T.match(/(\d+)\s*vídeos?/i); return m ? parseInt(m[1], 10) : (/\bvídeos?\b/i.test(T) ? 1 : 0); })();
+  // Categorias secundárias: tenta "Categorias: A, B" (raro no painel público)
+  const secMatch = T.match(/Categorias?:\s*([^\n]{3,200})/i);
+  const secondaryCount = secMatch ? Math.max(0, secMatch[1].split(/,|·/).filter((x) => x.trim()).length - 1) : 0;
   const businessStatus = /Fechado permanentemente|Encerrado definitivamente/i.test(T) ? "CLOSED_PERMANENTLY" : "OPERATIONAL";
 
   return {
     name, rating, reviewCount, category, address, phone, website: x.website,
-    hasHours, verified: /(Você gerencia|Você é o proprietário)/i.test(T), businessStatus,
+    hasHours, businessStatus,
     description, photoCount, photoUrl: photos[0],
     postsCount, qaCount, qaAnswered,
     attributesCount: attrSet.size || undefined, attributes: attrSet.size ? [...attrSet].slice(0, 25) : undefined,
     foundingDate: founding, mapsUri: x.mapsUri,
+    secondaryCount, hasSpecialHours, videoCount, verified, hasLogo: false,
   };
 }

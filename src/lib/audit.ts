@@ -39,6 +39,11 @@ export interface PlaceData {
   qaCount?: number;
   qaAnswered?: number;
   attributesCount?: number;
+  secondaryCount?: number;
+  hasSpecialHours?: boolean;
+  videoCount?: number;
+  verified?: boolean;
+  hasLogo?: boolean;
   source?: "places" | "extension";
   businessStatus?: string;
   description?: string;
@@ -213,21 +218,52 @@ export function auditPlace(place: PlaceData): AuditReport {
     ),
   );
 
-  // Itens extras só quando vêm da extensão (dados mais profundos).
+  // Pré-análise profunda (extensão): checklist completo de ~20 itens, como o GBP.
   if (place.source === "extension") {
+    const nameOk = !!place.name && place.name.length >= 2;
+    checks.push(check("nome", "Nome do negócio", nameOk ? "ok" : "fail", nameOk ? 4 : 0, 4,
+      nameOk ? place.name : "Nome não identificado.", "O nome deve ser o real da fachada, sem palavras-chave extras."));
+
+    const sec = place.secondaryCount ?? 0;
+    checks.push(check("cat2", "Categorias secundárias", sec >= 1 ? "ok" : "warn", sec >= 1 ? 5 : 0, 5,
+      sec > 0 ? `${sec} categoria(s) secundária(s).` : "Sem categorias secundárias.",
+      "Adicione todas as categorias que descrevem seus serviços."));
+
+    checks.push(check("hesp", "Horário especial (feriados)", place.hasSpecialHours ? "ok" : "warn", place.hasSpecialHours ? 3 : 0, 3,
+      place.hasSpecialHours ? "Horário especial configurado." : "Sem horário especial/feriados.",
+      "Configure horários de feriados para não frustrar o cliente."));
+
+    const attrs = place.attributesCount ?? 0;
+    checks.push(check("attrs", "Atributos / opções de serviço", attrs >= 3 ? "ok" : attrs >= 1 ? "warn" : "fail", attrs >= 3 ? 5 : attrs >= 1 ? 2 : 0, 5,
+      attrs > 0 ? `${attrs} atributo(s).` : "Poucos atributos.",
+      "Preencha atributos (wi-fi, acessibilidade, formas de pagamento, etc.)."));
+
+    checks.push(check("verif", "Perfil verificado", place.verified ? "ok" : "fail", place.verified ? 6 : 0, 6,
+      place.verified ? "Perfil verificado." : "Perfil aparenta não verificado.",
+      "Verifique o perfil pelo painel do Google para liberar todos os recursos."));
+
+    const photos = place.photoCount ?? 0;
+    checks.push(check("capa", "Foto de capa", photos >= 1 ? "ok" : "fail", photos >= 1 ? 4 : 0, 4,
+      photos >= 1 ? "Foto de capa presente." : "Sem foto de capa.", "Defina uma foto de capa de alta qualidade."));
+    checks.push(check("logo", "Logo", place.hasLogo ? "ok" : "warn", place.hasLogo ? 3 : 0, 3,
+      place.hasLogo ? "Logo definido." : "Logo não identificado.", "Adicione o logo da marca ao perfil."));
+    checks.push(check("fvar", "Variedade de fotos", photos >= 8 ? "ok" : photos >= 3 ? "warn" : "fail", photos >= 8 ? 5 : photos >= 3 ? 3 : 0, 5,
+      `${photos} foto(s).`, "Suba fotos de fachada, interior, produtos e equipe."));
+
+    const videos = place.videoCount ?? 0;
+    checks.push(check("vids", "Vídeos", videos >= 1 ? "ok" : "warn", videos >= 1 ? 3 : 0, 3,
+      videos > 0 ? `${videos} vídeo(s).` : "Sem vídeos.", "Adicione vídeos curtos para diferenciar o perfil."));
+
     const posts = place.postsCount ?? 0;
     checks.push(check("posts", "Postagens recentes", posts >= 1 ? "ok" : "warn", posts >= 1 ? 6 : 0, 6,
       posts > 0 ? `${posts} postagem(ns) visível(is).` : "Sem postagens recentes.",
       "Poste novidades/ofertas toda semana para manter o perfil ativo."));
+
     const qa = place.qaCount ?? 0;
     const qaOk = qa > 0 && (place.qaAnswered ?? 0) > 0;
     checks.push(check("qa", "Perguntas e respostas", qaOk ? "ok" : "warn", qaOk ? 4 : 0, 4,
       qa > 0 ? `${place.qaAnswered ?? 0}/${qa} respondidas.` : "Sem perguntas e respostas.",
       "Crie e responda perguntas frequentes no perfil."));
-    const attrs = place.attributesCount ?? 0;
-    checks.push(check("attrs", "Atributos preenchidos", attrs >= 3 ? "ok" : "warn", attrs >= 3 ? 4 : 0, 4,
-      attrs > 0 ? `${attrs} atributo(s).` : "Poucos atributos.",
-      "Preencha atributos (wi-fi, acessibilidade, formas de pagamento, etc.)."));
   }
 
   const maxTotal = checks.reduce((s, c) => s + c.maxPoints, 0);

@@ -30,7 +30,9 @@ export async function POST(request: Request) {
     rating: prof.rating, reviewCount: prof.reviewCount, hasHours: prof.hasHours, photoCount: prof.photoCount,
     description: prof.description, businessStatus: prof.businessStatus, googleMapsUri: prof.mapsUri,
     photoUrl: prof.photoUrl, postsCount: prof.postsCount, qaCount: prof.qaCount, qaAnswered: prof.qaAnswered,
-    attributesCount: prof.attributesCount, source: "extension",
+    attributesCount: prof.attributesCount, secondaryCount: prof.secondaryCount,
+    hasSpecialHours: prof.hasSpecialHours, videoCount: prof.videoCount, verified: prof.verified,
+    hasLogo: prof.hasLogo, source: "extension",
   };
   const report = auditPlace(place);
 
