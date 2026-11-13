@@ -164,6 +164,7 @@ export async function searchVolumes(keywords: string[]): Promise<KeywordVolume[]
 export interface MapsTopItem {
   rank: number; title: string; rating: number | null; reviews: number | null;
   isPaid: boolean; lat: number | null; lng: number | null; image: string | null; me: boolean;
+  category: string | null; openNow: boolean | null; website: string | null; snippet: string | null;
 }
 
 /** Top N do Google Maps para a keyword a partir de (lat,lng), na ordem de ranqueamento. */
@@ -174,7 +175,7 @@ export async function mapsTop(keyword: string, lat: number, lng: number, target:
     body: JSON.stringify([{ keyword, location_coordinate: `${lat.toFixed(6)},${lng.toFixed(6)},14z`, language_code: "pt", depth }]),
   });
   if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; result?: { items?: (MapsItem & { latitude?: number; longitude?: number; is_paid?: boolean; main_image?: string })[] }[] }[] };
+  const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; result?: { items?: (MapsItem & { latitude?: number; longitude?: number; is_paid?: boolean; main_image?: string; category?: string; url?: string; snippet?: string; work_time?: { work_hours?: { current_status?: string } } })[] }[] }[] };
   const task = data.tasks?.[0];
   if (!task || (task.status_code && task.status_code >= 40000)) throw new Error(task?.status_message ?? "DataForSEO erro");
   const raw = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search" || i.type === "maps_paid");
@@ -185,6 +186,10 @@ export async function mapsTop(keyword: string, lat: number, lng: number, target:
     lat: typeof i.latitude === "number" ? i.latitude : null,
     lng: typeof i.longitude === "number" ? i.longitude : null,
     image: i.main_image ?? null,
+    category: i.category ?? null,
+    openNow: (() => { const st = i.work_time?.work_hours?.current_status; return st ? /open/i.test(st) && !/close/i.test(st) : null; })(),
+    website: i.url ?? null,
+    snippet: i.snippet ?? null,
     me: matches(i, target),
   }));
   const hit = items.find((i) => i.me);

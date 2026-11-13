@@ -315,47 +315,55 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
         </p>
 
         {(() => {
-          const ads = c.list.filter((x) => x.isPaid);
+          const paid = c.list.filter((x) => x.isPaid);
+          const organic = c.list.filter((x) => !x.isPaid).slice(0, 5);
+          const me = c.list.find((x) => x.isMe);
+          const leader = organic.find((x) => !x.isMe) ?? organic[0];
+          const cmp = (mine?: number, other?: number) => (mine ?? 0) >= (other ?? 0);
           return (
-            <div className={`mt-4 rounded-xl border p-3 text-xs ${ads.length ? "border-blue-200 bg-blue-50 text-blue-800" : "border-border/60 bg-surface-2 text-muted"}`}>
-              {ads.length ? (
-                <><strong>📣 Anúncio ativo (Google Ads):</strong> {ads.map((a) => a.name).join(", ")} {ads.length === 1 ? "está pagando" : "estão pagando"} para aparecer no topo deste nicho.</>
-              ) : (
-                <><strong>Anúncios:</strong> nenhuma empresa do top 5 está com anúncio ativo (Google Ads) neste nicho no momento — o ranqueamento é orgânico.</>
+            <>
+              {/* Comparativo Você × 1º colocado */}
+              {me && leader && leader.name !== me.name && (
+                <div className="mt-4 overflow-hidden rounded-2xl border border-border">
+                  <div className="grid grid-cols-2 bg-surface-2 text-center text-xs font-semibold">
+                    <div className="border-r border-border p-2 text-emerald-700">⭐ Você</div>
+                    <div className="p-2">🏆 1º colocado</div>
+                  </div>
+                  <div className="grid grid-cols-2 text-center">
+                    <div className="border-r border-border p-3"><p className="truncate text-sm font-medium">{me.name}</p></div>
+                    <div className="p-3"><p className="truncate text-sm font-medium">{leader.name}</p></div>
+                  </div>
+                  {[
+                    { label: "Posição no Maps", mine: `${c.myRank ?? "—"}º`, other: "1º", better: (c.myRank ?? 99) <= 1 },
+                    { label: "Nota", mine: me.rating ? `${me.rating}★` : "—", other: leader.rating ? `${leader.rating}★` : "—", better: cmp(me.rating, leader.rating) },
+                    { label: "Avaliações", mine: me.reviewCount.toLocaleString("pt-BR"), other: leader.reviewCount.toLocaleString("pt-BR"), better: cmp(me.reviewCount, leader.reviewCount) },
+                  ].map((r) => (
+                    <div key={r.label} className="grid grid-cols-2 border-t border-border text-center text-sm">
+                      <div className={`border-r border-border p-2 ${r.better ? "font-bold text-emerald-700" : ""}`}>{r.mine}</div>
+                      <div className={`p-2 ${!r.better ? "font-bold" : ""}`}>{r.other}</div>
+                    </div>
+                  ))}
+                  <p className="border-t border-border bg-surface-2 p-2 text-center text-[11px] text-muted">{r_label(me, leader, c.myRank)}</p>
+                </div>
               )}
-            </div>
+
+              {/* Patrocinados */}
+              {paid.length > 0 && (
+                <>
+                  <p className="mb-2 mt-5 text-sm font-semibold">💳 Patrocinados (Google Ads)</p>
+                  <ul className="space-y-2">{paid.map((x) => <CompRow key={"p" + x.rank + x.name} x={x} showRank={false} />)}</ul>
+                </>
+              )}
+
+              {/* Orgânicos */}
+              <p className="mb-2 mt-5 text-sm font-semibold">🌱 Resultados orgânicos (top 5)</p>
+              <ul className="space-y-2">{organic.map((x, i) => <CompRow key={"o" + x.rank + x.name} x={x} pos={i + 1} showRank />)}</ul>
+            </>
           );
         })()}
 
-        <p className="mb-2 mt-5 text-sm font-semibold">Top 5 — quem o Google mostra primeiro</p>
-        <ul className="space-y-2">
-          {c.list.map((x) => (
-            <li key={x.rank} className={`flex items-center gap-3 rounded-2xl border p-3 ${x.isMe ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200" : "border-border/70 bg-white"}`}>
-              <span className="w-6 shrink-0 text-center text-lg font-bold text-foreground">{x.rank}</span>
-              <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2">
-                {x.image ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={x.image} alt="" className="h-full w-full object-cover" />
-                ) : (
-                  <span className="text-sm font-bold text-muted">{(x.name || "?").slice(0, 1).toUpperCase()}</span>
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="flex flex-wrap items-center gap-2">
-                  <span className={`truncate text-sm font-semibold ${x.isMe ? "text-emerald-700" : ""}`}>{x.isMe ? "⭐ " : ""}{x.name}</span>
-                  {x.isPaid && <span className="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">ANÚNCIO</span>}
-                  {x.isMe && <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">VOCÊ</span>}
-                </span>
-                <span className="mt-0.5 flex items-center gap-1 text-xs text-muted">
-                  {x.rating ? <><span className="font-semibold text-amber-600">{x.rating}★</span>{x.reviewCount ? <span>· {x.reviewCount.toLocaleString("pt-BR")} avaliações</span> : null}</> : "sem nota"}
-                </span>
-              </span>
-            </li>
-          ))}
-        </ul>
-
         <div className="mt-4 rounded-xl border border-border/60 bg-surface-2 p-3 text-xs text-muted">
-          <strong className="text-foreground">Por que esses aparecem primeiro?</strong> O Google ranqueia por <strong>relevância</strong> (nome/categoria/palavra-chave), <strong>distância</strong> de quem busca e <strong>proeminência</strong> (nota, volume de avaliações, atividade do perfil). Quem está marcado como <strong>ANÚNCIO</strong> pagou para aparecer no topo.
+          <strong className="text-foreground">Por que esses aparecem primeiro?</strong> O Google ranqueia por <strong>relevância</strong> (nome/categoria/palavra-chave), <strong>distância</strong> de quem busca e <strong>proeminência</strong> (nota, volume de avaliações, atividade do perfil). Quem está marcado como <strong>ANÚNCIO</strong> pagou para aparecer no topo (não é ranqueamento orgânico).
         </div>
       </div>
 
@@ -366,6 +374,46 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
         </div>
       )}
     </div>
+  );
+}
+
+type CompItem = NonNullable<AuditReport["competitors"]>["list"][number];
+
+function r_label(me: CompItem, leader: CompItem, myRank: number | null): string {
+  if (myRank === 1) return "Você já é o 1º colocado orgânico neste nicho. 🎉 Mantenha avaliações e postagens em dia.";
+  const gaps: string[] = [];
+  if ((leader.reviewCount ?? 0) > (me.reviewCount ?? 0)) gaps.push(`${(leader.reviewCount - me.reviewCount).toLocaleString("pt-BR")} avaliações a mais`);
+  if ((leader.rating ?? 0) > (me.rating ?? 0)) gaps.push("nota maior");
+  return gaps.length ? `Para passar o 1º colocado, foque em: ${gaps.join(" e ")}.` : "Você está muito perto do 1º colocado — constância de avaliações e postagens decide.";
+}
+
+function CompRow({ x, pos, showRank }: { x: CompItem; pos?: number; showRank?: boolean }) {
+  return (
+    <li className={`flex items-center gap-3 rounded-2xl border p-3 ${x.isMe ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200" : "border-border/70 bg-white"}`}>
+      {showRank && <span className="w-6 shrink-0 text-center text-lg font-bold text-foreground">{pos ?? x.rank}</span>}
+      <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2">
+        {x.image ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={x.image} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <span className="text-sm font-bold text-muted">{(x.name || "?").slice(0, 1).toUpperCase()}</span>
+        )}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex flex-wrap items-center gap-2">
+          <span className={`truncate text-sm font-semibold ${x.isMe ? "text-emerald-700" : ""}`}>{x.isMe ? "⭐ " : ""}{x.name}</span>
+          {x.isPaid && <span className="shrink-0 rounded-full bg-blue-600 px-2 py-0.5 text-[10px] font-bold text-white">ANÚNCIO</span>}
+          {x.isMe && <span className="shrink-0 rounded-full bg-emerald-600 px-2 py-0.5 text-[10px] font-bold text-white">VOCÊ</span>}
+        </span>
+        <span className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted">
+          {x.rating ? <span className="font-semibold text-amber-600">{x.rating}★</span> : null}
+          {x.reviewCount ? <span>{x.reviewCount.toLocaleString("pt-BR")} avaliações</span> : null}
+          {x.category ? <span>· {x.category}</span> : null}
+          {x.openNow != null && <span className={x.openNow ? "text-emerald-600" : "text-red-500"}>· {x.openNow ? "Aberto" : "Fechado"}</span>}
+        </span>
+        {x.snippet && <span className="mt-0.5 line-clamp-2 block text-[11px] italic text-muted">&ldquo;{x.snippet}&rdquo;</span>}
+      </span>
+    </li>
   );
 }
 

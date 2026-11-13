@@ -29,7 +29,7 @@ export async function POST(request: Request) {
       ok: true,
       competitors: {
         keyword: keyword.trim(), segmentAvg, myRank, total: items.length,
-        list: items.slice(0, 5).map((i) => ({ rank: i.rank, name: i.title, rating: i.rating ?? 0, reviewCount: i.reviews ?? 0, isPaid: i.isPaid, image: i.image, lat: i.lat ?? 0, lng: i.lng ?? 0, isMe: i.me })),
+        list: items.slice(0, 8).map((i) => ({ rank: i.rank, name: i.title, rating: i.rating ?? 0, reviewCount: i.reviews ?? 0, isPaid: i.isPaid, image: i.image, category: i.category, openNow: i.openNow, website: i.website, snippet: i.snippet, lat: i.lat ?? 0, lng: i.lng ?? 0, isMe: i.me })),
       },
     });
   } catch (e) {
