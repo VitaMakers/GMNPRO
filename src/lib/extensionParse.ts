@@ -40,7 +40,7 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
   // Avaliações: do próprio âncora, ou "289 avaliações/Avaliar"
   const reviewCount = (() => {
     if (anchor) return parseInt(anchor[2].replace(/\./g, ""), 10);
-    const m = T.match(/([\d.]{1,9})\s*(?:avaliaç|Avaliar|avaliac|coment)/i);
+    const m = T.match(/([\d.]{1,9})\s*(?:avaliaç|coment|Avaliar|avaliac|review)/i);
     return m ? parseInt(m[1].replace(/\./g, ""), 10) : undefined;
   })();
 
@@ -48,6 +48,14 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
   let category: string | undefined;
   const ratingLine = lines.find((l) => anchor && l.includes(anchor[0])) || lines.find((l) => /^[0-5][.,]\d/.test(l)) || "";
   if (ratingLine.includes("·")) category = ratingLine.split("·").pop()?.trim();
+  if (category && /coment|avaliaç|Google/i.test(category)) category = undefined;
+  if (!category) {
+    // Linha de categoria do tipo "Ótica em Campinas, Brasil" (logo após a nota)
+    const idx = ratingLine ? lines.indexOf(ratingLine) : -1;
+    const cand = (idx >= 0 ? lines.slice(idx + 1, idx + 4) : lines.slice(0, 4))
+      .find((l) => / em /.test(l) && l.length < 60 && !/\d{2}/.test(l) && !/avaliaç|coment|Endereço|Horário|Telefone|Opções/i.test(l));
+    if (cand) category = cand.split(/ em | - |,/)[0].trim();
+  }
   if (category && (/\d/.test(category) || category.length > 40)) category = undefined;
 
   // Endereço: linha com rua + cidade/CEP
@@ -59,8 +67,10 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
 
   // Serviços / Atributos: "Serviços: A, B, C" e seções de comodidades
   const attrSet = new Set<string>();
-  const serv = T.match(/Serviços?:\s*([^\n]{3,300})/i);
-  if (serv) serv[1].split(/,|·/).forEach((a) => { const t = a.replace(/\.\.\.$|…$/, "").trim(); if (t && t.length <= 50) attrSet.add(t); });
+  for (const re of [/Serviços?:\s*([^\n]{3,300})/i, /Opções de serviço:\s*([^\n]{3,300})/i, /Comodidades?:\s*([^\n]{3,300})/i, /Acessibilidade:\s*([^\n]{3,300})/i, /Formas de pagamento:\s*([^\n]{3,300})/i]) {
+    const mm = T.match(re);
+    if (mm) mm[1].split(/,|·/).forEach((a) => { const t = a.replace(/\.\.\.$|…$/, "").trim(); if (t && t.length >= 2 && t.length <= 50) attrSet.add(t); });
+  }
   for (const sec of T.match(/(Opções de serviço|Acessibilidade|Comodidades|Formas de pagamento|Público|Oferece|Destaques)[\s\S]{0,300}/gi) || []) {
     for (const line of sec.split("\n").slice(1)) {
       const t = line.trim();
@@ -75,7 +85,12 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
 
   // Posts e Q&A só são confiáveis no Maps (na Busca há seções genéricas).
   const postsCount = x.isMaps ? (() => { const m = T.match(/(\d+)\s*(?:novidades|postagens|atualizações)/i); return m ? parseInt(m[1], 10) : undefined; })() : undefined;
-  const qaCount = x.isMaps ? (() => { const m = T.match(/(\d+)\s*perguntas?\b/i); return m ? parseInt(m[1], 10) : undefined; })() : undefined;
+  const qaCount = (() => {
+    const m = T.match(/perguntas?\s*[\(（]\s*(\d+)\s*[\)）]/i)  // "Ver todas as perguntas (1)"
+      || T.match(/(\d+)\s*perguntas?\b/i);
+    return m ? parseInt(m[1], 10) : undefined;
+  })();
+  const qaAnswered = qaCount && /respondid/i.test(T) ? qaCount : undefined;
 
   const founding = find(/(?:Aberto desde|Inaugurado em|Fundado em|Estabelecido em|Há (\d+) anos)/i);
 
@@ -94,7 +109,7 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
     name, rating, reviewCount, category, address, phone, website: x.website,
     hasHours, verified: /(Você gerencia|Você é o proprietário)/i.test(T), businessStatus,
     description, photoCount, photoUrl: photos[0],
-    postsCount, qaCount, qaAnswered: undefined,
+    postsCount, qaCount, qaAnswered,
     attributesCount: attrSet.size || undefined, attributes: attrSet.size ? [...attrSet].slice(0, 25) : undefined,
     foundingDate: founding, mapsUri: x.mapsUri,
   };
