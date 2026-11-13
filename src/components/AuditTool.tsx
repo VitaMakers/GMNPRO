@@ -245,19 +245,24 @@ function PlaceCard({
   label: string;
 }) {
   const operational = place.businessStatus === "OPERATIONAL" || !place.businessStatus;
+  const photoSrc = place.photoUrl
+    ? place.photoUrl
+    : place.photoName
+      ? `/api/audit/photo?name=${encodeURIComponent(place.photoName)}`
+      : null;
   return (
     <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
       <div className="h-24 w-full overflow-hidden bg-gradient-to-r from-brand/15 to-brand-2/15">
-        {place.photoName && (
+        {photoSrc && (
           // eslint-disable-next-line @next/next/no-img-element
-          <img src={`/api/audit/photo?name=${encodeURIComponent(place.photoName)}`} alt="" className="h-full w-full object-cover" />
+          <img src={photoSrc} alt="" className="h-full w-full object-cover" />
         )}
       </div>
       <div className="relative px-5 pb-5">
         <span className="absolute -top-7 left-5 grid h-14 w-14 place-items-center overflow-hidden rounded-full border-4 border-white bg-surface-2 shadow">
-          {place.photoName ? (
+          {photoSrc ? (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={`/api/audit/photo?name=${encodeURIComponent(place.photoName)}`} alt="" className="h-full w-full object-cover" />
+            <img src={photoSrc} alt="" className="h-full w-full object-cover" />
           ) : (
             <GoogleG className="h-6 w-6" />
           )}

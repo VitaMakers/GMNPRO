@@ -33,6 +33,7 @@ export interface PlaceData {
   openNow?: boolean;
   photoCount?: number;
   photoName?: string;
+  photoUrl?: string;
   // Campos extras vindos da extensão (não existem na Places API)
   postsCount?: number;
   qaCount?: number;

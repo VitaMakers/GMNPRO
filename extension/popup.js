@@ -46,46 +46,26 @@ $("go").addEventListener("click", async () => {
   }
 });
 
-// Executado DENTRO da página do Google. Heurísticas resilientes: campo ausente é omitido.
+// Executado DENTRO da página do Google. Coleta o conteúdo bruto; o servidor extrai tudo.
 function scrapeProfile() {
-  const T = (document.querySelector('[role="main"]') || document.body).innerText || "";
-  const q = (sel) => document.querySelector(sel);
-  const attr = (sel, a) => q(sel)?.getAttribute(a) || undefined;
-  const num = (re) => { const m = T.match(re); return m ? parseFloat(m[1].replace(/\./g, "").replace(",", ".")) : undefined; };
+  const main = document.querySelector('[role="main"]') || document.body;
+  const text = (main.innerText || "").slice(0, 120000);
+  const name = (document.querySelector("h1")?.innerText || "").trim();
 
-  const name = q("h1")?.innerText?.trim();
-  const rating = num(/([0-9],[0-9])\s*(?:estrela|★|\()/);
-  const reviewCount = (() => { const m = T.match(/([\d.]+)\s*(?:avaliaç|coment|review)/i); return m ? parseInt(m[1].replace(/\./g, ""), 10) : undefined; })();
+  // Fotos reais do perfil
+  const photos = [...new Set(
+    Array.from(document.querySelectorAll("img"))
+      .map((im) => im.currentSrc || im.src || "")
+      .filter((u) => /googleusercontent\.com|streetviewpixels|ggpht\.com/.test(u))
+      .map((u) => u.replace(/=w\d+-h\d+.*$/, "=w600-h400"))
+  )].slice(0, 12);
 
-  // Categoria: botão de categoria do Maps
-  const category = q('button[jsaction*="category"]')?.innerText?.trim()
-    || q('[jsaction*="category"]')?.innerText?.trim();
-
-  const address = attr('button[data-item-id="address"]', "aria-label")?.replace(/^Endereço:\s*/i, "")
-    || q('[data-item-id="address"]')?.innerText?.trim();
+  // Dicas estruturadas (fallback caso o texto não baste)
+  const attr = (sel, a) => document.querySelector(sel)?.getAttribute(a) || undefined;
+  const address = (attr('button[data-item-id="address"]', "aria-label") || "").replace(/^Endereço:\s*/i, "") || undefined;
   const phone = (attr('button[data-item-id^="phone"]', "aria-label") || "").replace(/^Telefone:\s*/i, "") || undefined;
-  const website = attr('a[data-item-id="authority"]', "href")
-    || q('a[data-item-id="authority"]')?.href;
+  const website = attr('a[data-item-id="authority"]', "href");
+  const category = document.querySelector('button[jsaction*="category"]')?.innerText?.trim();
 
-  const hasHours = /\b(Aberto|Fechado|Horário|Fecha|Abre)\b/i.test(T);
-  const verified = /(Você gerencia|Perfil da empresa|proprietário|Você é o proprietário)/i.test(T);
-  const businessStatus = /Fechado permanentemente/i.test(T) ? "CLOSED_PERMANENTLY" : "OPERATIONAL";
-
-  // Extras (quando a seção estiver carregada na página)
-  const photosMatch = T.match(/(\d+)\s*fotos?/i);
-  const photoCount = photosMatch ? parseInt(photosMatch[1], 10) : undefined;
-  const postsMatch = T.match(/(\d+)\s*(?:novidades|postagens|atualizações)/i);
-  const postsCount = postsMatch ? parseInt(postsMatch[1], 10) : undefined;
-  const qaMatch = T.match(/(\d+)\s*perguntas?/i);
-  const qaCount = qaMatch ? parseInt(qaMatch[1], 10) : undefined;
-
-  // Descrição "Do estabelecimento"
-  let description;
-  const di = T.search(/Do estabelecimento|Sobre/i);
-  if (di >= 0) description = T.slice(di, di + 400).replace(/^(Do estabelecimento|Sobre)\s*/i, "").split("\n").slice(0, 3).join(" ").trim();
-
-  const mapsUri = location.href.split("?")[0];
-
-  return { name, rating, reviewCount, category, address, phone, website, hasHours, verified,
-    businessStatus, photoCount, postsCount, qaCount, description, mapsUri };
+  return { name, text, photos, address, phone, website, category, mapsUri: location.href.split("?")[0] };
 }
