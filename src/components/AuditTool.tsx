@@ -331,7 +331,7 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
         <ul className="space-y-2">
           {c.list.map((x) => (
             <li key={x.rank} className={`flex items-center gap-3 rounded-2xl border p-3 ${x.isMe ? "border-emerald-400 bg-emerald-50 ring-1 ring-emerald-200" : "border-border/70 bg-white"}`}>
-              <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full text-sm font-bold text-white ${x.rank <= 3 ? "bg-emerald-600" : x.rank <= 10 ? "bg-amber-500" : "bg-gray-400"}`}>{x.rank}</span>
+              <span className="w-6 shrink-0 text-center text-lg font-bold text-foreground">{x.rank}</span>
               <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2">
                 {x.image ? (
                   // eslint-disable-next-line @next/next/no-img-element
