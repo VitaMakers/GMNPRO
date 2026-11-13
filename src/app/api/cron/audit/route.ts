@@ -45,6 +45,12 @@ export async function GET(request: Request) {
           razoavel: snap.razoavel, bom: snap.bom, items: snap.items, profile: snap.profile, analyzed_at: snap.analyzed_at },
         { onConflict: "user_id,location_name" },
       );
+      try {
+        await admin.from("score_history").insert({
+          user_id: l.user_id, location_name: l.location_name, score: snap.score,
+          fraco: snap.fraco, razoavel: snap.razoavel, bom: snap.bom, analyzed_at: snap.analyzed_at,
+        });
+      } catch { /* ignora */ }
       ok++;
     } catch { fail++; }
   }

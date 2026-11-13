@@ -54,6 +54,15 @@ export default function ChecklistTool({
   const [auto, setAuto] = useState<AutoResult | null>(null);
   const [profile, setProfile] = useState<AuditProfile | null>(null);
   const [failedBlocks, setFailedBlocks] = useState<string[]>([]);
+  const [history, setHistory] = useState<{ score: number; analyzed_at: string }[]>([]);
+
+  const loadHistory = () => {
+    if (!selected) return;
+    fetch(`/api/score-history?location=${encodeURIComponent(selected)}`)
+      .then((r) => r.json())
+      .then((d) => setHistory(d.history ?? []))
+      .catch(() => undefined);
+  };
   const active = useActiveProfile();
   const selected = active ?? locations[0]?.location_name ?? "";
   const selectedTitle = locations.find((l) => l.location_name === selected)?.title ?? "perfil";
@@ -117,6 +126,8 @@ export default function ChecklistTool({
     setError("");
     setShareUrl("");
     setFailedBlocks([]);
+    loadHistory();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected]);
 
   useEffect(() => {
@@ -191,6 +202,7 @@ export default function ChecklistTool({
       const names: Record<string, string> = { infoError: "informações", mediaError: "fotos", postsError: "postagens", reviewsError: "avaliações" };
       setFailedBlocks(Object.keys(names).filter((k) => st[k]).map((k) => names[k]));
       setAnalyzedAt(new Date().toLocaleString("pt-BR"));
+      loadHistory();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Não foi possível analisar o perfil.");
     } finally {
@@ -395,6 +407,9 @@ export default function ChecklistTool({
         </p>
       )}
 
+      {/* Evolução da nota no tempo */}
+      {autoEnabled && history.length >= 2 && <ScoreHistory history={history} />}
+
       {/* Prioridades */}
       {top.length > 0 && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
@@ -483,6 +498,34 @@ function Gauge({ value }: { value: number }) {
       <circle cx="100" cy="100" r="8" fill="#1f2937" />
       <circle cx="100" cy="100" r="3.5" fill="#fff" />
     </svg>
+  );
+}
+
+function ScoreHistory({ history }: { history: { score: number; analyzed_at: string }[] }) {
+  const h = history.slice(-12);
+  const vals = h.map((x) => x.score);
+  const min = Math.min(...vals, 0), max = Math.max(...vals, 100);
+  const W = 560, H = 120, pad = 24;
+  const x = (i: number) => pad + (i * (W - 2 * pad)) / Math.max(1, h.length - 1);
+  const y = (v: number) => pad + (1 - (v - min) / Math.max(1, max - min)) * (H - 2 * pad);
+  const path = h.map((p, i) => `${i ? "L" : "M"} ${x(i)} ${y(p.score)}`).join(" ");
+  const first = vals[0], last = vals[vals.length - 1];
+  const up = last > first;
+  return (
+    <div className="rounded-3xl border border-border bg-white p-5 card-soft">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-sm font-semibold">Evolução da sua nota</p>
+        <span className={`text-xs font-semibold ${up ? "text-emerald-600" : last < first ? "text-red-500" : "text-muted"}`}>
+          {up ? "▲ subiu" : last < first ? "▼ caiu" : "estável"} ({first} → {last})
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+        <path d={`${path} L ${x(h.length - 1)} ${H - pad} L ${x(0)} ${H - pad} Z`} fill="#05966914" />
+        <path d={path} fill="none" stroke="#059669" strokeWidth="2.5" />
+        {h.map((p, i) => <circle key={i} cx={x(i)} cy={y(p.score)} r="3.5" fill="#059669" />)}
+      </svg>
+      <p className="text-[11px] text-muted">Nota a cada análise. A atualização automática noturna também alimenta este gráfico.</p>
+    </div>
   );
 }
 

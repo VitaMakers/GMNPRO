@@ -54,6 +54,15 @@ export async function GET(request: Request) {
     } catch {
       /* tabela ausente */
     }
+    // Histórico da nota (append) — best-effort.
+    try {
+      await supabase.from("score_history").insert({
+        user_id: user.id, location_name: location, score: snap.score,
+        fraco: snap.fraco, razoavel: snap.razoavel, bom: snap.bom, analyzed_at: snap.analyzed_at,
+      });
+    } catch {
+      /* tabela ausente */
+    }
     return NextResponse.json({ ok: true, ...result, snapshot: snap });
   } catch (e) {
     return NextResponse.json(
