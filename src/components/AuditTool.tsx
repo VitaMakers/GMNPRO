@@ -156,8 +156,19 @@ export default function AuditTool() {
       )}
 
       {report && fromExtension && (
-        <div className="rounded-xl border border-brand/30 bg-brand/5 p-3 text-xs text-brand-2">
-          🧩 Pré-análise profunda via extensão do Chrome — inclui posts, perguntas/respostas e atributos.
+        <div className="space-y-2">
+          <div className="rounded-xl border border-brand/30 bg-brand/5 p-3 text-xs text-brand-2">
+            🧩 Pré-análise profunda via extensão do Chrome — inclui posts, perguntas/respostas e atributos.
+          </div>
+          {report.confirmed ? (
+            <div className="inline-flex items-center gap-2 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-700">
+              <span>✓</span> Dados confirmados pela API oficial do Google (Maps) — garantia de assertividade.
+            </div>
+          ) : (
+            <div className="rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              ⚠️ Dados lidos do painel. Para confirmação total, abra a empresa no <strong>Google Maps</strong> e analise por lá.
+            </div>
+          )}
         </div>
       )}
       {report && <Report report={report} onReset={() => { setReport(null); setQuery(""); setFromExtension(false); }} />}

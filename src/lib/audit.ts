@@ -60,6 +60,7 @@ export interface AuditReport {
   checks: CheckResult[];
   strengths: string[];
   priorities: string[];
+  confirmed?: boolean; // dados confirmados na fonte oficial do Google (Places)
 }
 
 function check(

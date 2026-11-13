@@ -53,6 +53,7 @@ export async function POST(request: Request) {
     hasLogo: prof.hasLogo, lat: pl?.lat, lng: pl?.lng, source: "extension",
   };
   const report = auditPlace(place);
+  report.confirmed = !!pl;
 
   const { data: saved } = await supabase
     .from("extension_scans")
