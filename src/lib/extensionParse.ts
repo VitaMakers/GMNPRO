@@ -12,6 +12,7 @@ export interface ExtScrape {
   title?: string;
   mapsUri?: string;
   isMaps?: boolean;
+  reviewsText?: string;
 }
 
 export interface ParsedProfile {
@@ -21,7 +22,7 @@ export interface ParsedProfile {
   businessStatus?: string; description?: string; photoCount?: number; photoUrl?: string;
   postsCount?: number; qaCount?: number; qaAnswered?: number;
   attributesCount?: number; attributes?: string[]; foundingDate?: string; mapsUri?: string;
-  secondaryCount?: number; hasSpecialHours?: boolean; videoCount?: number; hasLogo?: boolean;
+  secondaryCount?: number; hasSpecialHours?: boolean; videoCount?: number; hasLogo?: boolean; ownerReplies?: number; reviewsSampled?: number;
 }
 
 export function parseScrape(x: ExtScrape): ParsedProfile {
@@ -107,6 +108,9 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
   const hasHours = /\b(Aberto|Fechado|Horário|Fecha|Abre às|Abre)\b/i.test(T);
   const hasSpecialHours = /feriado|Horário especial|horário comercial especial|Horas especiais/i.test(T);
   const verified = !/Reivindicar|Reivindique|É você o propriet|Seja o propriet|É o seu negócio/i.test(T);
+  const RT = x.reviewsText ?? "";
+  const ownerReplies = (RT.match(/Resposta d[oa] propriet[áa]ri|Response from the owner/gi) || []).length;
+  const reviewsSampled = (RT.match(/\b(há|faz)\s+\d|\d+\s+(dia|semana|mês|mes|ano)s?\s+atrás|ago\b/gi) || []).length || undefined;
   const videoCount = (() => { const m = T.match(/(\d+)\s*vídeos?/i); return m ? parseInt(m[1], 10) : (/\bvídeos?\b/i.test(T) ? 1 : 0); })();
   // Categorias secundárias: tenta "Categorias: A, B" (raro no painel público)
   const secMatch = T.match(/Categorias?:\s*([^\n]{3,200})/i);
@@ -121,5 +125,6 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
     attributesCount: attrSet.size || undefined, attributes: attrSet.size ? [...attrSet].slice(0, 25) : undefined,
     foundingDate: founding, mapsUri: x.mapsUri,
     secondaryCount, hasSpecialHours, videoCount, verified, hasLogo: false,
+    ownerReplies, reviewsSampled,
   };
 }

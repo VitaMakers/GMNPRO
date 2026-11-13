@@ -50,7 +50,8 @@ export async function POST(request: Request) {
     postsCount: prof.postsCount, qaCount: prof.qaCount, qaAnswered: prof.qaAnswered,
     attributesCount: prof.attributesCount, secondaryCount: prof.secondaryCount,
     hasSpecialHours: prof.hasSpecialHours, videoCount: prof.videoCount, verified: prof.verified,
-    hasLogo: prof.hasLogo, lat: pl?.lat, lng: pl?.lng, source: "extension",
+    hasLogo: prof.hasLogo, reviewReplies: prof.ownerReplies, reviewsSampled: prof.reviewsSampled,
+    lat: pl?.lat, lng: pl?.lng, source: "extension",
   };
   const report = auditPlace(place);
   report.confirmed = !!pl;

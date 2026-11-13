@@ -40,6 +40,8 @@ export interface PlaceData {
   qaAnswered?: number;
   attributesCount?: number;
   secondaryCount?: number;
+  reviewReplies?: number;
+  reviewsSampled?: number;
   hasSpecialHours?: boolean;
   videoCount?: number;
   verified?: boolean;
@@ -270,6 +272,14 @@ export function auditPlace(place: PlaceData): AuditReport {
     checks.push(check("qa", "Perguntas e respostas", qaOk ? "ok" : "warn", qaOk ? 4 : 0, 4,
       qa > 0 ? `${place.qaAnswered ?? 0}/${qa} respondidas.` : "Sem perguntas e respostas.",
       "Crie e responda perguntas frequentes no perfil."));
+
+    if (place.reviewsSampled && place.reviewsSampled > 0) {
+      const rep = place.reviewReplies ?? 0;
+      const rate = rep / place.reviewsSampled;
+      checks.push(check("resp", "Respostas às avaliações", rate >= 0.7 ? "ok" : rate > 0 ? "warn" : "fail", rate >= 0.7 ? 5 : rate > 0 ? 2 : 0, 5,
+        `${rep} de ${place.reviewsSampled} avaliações recentes respondidas pelo proprietário.`,
+        "Responda as avaliações (boas e ruins) — mostra cuidado e melhora a reputação."));
+    }
   }
 
   const maxTotal = checks.reduce((s, c) => s + c.maxPoints, 0);
