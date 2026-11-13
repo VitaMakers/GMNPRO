@@ -319,43 +319,8 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
           const paid = c.list.filter((x) => x.isPaid);
           const organicAll = c.list.filter((x) => !x.isPaid);
           const organic = expanded ? organicAll : organicAll.slice(0, 5);
-          const me = c.list.find((x) => x.isMe);
-          const leader = organicAll[0];
-          const isLeader = !!me && !!leader && (me.name === leader.name || c.myRank === 1);
-          const cmp = (mine?: number, other?: number) => (mine ?? 0) >= (other ?? 0);
           return (
             <>
-              {/* Comparativo Você × 1º colocado (só quando você NÃO é o 1º) */}
-              {me && leader && !isLeader && (
-                <div className="mt-4 overflow-hidden rounded-2xl border border-border">
-                  <div className="grid grid-cols-2 bg-surface-2 text-center text-xs font-semibold">
-                    <div className="border-r border-border p-2 text-emerald-700">⭐ Você</div>
-                    <div className="p-2">🏆 1º colocado</div>
-                  </div>
-                  <div className="grid grid-cols-2 text-center">
-                    <div className="border-r border-border p-3"><p className="truncate text-sm font-medium">{me.name}</p></div>
-                    <div className="p-3"><p className="truncate text-sm font-medium">{leader.name}</p></div>
-                  </div>
-                  {[
-                    { label: "Posição no Maps", mine: `${c.myRank ?? "—"}º`, other: `${leader.rank}º`, better: (c.myRank ?? 99) <= leader.rank },
-                    { label: "Nota", mine: me.rating ? `${me.rating}★` : "—", other: leader.rating ? `${leader.rating}★` : "—", better: cmp(me.rating, leader.rating) },
-                    { label: "Avaliações", mine: me.reviewCount.toLocaleString("pt-BR"), other: leader.reviewCount.toLocaleString("pt-BR"), better: cmp(me.reviewCount, leader.reviewCount) },
-                  ].map((r) => (
-                    <div key={r.label} className="grid grid-cols-2 border-t border-border text-center text-sm">
-                      <div className={`border-r border-border p-2 ${r.better ? "font-bold text-emerald-700" : ""}`}>{r.mine}</div>
-                      <div className={`p-2 ${!r.better ? "font-bold" : ""}`}>{r.other}</div>
-                    </div>
-                  ))}
-                  <p className="border-t border-border bg-surface-2 p-2 text-center text-[11px] text-muted">{r_label(me, leader, c.myRank)}</p>
-                </div>
-              )}
-
-              {isLeader && (
-                <div className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
-                  🏆 Esta empresa é a <strong>1ª colocada orgânica</strong> para &ldquo;{c.keyword}&rdquo;. Mantenha avaliações e postagens em dia para não perder a posição.
-                </div>
-              )}
-
               {/* Patrocinados */}
               {paid.length > 0 && (
                 <>
@@ -394,13 +359,6 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
 
 type CompItem = NonNullable<AuditReport["competitors"]>["list"][number];
 
-function r_label(me: CompItem, leader: CompItem, myRank: number | null): string {
-  if (myRank === 1) return "Você já é o 1º colocado orgânico neste nicho. 🎉 Mantenha avaliações e postagens em dia.";
-  const gaps: string[] = [];
-  if ((leader.reviewCount ?? 0) > (me.reviewCount ?? 0)) gaps.push(`${(leader.reviewCount - me.reviewCount).toLocaleString("pt-BR")} avaliações a mais`);
-  if ((leader.rating ?? 0) > (me.rating ?? 0)) gaps.push("nota maior");
-  return gaps.length ? `Para passar o 1º colocado, foque em: ${gaps.join(" e ")}.` : "Você está muito perto do 1º colocado — constância de avaliações e postagens decide.";
-}
 
 function CompRow({ x, pos, showRank }: { x: CompItem; pos?: number; showRank?: boolean }) {
   return (
