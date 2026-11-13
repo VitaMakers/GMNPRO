@@ -46,26 +46,37 @@ $("go").addEventListener("click", async () => {
   }
 });
 
-// Executado DENTRO da página do Google. Coleta o conteúdo bruto; o servidor extrai tudo.
+// Executado DENTRO da página do Google (Busca OU Maps). Mira no painel da empresa.
 function scrapeProfile() {
-  const main = document.querySelector('[role="main"]') || document.body;
-  const text = (main.innerText || "").slice(0, 120000);
-  const name = (document.querySelector("h1")?.innerText || "").trim();
+  const isMaps = /\/maps\//.test(location.pathname) || location.hostname.includes("maps.google");
+  // Na Busca, o painel da empresa fica no container complementar (lado direito).
+  const kp = document.querySelector('[role="complementary"]')
+    || document.querySelector('#rhs')
+    || document.querySelector('[data-attrid="kc:/local:merchant"]');
+  const mapsMain = isMaps ? document.querySelector('[role="main"]') : null;
+  const root = mapsMain || kp || document.querySelector('[role="main"]') || document.body;
 
-  // Fotos reais do perfil
+  const text = (root.innerText || "").slice(0, 150000);
+
+  // Nome: no Maps é o h1; na Busca é a 1ª linha "forte" do painel.
+  let name = mapsMain ? (document.querySelector("h1")?.innerText || "").trim() : "";
+  if (!name && kp) {
+    name = (kp.innerText || "").split("\n").map((x) => x.trim())
+      .find((x) => x && x.length >= 3 && !/^[\d.,]|★|avaliaç|Resultados|Patrocinad|Geral|Avaliar|Fotos|Serviços$/i.test(x)) || "";
+  }
+  if (!name) name = (document.title || "").replace(/\s*[-–].*Google.*/i, "").trim();
+
   const photos = [...new Set(
-    Array.from(document.querySelectorAll("img"))
+    Array.from(root.querySelectorAll("img"))
       .map((im) => im.currentSrc || im.src || "")
-      .filter((u) => /googleusercontent\.com|streetviewpixels|ggpht\.com/.test(u))
+      .filter((u) => /googleusercontent\.com|streetviewpixels|ggpht\.com|gstatic/.test(u))
       .map((u) => u.replace(/=w\d+-h\d+.*$/, "=w600-h400"))
   )].slice(0, 12);
 
-  // Dicas estruturadas (fallback caso o texto não baste)
-  const attr = (sel, a) => document.querySelector(sel)?.getAttribute(a) || undefined;
-  const address = (attr('button[data-item-id="address"]', "aria-label") || "").replace(/^Endereço:\s*/i, "") || undefined;
-  const phone = (attr('button[data-item-id^="phone"]', "aria-label") || "").replace(/^Telefone:\s*/i, "") || undefined;
-  const website = attr('a[data-item-id="authority"]', "href");
-  const category = document.querySelector('button[jsaction*="category"]')?.innerText?.trim();
+  // Site do negócio: âncora externa (não google) mais provável.
+  const siteA = Array.from(root.querySelectorAll('a[href^="http"]'))
+    .map((a) => a.href)
+    .find((h) => !/google\.|gstatic|schema\.org|youtube\.com\/@/.test(h));
 
-  return { name, text, photos, address, phone, website, category, mapsUri: location.href.split("?")[0] };
+  return { name, text, photos, website: siteA, title: document.title, mapsUri: location.href.split("?")[0], isMaps };
 }
