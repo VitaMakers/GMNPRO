@@ -9,22 +9,28 @@
     const mapsMain = isMaps ? document.querySelector('[role="main"]') : null;
     const root = mapsMain || kp || document.querySelector('[role="main"]') || document.body;
 
-    // Rola para carregar seções preguiçosas.
-    const scroller = mapsMain || root;
+    // Rola para carregar seções preguiçosas (no Maps o scroller é o feed da ficha).
+    const feed = isMaps ? (document.querySelector('[role="main"] .m6QErb') || document.querySelector('.m6QErb[role="region"]') || mapsMain) : root;
+    const scroller = feed || root;
     try {
-      for (let i = 0; i < 8; i++) {
-        if (scroller.scrollBy) scroller.scrollBy(0, 1000); else window.scrollBy(0, 1000);
-        await sleep(350);
+      for (let i = 0; i < 12; i++) {
+        if (scroller && scroller.scrollBy) scroller.scrollBy(0, 1200); else window.scrollBy(0, 1200);
+        await sleep(400);
       }
-      if (scroller.scrollTo) scroller.scrollTo(0, 0); else window.scrollTo(0, 0);
-      await sleep(300);
+      if (scroller && scroller.scrollTo) scroller.scrollTo(0, 0); else window.scrollTo(0, 0);
+      await sleep(400);
     } catch (e) {}
 
     const text = (root.innerText || "").slice(0, 200000);
     let name = mapsMain ? (document.querySelector("h1")?.innerText || "").trim() : "";
+    if (!name) name = (document.querySelector('[data-attrid="title"]')?.innerText || "").trim();
+    if (!name && kp) {
+      const h = kp.querySelector('[role="heading"], h2, h3');
+      name = (h?.innerText || "").trim();
+    }
     if (!name && kp) {
       name = (kp.innerText || "").split("\n").map((x) => x.trim())
-        .find((x) => x && x.length >= 3 && !/^[\d.,]|★|avaliaç|coment|Resultados|Patrocinad|Geral|Avaliar|Fotos|Serviços$/i.test(x)) || "";
+        .find((x) => x && x.length >= 3 && /[A-ZÀ-Ú]/.test(x[0]) && !/^[\d.,]|★|avaliaç|coment|Resultados|Patrocinad|Geral|Avaliar|Fotos|Serviços$/i.test(x)) || "";
     }
     if (!name) name = (document.title || "").replace(/\s*[-–].*Google.*/i, "").trim();
 
@@ -42,9 +48,11 @@
   }
 
   function findMapsLink() {
-    const a = document.querySelector('a[href*="/maps/place/"]') ||
-      Array.from(document.querySelectorAll('a[href*="/maps/"]')).find((x) => /\/maps\/place|\/maps\?/.test(x.href));
-    return a ? a.href : null;
+    const cand = document.querySelector('a[href*="/maps/place/"]')
+      || document.querySelector('a[href*="maps.google."][href*="/place"]')
+      || Array.from(document.querySelectorAll('a[href*="/maps/"]')).find((x) => /\/maps\/place|\/maps\?/.test(x.href))
+      || document.querySelector('a[data-url*="/maps/place"]');
+    return cand ? (cand.href || cand.getAttribute("data-url")) : null;
   }
 
   async function run(btn) {
@@ -92,10 +100,14 @@
 
   // Auto-análise quando chegamos ao Maps vindos da busca (#gmnanalyze).
   async function maybeAuto() {
-    if (isMaps && location.hash.includes("gmnanalyze")) {
-      await sleep(1500);
-      const data = await scrape();
-      if (data.name) chrome.runtime.sendMessage({ type: "gmnpro-analyze", data }, () => {});
+    if (!(isMaps && location.hash.includes("gmnanalyze"))) return;
+    // Espera a ficha do Maps carregar (h1 do negócio).
+    for (let i = 0; i < 24; i++) { if (document.querySelector('[role="main"] h1')) break; await sleep(500); }
+    await sleep(600);
+    const data = await scrape();
+    if (data.name) {
+      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
+      chrome.runtime.sendMessage({ type: "gmnpro-analyze", data }, () => {});
     }
   }
 

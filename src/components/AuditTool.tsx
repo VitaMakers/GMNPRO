@@ -20,7 +20,6 @@ export default function AuditTool() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [report, setReport] = useState<AuditReport | null>(null);
   const [fromExtension, setFromExtension] = useState(false);
-  const [debugRaw, setDebugRaw] = useState<unknown>(null);
 
   // Resultado vindo da extensão do Chrome (?scan=<id>).
   useEffect(() => {
@@ -28,7 +27,7 @@ export default function AuditTool() {
     if (!id) return;
     fetch(`/api/extension/scan?id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
-      .then((d) => { if (d.report) { setReport(d.report as AuditReport); setFromExtension(true); setDebugRaw(d.raw ?? null); } })
+      .then((d) => { if (d.report) { setReport(d.report as AuditReport); setFromExtension(true); } })
       .catch(() => undefined);
     window.history.replaceState({}, "", "/auditoria");
   }, []);
@@ -159,12 +158,6 @@ export default function AuditTool() {
       {report && fromExtension && (
         <div className="rounded-xl border border-brand/30 bg-brand/5 p-3 text-xs text-brand-2">
           🧩 Pré-análise profunda via extensão do Chrome — inclui posts, perguntas/respostas e atributos.
-          {debugRaw != null && (
-            <details className="mt-2">
-              <summary className="cursor-pointer text-muted">Ver dados capturados (para calibração)</summary>
-              <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-surface-2 p-2 text-[10px] leading-snug text-foreground">{JSON.stringify(debugRaw, null, 2)}</pre>
-            </details>
-          )}
         </div>
       )}
       {report && <Report report={report} onReset={() => { setReport(null); setQuery(""); setFromExtension(false); }} />}
