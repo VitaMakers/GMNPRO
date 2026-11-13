@@ -58,8 +58,13 @@ export async function POST(request: Request) {
 
   // Análise de concorrentes/segmento (raio de 3 km) — como o GBP.
   if (pl?.lat != null && pl?.lng != null) {
-    const radiusKm = 3;
-    const comps = await nearbyCompetitors(pl.lat, pl.lng, pl.primaryType, radiusKm * 1000, pl.category || prof.category);
+    const radiusKm = 8;
+    // Palavra do nicho: usa a categoria se for específica; senão a 1ª palavra do nome.
+    const generic = /^(aliment|comida|estabelec|empresa|serviç|loja|local|neg[oó]cio)/i;
+    const cat = (pl.category || prof.category || "").trim();
+    const nameWord = (prof.name || "").split(/[\s|–\-]/).map((w) => w.trim()).find((w) => w.length >= 3);
+    const keyword = cat && !generic.test(cat) ? cat : (nameWord || cat);
+    const comps = await nearbyCompetitors(pl.lat, pl.lng, pl.primaryType, radiusKm * 1000, keyword);
     if (comps.length > 0) {
       const myName = (prof.name || "").toLowerCase();
       const withMe = comps.map((c) => ({ ...c, isMe: c.name.toLowerCase() === myName }));

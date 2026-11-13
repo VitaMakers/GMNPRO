@@ -278,8 +278,8 @@ function Competitors({ c }: { c: NonNullable<AuditReport["competitors"]> }) {
   return (
     <div className="space-y-4">
       <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-        <h3 className="font-display text-lg font-bold">Concorrentes e segmento · raio de {c.radiusKm} km</h3>
-        <p className="mt-1 text-sm text-muted">Até 20 empresas do mesmo segmento no Google ao redor da empresa, e se ela está acima ou abaixo da média.</p>
+        <h3 className="font-display text-lg font-bold">Concorrentes e segmento · mesmo nicho na região</h3>
+        <p className="mt-1 text-sm text-muted">Até 20 empresas do mesmo segmento no Google na região, e se a empresa está acima ou abaixo da média de avaliações.</p>
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.total}</p><p className="text-[11px] text-muted">empresas analisadas</p></div>
           <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.avgReviews}</p><p className="text-[11px] text-muted">média de avaliações do segmento</p></div>
@@ -303,7 +303,7 @@ function Competitors({ c }: { c: NonNullable<AuditReport["competitors"]> }) {
 
       {points.length > 0 && (
         <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
-          <div className="border-b border-border/60 px-5 py-3"><p className="text-sm font-semibold">Mapa de concorrentes (verde = a empresa)</p></div>
+          <div className="border-b border-border/60 px-5 py-3"><p className="text-sm font-semibold">Mapa de concorrentes do nicho (verde = a empresa)</p></div>
           <div className="p-3"><LocationsMap points={points} height={320} /></div>
         </div>
       )}
