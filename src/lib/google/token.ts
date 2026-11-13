@@ -10,10 +10,17 @@ export async function getValidAccessToken(
   admin: SupabaseClient,
   userId: string,
 ): Promise<string> {
+  // Equipe: usa a conexão do DONO quando o usuário é membro.
+  let accountId = userId;
+  try {
+    const { data: m } = await admin.from("team_members").select("owner_id").eq("member_id", userId).maybeSingle();
+    if (m?.owner_id) accountId = m.owner_id as string;
+  } catch { /* sem tabela: segue */ }
+
   const { data: conn, error } = await admin
     .from("google_connections")
     .select("access_token, refresh_token, token_expiry")
-    .eq("user_id", userId)
+    .eq("user_id", accountId)
     .maybeSingle();
 
   if (error || !conn) throw new Error("Conexão com o Google não encontrada.");
@@ -38,7 +45,7 @@ export async function getValidAccessToken(
       access_token: refreshed.access_token,
       token_expiry: newExpiry,
     })
-    .eq("user_id", userId);
+    .eq("user_id", accountId);
 
   return refreshed.access_token;
 }

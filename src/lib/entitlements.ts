@@ -67,5 +67,5 @@ export const ADMIN_ENTITLEMENTS: Entitlements = {
   geoGrid: true,
   whiteLabelReport: true,
   monthlyCredits: 500,
-  preAnalyses: 99999,
+  preAnalyses: 150,
 };

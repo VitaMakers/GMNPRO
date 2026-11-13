@@ -38,6 +38,15 @@ export async function POST(request: Request) {
   try {
     if (event.type === "checkout.session.completed") {
       const s = event.data.object as Stripe.Checkout.Session;
+      // Compra de usuário extra: incrementa os assentos do dono.
+      if (s.metadata?.kind === "extra_seat") {
+        const ownerId = s.metadata?.owner_id as string | undefined;
+        if (ownerId) {
+          const { data: cur } = await admin.from("subscriptions").select("extra_seats").eq("user_id", ownerId).maybeSingle();
+          await admin.from("subscriptions").update({ extra_seats: ((cur as { extra_seats?: number } | null)?.extra_seats ?? 0) + 1, updated_at: ts() }).eq("user_id", ownerId);
+        }
+        return NextResponse.json({ received: true });
+      }
       const userId = s.client_reference_id || (s.metadata?.user_id as string | undefined);
       const customerId = typeof s.customer === "string" ? s.customer : s.customer?.id;
       const subId = typeof s.subscription === "string" ? s.subscription : s.subscription?.id;
