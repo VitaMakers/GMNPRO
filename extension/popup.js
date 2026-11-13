@@ -27,8 +27,10 @@ async function smartDetect() {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const isMaps = /\/maps\//.test(location.pathname) || location.hostname.includes("maps.google");
   if (!isMaps) {
-    const a = document.querySelector('a[href*="/maps/place/"]') || document.querySelector('a[href*="google.com/maps"], a[href*="maps.google"]') || document.querySelector('a[data-url*="/maps"]');
-    const mapsUrl = a ? (a.href || a.getAttribute("data-url")) : null;
+    const place = document.querySelector('a[href*="/maps/place/"]');
+    let mapsUrl = place ? place.href : null;
+    if (!mapsUrl) { const a = document.querySelector('a[href*="google.com/maps"], a[href*="maps.google"], a[data-url*="/maps"]'); mapsUrl = a ? (a.href || a.getAttribute("data-url")) : null; }
+    if (!mapsUrl) { const nm = (document.querySelector('[data-attrid="title"], h2, h3')?.innerText || document.title || "").trim(); if (nm) mapsUrl = "https://www.google.com/maps/search/" + encodeURIComponent(nm.slice(0, 80)); }
     if (mapsUrl) return { isMaps: false, mapsUrl };
   }
   const kp = document.querySelector('[role="complementary"]') || document.querySelector('#rhs');

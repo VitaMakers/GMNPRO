@@ -48,10 +48,13 @@
   }
 
   function findMapsLink() {
-    const cand = document.querySelector('a[href*="/maps/place/"]')
-      || document.querySelector('a[href*="google.com/maps"], a[href*="maps.google"]')
-      || document.querySelector('a[data-url*="/maps"]');
-    return cand ? (cand.href || cand.getAttribute("data-url")) : null;
+    const place = document.querySelector('a[href*="/maps/place/"]');
+    if (place) return place.href;
+    const any = document.querySelector('a[href*="google.com/maps"], a[href*="maps.google"], a[data-url*="/maps"]');
+    if (any) return any.href || any.getAttribute("data-url");
+    // Sem link: monta uma busca no Maps pelo nome (autoAnalyze abre o 1º resultado).
+    const name = (document.querySelector("h1, [role=heading], h2, h3")?.innerText || document.title || "").trim();
+    return name ? ("https://www.google.com/maps/search/" + encodeURIComponent(name.slice(0, 80))) : null;
   }
 
   async function run(btn) {
@@ -97,9 +100,17 @@
 
   // Auto-análise ao chegar no Maps vindo da busca (flag na memória da extensão).
   async function autoAnalyze() {
-    const banner = showBanner("GMN PRO: analisando a ficha… rolando para carregar tudo");
+    const banner = showBanner("GMN PRO: abrindo a ficha da empresa…");
+    // Se caiu numa LISTA do Maps (/maps/search), abre o 1º resultado.
+    for (let i = 0; i < 20; i++) {
+      if (document.querySelector('[role="main"] h1')) break;
+      const first = document.querySelector('a.hfpxzc[href*="/maps/place/"], a[href*="/maps/place/"]');
+      if (first) { first.click(); await sleep(1800); }
+      await sleep(500);
+    }
+    banner.textContent = "GMN PRO: analisando a ficha… rolando para carregar tudo";
     for (let i = 0; i < 24; i++) { if (document.querySelector('[role="main"] h1')) break; await sleep(500); }
-    await sleep(600);
+    await sleep(700);
     const data = await scrape();
     if (data.name) {
       banner.textContent = "GMN PRO: enviando pré-análise…";
