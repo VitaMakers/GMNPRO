@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { parseScrape, type ExtScrape } from "@/lib/extensionParse";
-import { lookupPlace } from "@/lib/places";
+import { lookupPlace, nearbyCompetitors } from "@/lib/places";
 
 export const dynamic = "force-dynamic";
 
@@ -54,6 +54,27 @@ export async function POST(request: Request) {
   };
   const report = auditPlace(place);
   report.confirmed = !!pl;
+
+  // Análise de concorrentes/segmento (raio de 3 km) — como o GBP.
+  if (pl?.lat != null && pl?.lng != null) {
+    const radiusKm = 3;
+    const comps = await nearbyCompetitors(pl.lat, pl.lng, pl.primaryType, radiusKm * 1000);
+    if (comps.length > 0) {
+      const myName = (prof.name || "").toLowerCase();
+      const withMe = comps.map((c) => ({ ...c, isMe: c.name.toLowerCase() === myName }));
+      if (!withMe.some((c) => c.isMe)) withMe.push({ name: prof.name, rating: pl.rating ?? 0, reviewCount: pl.reviewCount ?? 0, lat: pl.lat, lng: pl.lng, isMe: true });
+      const rated = withMe.filter((c) => c.rating > 0);
+      const segmentAvg = rated.length ? Math.round((rated.reduce((s2, c) => s2 + c.rating, 0) / rated.length) * 10) / 10 : null;
+      const avgReviews = Math.round(withMe.reduce((s2, c) => s2 + c.reviewCount, 0) / withMe.length);
+      const myReviews = pl.reviewCount ?? 0;
+      const byReviews = [...withMe].sort((a, b) => b.reviewCount - a.reviewCount);
+      const myRank = byReviews.findIndex((c) => c.isMe) + 1 || null;
+      report.competitors = {
+        radiusKm, segmentAvg, avgReviews, myReviews, category: pl.category, myRank, total: withMe.length,
+        list: byReviews.slice(0, 10).map((c) => ({ name: c.name, rating: c.rating, reviewCount: c.reviewCount, lat: c.lat, lng: c.lng, isMe: c.isMe })),
+      };
+    }
+  }
 
   const { data: saved } = await supabase
     .from("extension_scans")

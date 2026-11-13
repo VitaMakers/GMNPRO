@@ -9,8 +9,10 @@ export interface PlacesInfo {
   rating?: number; reviewCount?: number; category?: string; address?: string;
   phone?: string; website?: string; hasHours?: boolean; photoCount?: number;
   photoName?: string; businessStatus?: string; description?: string;
-  lat?: number; lng?: number; mapsUri?: string;
+  lat?: number; lng?: number; mapsUri?: string; primaryType?: string;
 }
+
+export interface Competitor { name: string; rating: number; reviewCount: number; lat: number; lng: number; }
 
 export function placesConfigured(): boolean {
   return !!process.env.GOOGLE_PLACES_API_KEY;
@@ -32,7 +34,7 @@ export async function lookupPlace(query: string): Promise<PlacesInfo | null> {
 
     const fields = ["displayName", "formattedAddress", "primaryTypeDisplayName", "primaryType",
       "nationalPhoneNumber", "internationalPhoneNumber", "websiteUri", "rating", "userRatingCount",
-      "regularOpeningHours", "photos", "businessStatus", "editorialSummary", "googleMapsUri", "location"].join(",");
+      "regularOpeningHours", "photos", "businessStatus", "editorialSummary", "googleMapsUri", "location", "primaryType"].join(",");
     const dr = await fetch(`${BASE}/places/${id}?languageCode=pt-BR`, { headers: { "X-Goog-Api-Key": key, "X-Goog-FieldMask": fields } });
     if (!dr.ok) return null;
     const d = (await dr.json()) as {
@@ -50,9 +52,36 @@ export async function lookupPlace(query: string): Promise<PlacesInfo | null> {
       photoCount: Array.isArray(d.photos) ? d.photos.length : undefined,
       photoName: d.photos?.[0]?.name, businessStatus: d.businessStatus,
       description: d.editorialSummary?.text, lat: d.location?.latitude, lng: d.location?.longitude,
-      mapsUri: d.googleMapsUri,
+      mapsUri: d.googleMapsUri, primaryType: d.primaryType,
     };
   } catch {
     return null;
+  }
+}
+
+/** Concorrentes do mesmo tipo num raio (metros) ao redor do ponto. */
+export async function nearbyCompetitors(lat: number, lng: number, type: string | undefined, radiusM = 3000): Promise<Competitor[]> {
+  const key = process.env.GOOGLE_PLACES_API_KEY;
+  if (!key) return [];
+  try {
+    const body: Record<string, unknown> = {
+      maxResultCount: 20,
+      languageCode: "pt-BR",
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusM } },
+    };
+    if (type) body.includedPrimaryTypes = [type];
+    const res = await fetch(`${BASE}/places:searchNearby`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key,
+        "X-Goog-FieldMask": "places.displayName,places.rating,places.userRatingCount,places.location" },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) return [];
+    const d = (await res.json()) as { places?: { displayName?: { text: string }; rating?: number; userRatingCount?: number; location?: { latitude?: number; longitude?: number } }[] };
+    return (d.places ?? [])
+      .filter((p) => p.location?.latitude != null)
+      .map((p) => ({ name: p.displayName?.text ?? "", rating: p.rating ?? 0, reviewCount: p.userRatingCount ?? 0, lat: p.location!.latitude!, lng: p.location!.longitude! }));
+  } catch {
+    return [];
   }
 }

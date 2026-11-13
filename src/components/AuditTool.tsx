@@ -235,6 +235,9 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
         </div>
       </div>
 
+      {/* Concorrentes e segmento (raio de 3 km) — como o GBP */}
+      {report.competitors && <Competitors c={report.competitors} />}
+
       {report.priorities.length > 0 && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
           <h3 className="mb-3 font-semibold">O que melhorar primeiro</h3>
@@ -264,6 +267,46 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
       >
         ← Analisar outra empresa
       </button>
+    </div>
+  );
+}
+
+function Competitors({ c }: { c: NonNullable<AuditReport["competitors"]> }) {
+  const max = Math.max(1, ...c.list.map((x) => x.reviewCount));
+  const above = c.myReviews >= c.avgReviews;
+  const points = c.list.filter((x) => typeof x.lat === "number").map((x) => ({ title: x.name, lat: x.lat, lng: x.lng, active: !!x.isMe, detail: `${x.reviewCount} avaliações` }));
+  return (
+    <div className="space-y-4">
+      <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+        <h3 className="font-display text-lg font-bold">Concorrentes e segmento · raio de {c.radiusKm} km</h3>
+        <p className="mt-1 text-sm text-muted">Até 20 empresas do mesmo segmento no Google ao redor da empresa, e se ela está acima ou abaixo da média.</p>
+        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+          <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.total}</p><p className="text-[11px] text-muted">empresas analisadas</p></div>
+          <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.avgReviews}</p><p className="text-[11px] text-muted">média de avaliações do segmento</p></div>
+          <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold" style={{ color: above ? "#059669" : "#dc2626" }}>{c.myReviews}</p><p className="text-[11px] text-muted">suas avaliações ({above ? "acima" : "abaixo"} da média)</p></div>
+        </div>
+        {c.myRank && <p className="mt-2 text-sm">Posição por volume de avaliações: <strong>{c.myRank}º de {c.total}</strong>{c.category ? ` · categoria: ${c.category}` : ""}.</p>}
+
+        <p className="mb-2 mt-5 text-sm font-semibold">Quantidade de avaliações por empresa</p>
+        <ul className="space-y-1.5">
+          {c.list.map((x, i) => (
+            <li key={i} className="flex items-center gap-2">
+              <span className="w-44 shrink-0 truncate text-xs" title={x.name}>{i + 1}. {x.isMe ? "⭐ " : ""}{x.name}</span>
+              <div className="h-5 flex-1 overflow-hidden rounded-md bg-surface-2">
+                <div className="h-full rounded-md" style={{ width: `${(x.reviewCount / max) * 100}%`, background: x.isMe ? "#059669" : "#3b82f6" }} />
+              </div>
+              <span className={`w-20 shrink-0 text-right text-xs ${x.isMe ? "font-bold text-brand-2" : "text-muted"}`}>{x.reviewCount} {x.rating ? `· ${x.rating}★` : ""}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {points.length > 0 && (
+        <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
+          <div className="border-b border-border/60 px-5 py-3"><p className="text-sm font-semibold">Mapa de concorrentes (verde = a empresa)</p></div>
+          <div className="p-3"><LocationsMap points={points} height={320} /></div>
+        </div>
+      )}
     </div>
   );
 }
