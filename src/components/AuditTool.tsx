@@ -502,6 +502,22 @@ function IconPhone() { return <svg viewBox="0 0 24 24" className={ico2} fill="no
 function IconGlobe() { return <svg viewBox="0 0 24 24" className={ico2} fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3a15 15 0 010 18M12 3a15 15 0 000 18" /></svg>; }
 function IconTag() { return <svg viewBox="0 0 24 24" className={ico2} fill="none" stroke="currentColor" strokeWidth="2"><path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0l-7-7A2 2 0 013 12.2V5a2 2 0 012-2h7.2a2 2 0 011.4.6l7 7a2 2 0 010 2.8z" /><circle cx="7.5" cy="7.5" r="1.5" fill="currentColor" /></svg>; }
 
+function Thermometer({ status }: { status: "ok" | "warn" | "fail" }) {
+  // Marcador na faixa Fraco/Razoável/Bom conforme o status (igual ao GBP).
+  const pos = status === "fail" ? 16 : status === "warn" ? 50 : 84; // % da barra
+  return (
+    <div className="relative mt-2 w-full max-w-[280px]">
+      <div className="absolute -top-2 -translate-x-1/2 text-[10px]" style={{ left: `${pos}%` }}>▼</div>
+      <div className="flex h-2.5 overflow-hidden rounded-full">
+        <span className="h-full" style={{ width: "40%", background: "#dc2626" }} />
+        <span className="h-full" style={{ width: "30%", background: "#f59e0b" }} />
+        <span className="h-full" style={{ width: "30%", background: "#059669" }} />
+      </div>
+      <div className="mt-0.5 flex justify-between text-[9px] text-muted"><span>Fraco</span><span>Razoável</span><span>Bom</span></div>
+    </div>
+  );
+}
+
 function CheckRow({ c }: { c: CheckResult }) {
   const icon = c.status === "ok" ? "✓" : c.status === "warn" ? "!" : "✕";
   const cls =
@@ -517,7 +533,8 @@ function CheckRow({ c }: { c: CheckResult }) {
           <span className="text-xs text-muted">{c.points}/{c.maxPoints}</span>
         </div>
         <p className="text-xs text-muted">{c.detail}</p>
-        {c.status !== "ok" && <p className="mt-1 text-xs text-brand">{c.tip}</p>}
+        <Thermometer status={c.status} />
+        {c.status !== "ok" && <p className="mt-1.5 text-xs text-brand">{c.tip}</p>}
       </div>
     </div>
   );
