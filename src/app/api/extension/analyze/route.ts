@@ -76,7 +76,7 @@ export async function POST(request: Request) {
       const byReviews = [...withMe].sort((a, b) => b.reviewCount - a.reviewCount);
       const myRank = byReviews.findIndex((c) => c.isMe) + 1 || null;
       report.competitors = {
-        radiusKm, segmentAvg, avgReviews, myReviews, category: pl.category, myRank, total: withMe.length,
+        radiusKm, segmentAvg, avgReviews, myReviews, category: pl.category, keyword, myRank, total: withMe.length,
         list: byReviews.slice(0, 10).map((c) => ({ name: c.name, rating: c.rating, reviewCount: c.reviewCount, lat: c.lat, lng: c.lng, isMe: c.isMe })),
       };
     }

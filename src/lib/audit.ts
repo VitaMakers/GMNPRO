@@ -65,7 +65,7 @@ export interface AuditReport {
   confirmed?: boolean; // dados confirmados na fonte oficial do Google (Places)
   competitors?: {
     radiusKm: number; segmentAvg: number | null; avgReviews: number; myReviews: number;
-    category?: string; myRank: number | null; total: number;
+    category?: string; keyword?: string; myRank: number | null; total: number;
     list: { name: string; rating: number; reviewCount: number; lat: number; lng: number; isMe?: boolean }[];
   };
 }

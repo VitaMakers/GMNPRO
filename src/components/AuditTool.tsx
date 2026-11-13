@@ -20,11 +20,13 @@ export default function AuditTool() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [report, setReport] = useState<AuditReport | null>(null);
   const [fromExtension, setFromExtension] = useState(false);
+  const [scanId, setScanId] = useState<string | null>(null);
 
   // Resultado vindo da extensão do Chrome (?scan=<id>).
   useEffect(() => {
     const id = new URLSearchParams(window.location.search).get("scan");
     if (!id) return;
+    setScanId(id);
     fetch(`/api/extension/scan?id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
       .then((d) => { if (d.report) { setReport(d.report as AuditReport); setFromExtension(true); } })
@@ -171,12 +173,12 @@ export default function AuditTool() {
           )}
         </div>
       )}
-      {report && <Report report={report} onReset={() => { setReport(null); setQuery(""); setFromExtension(false); }} />}
+      {report && <Report report={report} scanId={scanId} onReset={() => { setReport(null); setQuery(""); setFromExtension(false); }} />}
     </div>
   );
 }
 
-function Report({ report, onReset }: { report: AuditReport; onReset: () => void }) {
+function Report({ report, onReset, scanId }: { report: AuditReport; onReset: () => void; scanId: string | null }) {
   const color =
     report.score >= 75 ? "text-brand-2" : report.score >= 50 ? "text-accent" : "text-red-400";
   const ring =
@@ -236,7 +238,7 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
       </div>
 
       {/* Concorrentes e segmento (raio de 3 km) — como o GBP */}
-      {report.competitors && <Competitors c={report.competitors} />}
+      {report.competitors && <Competitors c={report.competitors} scanId={scanId} />}
 
       {report.priorities.length > 0 && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
@@ -271,7 +273,21 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
   );
 }
 
-function Competitors({ c }: { c: NonNullable<AuditReport["competitors"]> }) {
+function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["competitors"]>; scanId: string | null }) {
+  const [c, setC] = useState(initial);
+  const [kw, setKw] = useState(initial.keyword ?? "");
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState("");
+  async function update() {
+    if (!scanId || !kw.trim()) return;
+    setBusy(true); setErr("");
+    try {
+      const res = await fetch("/api/extension/competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanId, keyword: kw.trim() }) });
+      const d = await res.json();
+      if (!res.ok) { setErr(d.detail ?? d.error ?? "Não foi possível atualizar."); return; }
+      setC(d.competitors);
+    } finally { setBusy(false); }
+  }
   const max = Math.max(1, ...c.list.map((x) => x.reviewCount));
   const above = c.myReviews >= c.avgReviews;
   const points = c.list.filter((x) => typeof x.lat === "number").map((x) => ({ title: x.name, lat: x.lat, lng: x.lng, active: !!x.isMe, detail: `${x.reviewCount} avaliações` }));
@@ -280,6 +296,18 @@ function Competitors({ c }: { c: NonNullable<AuditReport["competitors"]> }) {
       <div className="rounded-3xl border border-border bg-white p-6 card-soft">
         <h3 className="font-display text-lg font-bold">Concorrentes e segmento · mesmo nicho na região</h3>
         <p className="mt-1 text-sm text-muted">Até 20 empresas do mesmo segmento no Google na região, e se a empresa está acima ou abaixo da média de avaliações.</p>
+        {scanId && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted">Nicho:</span>
+            <input value={kw} onChange={(e) => setKw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && update()}
+              placeholder="ex.: buffet para casamentos em Sorocaba"
+              className="min-w-[240px] flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand" />
+            <button onClick={update} disabled={busy || !kw.trim()} className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+              {busy ? "Buscando…" : "Atualizar concorrentes"}
+            </button>
+            {err && <span className="w-full text-xs text-red-500">{err}</span>}
+          </div>
+        )}
         <div className="mt-3 grid gap-2 sm:grid-cols-3">
           <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.total}</p><p className="text-[11px] text-muted">empresas analisadas</p></div>
           <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.avgReviews}</p><p className="text-[11px] text-muted">média de avaliações do segmento</p></div>
