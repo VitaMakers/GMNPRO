@@ -59,7 +59,7 @@ export async function POST(request: Request) {
   // Análise de concorrentes/segmento (raio de 3 km) — como o GBP.
   if (pl?.lat != null && pl?.lng != null) {
     const radiusKm = 3;
-    const comps = await nearbyCompetitors(pl.lat, pl.lng, pl.primaryType, radiusKm * 1000);
+    const comps = await nearbyCompetitors(pl.lat, pl.lng, pl.primaryType, radiusKm * 1000, pl.category || prof.category);
     if (comps.length > 0) {
       const myName = (prof.name || "").toLowerCase();
       const withMe = comps.map((c) => ({ ...c, isMe: c.name.toLowerCase() === myName }));

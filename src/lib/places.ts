@@ -59,29 +59,45 @@ export async function lookupPlace(query: string): Promise<PlacesInfo | null> {
   }
 }
 
-/** Concorrentes do mesmo tipo num raio (metros) ao redor do ponto. */
-export async function nearbyCompetitors(lat: number, lng: number, type: string | undefined, radiusM = 3000): Promise<Competitor[]> {
+/** Concorrentes do mesmo segmento num raio (metros). Usa busca por categoria
+ *  (mais robusta) com viés de localização e, se falhar, searchNearby por tipo. */
+export async function nearbyCompetitors(lat: number, lng: number, type: string | undefined, radiusM = 3000, categoryText?: string): Promise<Competitor[]> {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   if (!key) return [];
+  const mask = "places.displayName,places.rating,places.userRatingCount,places.location";
+  const parse = (arr: { displayName?: { text: string }; rating?: number; userRatingCount?: number; location?: { latitude?: number; longitude?: number } }[]) =>
+    (arr ?? []).filter((p) => p.location?.latitude != null)
+      .map((p) => ({ name: p.displayName?.text ?? "", rating: p.rating ?? 0, reviewCount: p.userRatingCount ?? 0, lat: p.location!.latitude!, lng: p.location!.longitude! }));
+
+  // 1) Busca por categoria com viés de localização.
+  const q = (categoryText ?? "").trim();
+  if (q) {
+    try {
+      const res = await fetch(`${BASE}/places:searchText`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": mask },
+        body: JSON.stringify({ textQuery: q, languageCode: "pt-BR", regionCode: "BR", maxResultCount: 20,
+          locationBias: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusM } } }),
+      });
+      if (res.ok) {
+        const d = (await res.json()) as { places?: Parameters<typeof parse>[0] };
+        const list = parse(d.places ?? []);
+        if (list.length >= 3) return list;
+      }
+    } catch { /* tenta nearby */ }
+  }
+
+  // 2) Fallback: searchNearby por tipo (ou sem tipo).
   try {
-    const body: Record<string, unknown> = {
-      maxResultCount: 20,
-      languageCode: "pt-BR",
-      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusM } },
-    };
-    if (type) body.includedPrimaryTypes = [type];
+    const body: Record<string, unknown> = { maxResultCount: 20, languageCode: "pt-BR",
+      locationRestriction: { circle: { center: { latitude: lat, longitude: lng }, radius: radiusM } } };
+    if (type) body.includedTypes = [type];
     const res = await fetch(`${BASE}/places:searchNearby`, {
       method: "POST",
-      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key,
-        "X-Goog-FieldMask": "places.displayName,places.rating,places.userRatingCount,places.location" },
+      headers: { "Content-Type": "application/json", "X-Goog-Api-Key": key, "X-Goog-FieldMask": mask },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return [];
-    const d = (await res.json()) as { places?: { displayName?: { text: string }; rating?: number; userRatingCount?: number; location?: { latitude?: number; longitude?: number } }[] };
-    return (d.places ?? [])
-      .filter((p) => p.location?.latitude != null)
-      .map((p) => ({ name: p.displayName?.text ?? "", rating: p.rating ?? 0, reviewCount: p.userRatingCount ?? 0, lat: p.location!.latitude!, lng: p.location!.longitude! }));
-  } catch {
-    return [];
-  }
+    if (res.ok) { const d = (await res.json()) as { places?: Parameters<typeof parse>[0] }; return parse(d.places ?? []); }
+  } catch { /* ignora */ }
+  return [];
 }
