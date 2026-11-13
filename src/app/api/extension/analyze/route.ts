@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { parseScrape, type ExtScrape } from "@/lib/extensionParse";
+import { lookupPlace } from "@/lib/places";
 
 export const dynamic = "force-dynamic";
 
@@ -25,14 +26,31 @@ export async function POST(request: Request) {
   if (!body.name) return cors(NextResponse.json({ error: "sem_dados" }, { status: 400 }));
 
   const prof = parseScrape(body);
+
+  // Enriquece com a Places API (dados estruturados e confiáveis), para que a
+  // análise seja a MESMA venha da busca ou do Maps. Extensão mantém os extras.
+  const q = [prof.name, prof.address].filter(Boolean).join(" ");
+  const pl = await lookupPlace(q);
+
   const place: PlaceData = {
-    name: prof.name, address: prof.address, primaryType: prof.category, phone: prof.phone, website: prof.website,
-    rating: prof.rating, reviewCount: prof.reviewCount, hasHours: prof.hasHours, photoCount: prof.photoCount,
-    description: prof.description, businessStatus: prof.businessStatus, googleMapsUri: prof.mapsUri,
-    photoUrl: prof.photoUrl, postsCount: prof.postsCount, qaCount: prof.qaCount, qaAnswered: prof.qaAnswered,
+    name: prof.name,
+    address: pl?.address ?? prof.address,
+    primaryType: pl?.category ?? prof.category,
+    phone: pl?.phone ?? prof.phone,
+    website: pl?.website ?? prof.website,
+    rating: pl?.rating ?? prof.rating,
+    reviewCount: pl?.reviewCount ?? prof.reviewCount,
+    hasHours: pl?.hasHours ?? prof.hasHours,
+    photoCount: Math.max(pl?.photoCount ?? 0, prof.photoCount ?? 0) || undefined,
+    description: pl?.description ?? prof.description,
+    businessStatus: pl?.businessStatus ?? prof.businessStatus,
+    googleMapsUri: pl?.mapsUri ?? prof.mapsUri,
+    photoUrl: prof.photoUrl,
+    photoName: pl?.photoName,
+    postsCount: prof.postsCount, qaCount: prof.qaCount, qaAnswered: prof.qaAnswered,
     attributesCount: prof.attributesCount, secondaryCount: prof.secondaryCount,
     hasSpecialHours: prof.hasSpecialHours, videoCount: prof.videoCount, verified: prof.verified,
-    hasLogo: prof.hasLogo, source: "extension",
+    hasLogo: prof.hasLogo, lat: pl?.lat, lng: pl?.lng, source: "extension",
   };
   const report = auditPlace(place);
 
