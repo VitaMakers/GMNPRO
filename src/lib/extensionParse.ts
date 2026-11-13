@@ -27,18 +27,26 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
   const lines = T.split("\n").map((l) => l.trim()).filter(Boolean);
   const find = (re: RegExp) => { const m = T.match(re); return m ? m[1] : undefined; };
 
-  // Linha com a nota: "4,6 (289) · Construtora"
-  const ratingLine = lines.find((l) => /^[0-5],\d\s*[\(（]/.test(l)) || lines.find((l) => /^[0-5],\d/.test(l)) || "";
-  const rating = (() => { const m = ratingLine.match(/([0-5],\d)/); return m ? parseFloat(m[1].replace(",", ".")) : undefined; })();
+  // Nota ancorada ao "(N)" das avaliações: "4,6 (289)" — evita pegar estrelas de reviews.
+  const anchor = T.match(/([0-5][.,]\d)\s*[\(（]\s*([\d.]{1,9})\s*[\)）]/);
+  const rating = (() => {
+    const m = anchor
+      || T.match(/([0-5][.,]\d)\s*(?:\u2605|★|estrela)/)
+      || T.match(/\b([0-5][.,]\d)\b/);
+    const v = m ? parseFloat(m[1].replace(",", ".")) : undefined;
+    return v != null && v >= 1 && v <= 5 ? v : undefined;
+  })();
 
-  // Avaliações: "(289)" ou "289 avaliações" ou "289 Avaliar"
+  // Avaliações: do próprio âncora, ou "289 avaliações/Avaliar"
   const reviewCount = (() => {
-    const m = T.match(/\(([\d.]{1,9})\)/) || T.match(/([\d.]{1,9})\s*(?:avaliaç|Avaliar|avaliac|coment)/i);
+    if (anchor) return parseInt(anchor[2].replace(/\./g, ""), 10);
+    const m = T.match(/([\d.]{1,9})\s*(?:avaliaç|Avaliar|avaliac|coment)/i);
     return m ? parseInt(m[1].replace(/\./g, ""), 10) : undefined;
   })();
 
-  // Categoria: depois do último "·" na linha da nota
+  // Categoria: na linha que contém o âncora, depois do último "·"
   let category: string | undefined;
+  const ratingLine = lines.find((l) => anchor && l.includes(anchor[0])) || lines.find((l) => /^[0-5][.,]\d/.test(l)) || "";
   if (ratingLine.includes("·")) category = ratingLine.split("·").pop()?.trim();
   if (category && (/\d/.test(category) || category.length > 40)) category = undefined;
 
