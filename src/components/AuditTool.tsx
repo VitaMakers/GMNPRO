@@ -96,16 +96,10 @@ export default function AuditTool() {
             </p>
           </div>
         </div>
-        {extUrl ? (
-          <a href={extUrl} target="_blank" rel="noopener noreferrer"
-            className="shrink-0 rounded-xl bg-brand px-4 py-2 text-center text-sm font-semibold text-white transition hover:opacity-90">
-            Instalar extensão
-          </a>
-        ) : (
-          <span className="shrink-0 rounded-xl border border-border bg-white px-4 py-2 text-center text-sm font-medium text-muted">
-            Em breve
-          </span>
-        )}
+        <a href={extUrl || "/extensao"} target={extUrl ? "_blank" : undefined} rel="noopener noreferrer"
+          className="shrink-0 rounded-xl bg-brand px-4 py-2 text-center text-sm font-semibold text-white transition hover:opacity-90">
+          Instalar extensão
+        </a>
       </div>
 
       {!report && (
