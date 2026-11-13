@@ -320,12 +320,13 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
           const organicAll = c.list.filter((x) => !x.isPaid);
           const organic = expanded ? organicAll : organicAll.slice(0, 5);
           const me = c.list.find((x) => x.isMe);
-          const leader = organic.find((x) => !x.isMe) ?? organic[0];
+          const leader = organicAll[0];
+          const isLeader = !!me && !!leader && (me.name === leader.name || c.myRank === 1);
           const cmp = (mine?: number, other?: number) => (mine ?? 0) >= (other ?? 0);
           return (
             <>
-              {/* Comparativo Você × 1º colocado */}
-              {me && leader && leader.name !== me.name && (
+              {/* Comparativo Você × 1º colocado (só quando você NÃO é o 1º) */}
+              {me && leader && !isLeader && (
                 <div className="mt-4 overflow-hidden rounded-2xl border border-border">
                   <div className="grid grid-cols-2 bg-surface-2 text-center text-xs font-semibold">
                     <div className="border-r border-border p-2 text-emerald-700">⭐ Você</div>
@@ -336,7 +337,7 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
                     <div className="p-3"><p className="truncate text-sm font-medium">{leader.name}</p></div>
                   </div>
                   {[
-                    { label: "Posição no Maps", mine: `${c.myRank ?? "—"}º`, other: "1º", better: (c.myRank ?? 99) <= 1 },
+                    { label: "Posição no Maps", mine: `${c.myRank ?? "—"}º`, other: `${leader.rank}º`, better: (c.myRank ?? 99) <= leader.rank },
                     { label: "Nota", mine: me.rating ? `${me.rating}★` : "—", other: leader.rating ? `${leader.rating}★` : "—", better: cmp(me.rating, leader.rating) },
                     { label: "Avaliações", mine: me.reviewCount.toLocaleString("pt-BR"), other: leader.reviewCount.toLocaleString("pt-BR"), better: cmp(me.reviewCount, leader.reviewCount) },
                   ].map((r) => (
@@ -346,6 +347,12 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
                     </div>
                   ))}
                   <p className="border-t border-border bg-surface-2 p-2 text-center text-[11px] text-muted">{r_label(me, leader, c.myRank)}</p>
+                </div>
+              )}
+
+              {isLeader && (
+                <div className="mt-4 rounded-2xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+                  🏆 Esta empresa é a <strong>1ª colocada orgânica</strong> para &ldquo;{c.keyword}&rdquo;. Mantenha avaliações e postagens em dia para não perder a posição.
                 </div>
               )}
 
