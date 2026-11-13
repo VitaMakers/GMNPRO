@@ -69,8 +69,33 @@ export default function AuditTool() {
     }
   }
 
+  const extUrl = process.env.NEXT_PUBLIC_EXTENSION_URL;
   return (
     <div className="space-y-6">
+      {/* Extensão opcional para dados ainda mais profundos */}
+      <div className="flex flex-col gap-3 rounded-2xl border border-brand/30 bg-brand/5 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-lg bg-brand/10 text-brand-2">🧩</span>
+          <div>
+            <p className="text-sm font-semibold">Quer dados ainda mais profundos?</p>
+            <p className="text-xs text-muted">
+              Instale a extensão do Chrome (opcional) para a Pré-análise ler também posts, perguntas e
+              respostas e atributos direto da página do Google — o máximo de precisão.
+            </p>
+          </div>
+        </div>
+        {extUrl ? (
+          <a href={extUrl} target="_blank" rel="noopener noreferrer"
+            className="shrink-0 rounded-xl bg-brand px-4 py-2 text-center text-sm font-semibold text-white transition hover:opacity-90">
+            Instalar extensão
+          </a>
+        ) : (
+          <span className="shrink-0 rounded-xl border border-border bg-white px-4 py-2 text-center text-sm font-medium text-muted">
+            Em breve
+          </span>
+        )}
+      </div>
+
       {!report && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
           <label className="mb-2 block text-sm font-medium">Nome da empresa</label>
