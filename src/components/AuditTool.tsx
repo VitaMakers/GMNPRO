@@ -288,50 +288,56 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
       setC(d.competitors);
     } finally { setBusy(false); }
   }
-  const max = Math.max(1, ...c.list.map((x) => x.reviewCount));
-  const above = c.myReviews >= c.avgReviews;
-  const points = c.list.filter((x) => typeof x.lat === "number").map((x) => ({ title: x.name, lat: x.lat, lng: x.lng, active: !!x.isMe, detail: `${x.reviewCount} avaliações` }));
+  const points = c.list.filter((x) => x.lat).map((x) => ({ title: x.name, lat: x.lat, lng: x.lng, active: !!x.isMe, detail: `#${x.rank} no Maps` }));
   return (
     <div className="space-y-4">
       <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-        <h3 className="font-display text-lg font-bold">Concorrentes e segmento · mesmo nicho na região</h3>
-        <p className="mt-1 text-sm text-muted">Até 20 empresas do mesmo segmento no Google na região, e se a empresa está acima ou abaixo da média de avaliações.</p>
+        <h3 className="font-display text-lg font-bold">Ranking no Google Maps · quem aparece primeiro</h3>
+        <p className="mt-1 text-sm text-muted">Posição real de ranqueamento no Google/Maps para o nicho buscado — e quem está pagando anúncio.</p>
         {scanId && (
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted">Nicho:</span>
+            <span className="text-xs text-muted">Nicho / busca:</span>
             <input value={kw} onChange={(e) => setKw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && update()}
               placeholder="ex.: buffet para casamentos em Sorocaba"
               className="min-w-[240px] flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand" />
             <button onClick={update} disabled={busy || !kw.trim()} className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {busy ? "Buscando…" : "Atualizar concorrentes"}
+              {busy ? "Buscando…" : "Atualizar ranking"}
             </button>
             {err && <span className="w-full text-xs text-red-500">{err}</span>}
           </div>
         )}
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
-          <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.total}</p><p className="text-[11px] text-muted">empresas analisadas</p></div>
-          <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold">{c.avgReviews}</p><p className="text-[11px] text-muted">média de avaliações do segmento</p></div>
-          <div className="rounded-xl border border-border/60 bg-surface-2 p-3 text-center"><p className="text-xl font-bold" style={{ color: above ? "#059669" : "#dc2626" }}>{c.myReviews}</p><p className="text-[11px] text-muted">suas avaliações ({above ? "acima" : "abaixo"} da média)</p></div>
-        </div>
-        {c.myRank && <p className="mt-2 text-sm">Posição por volume de avaliações: <strong>{c.myRank}º de {c.total}</strong>{c.category ? ` · categoria: ${c.category}` : ""}.</p>}
 
-        <p className="mb-2 mt-5 text-sm font-semibold">Quantidade de avaliações por empresa</p>
-        <ul className="space-y-1.5">
-          {c.list.map((x, i) => (
-            <li key={i} className="flex items-center gap-2">
-              <span className="w-44 shrink-0 truncate text-xs" title={x.name}>{i + 1}. {x.isMe ? "⭐ " : ""}{x.name}</span>
-              <div className="h-5 flex-1 overflow-hidden rounded-md bg-surface-2">
-                <div className="h-full rounded-md" style={{ width: `${(x.reviewCount / max) * 100}%`, background: x.isMe ? "#059669" : "#3b82f6" }} />
-              </div>
-              <span className={`w-20 shrink-0 text-right text-xs ${x.isMe ? "font-bold text-brand-2" : "text-muted"}`}>{x.reviewCount} {x.rating ? `· ${x.rating}★` : ""}</span>
+        <p className="mt-4 text-sm">
+          {c.myRank
+            ? <>A empresa aparece em <strong className={c.myRank <= 3 ? "text-emerald-600" : c.myRank <= 10 ? "text-amber-600" : "text-red-500"}>{c.myRank}º lugar</strong> no Google Maps para &ldquo;{c.keyword}&rdquo;.</>
+            : <>A empresa <strong className="text-red-500">não aparece no top {c.total}</strong> do Google Maps para &ldquo;{c.keyword}&rdquo;.</>}
+          {c.segmentAvg != null && <> Nota média dos primeiros colocados: <strong>{c.segmentAvg}★</strong>.</>}
+        </p>
+
+        <p className="mb-2 mt-5 text-sm font-semibold">Top 5 — quem o Google mostra primeiro</p>
+        <ul className="space-y-2">
+          {c.list.map((x) => (
+            <li key={x.rank} className={`flex items-center gap-3 rounded-xl border p-3 ${x.isMe ? "border-emerald-300 bg-emerald-50" : "border-border/70"}`}>
+              <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold text-white ${x.rank <= 3 ? "bg-emerald-600" : x.rank <= 10 ? "bg-amber-500" : "bg-gray-400"}`}>{x.rank}</span>
+              <span className="min-w-0 flex-1">
+                <span className="flex items-center gap-2 text-sm font-medium">
+                  <span className="truncate">{x.isMe ? "⭐ " : ""}{x.name}</span>
+                  {x.isPaid && <span className="shrink-0 rounded-full bg-blue-100 px-2 py-0.5 text-[10px] font-bold text-blue-700">ANÚNCIO</span>}
+                </span>
+                <span className="text-xs text-muted">{x.rating ? `${x.rating}★` : "sem nota"}{x.reviewCount ? ` · ${x.reviewCount} avaliações` : ""}</span>
+              </span>
             </li>
           ))}
         </ul>
+
+        <div className="mt-4 rounded-xl border border-border/60 bg-surface-2 p-3 text-xs text-muted">
+          <strong className="text-foreground">Por que esses aparecem primeiro?</strong> O Google ranqueia por <strong>relevância</strong> (nome/categoria/palavra-chave), <strong>distância</strong> de quem busca e <strong>proeminência</strong> (nota, volume de avaliações, atividade do perfil). Quem está marcado como <strong>ANÚNCIO</strong> pagou para aparecer no topo.
+        </div>
       </div>
 
       {points.length > 0 && (
         <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
-          <div className="border-b border-border/60 px-5 py-3"><p className="text-sm font-semibold">Mapa de concorrentes do nicho (verde = a empresa)</p></div>
+          <div className="border-b border-border/60 px-5 py-3"><p className="text-sm font-semibold">Mapa dos primeiros colocados (verde = a empresa)</p></div>
           <div className="p-3"><LocationsMap points={points} height={320} /></div>
         </div>
       )}

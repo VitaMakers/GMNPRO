@@ -2,7 +2,8 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { parseScrape, type ExtScrape } from "@/lib/extensionParse";
-import { lookupPlace, nearbyCompetitors } from "@/lib/places";
+import { lookupPlace } from "@/lib/places";
+import { dataForSeoConfigured, mapsTop } from "@/lib/dataforseo";
 
 export const dynamic = "force-dynamic";
 
@@ -56,30 +57,23 @@ export async function POST(request: Request) {
   const report = auditPlace(place);
   report.confirmed = !!pl;
 
-  // Análise de concorrentes/segmento (raio de 3 km) — como o GBP.
-  if (pl?.lat != null && pl?.lng != null) {
-    const radiusKm = 8;
-    // Palavra do nicho: usa a categoria se for específica; senão a 1ª palavra do nome.
+  // Ranking real no Google Maps para o nicho (DataForSEO) — quem aparece primeiro.
+  if (pl?.lat != null && pl?.lng != null && dataForSeoConfigured()) {
     const generic = /^(aliment|comida|estabelec|empresa|serviç|loja|local|neg[oó]cio)/i;
     const cat = (pl.category || prof.category || "").trim();
     const nameWord = (prof.name || "").split(/[\s|–\-]/).map((w) => w.trim()).find((w) => w.length >= 3);
     const keyword = cat && !generic.test(cat) ? cat : (nameWord || cat);
-    const comps = await nearbyCompetitors(pl.lat, pl.lng, pl.primaryType, radiusKm * 1000, keyword);
-    if (comps.length > 0) {
-      const myName = (prof.name || "").toLowerCase();
-      const withMe = comps.map((c) => ({ ...c, isMe: c.name.toLowerCase() === myName }));
-      if (!withMe.some((c) => c.isMe)) withMe.push({ name: prof.name, rating: pl.rating ?? 0, reviewCount: pl.reviewCount ?? 0, lat: pl.lat, lng: pl.lng, isMe: true });
-      const rated = withMe.filter((c) => c.rating > 0);
-      const segmentAvg = rated.length ? Math.round((rated.reduce((s2, c) => s2 + c.rating, 0) / rated.length) * 10) / 10 : null;
-      const avgReviews = Math.round(withMe.reduce((s2, c) => s2 + c.reviewCount, 0) / withMe.length);
-      const myReviews = pl.reviewCount ?? 0;
-      const byReviews = [...withMe].sort((a, b) => b.reviewCount - a.reviewCount);
-      const myRank = byReviews.findIndex((c) => c.isMe) + 1 || null;
-      report.competitors = {
-        radiusKm, segmentAvg, avgReviews, myReviews, category: pl.category, keyword, myRank, total: withMe.length,
-        list: byReviews.slice(0, 10).map((c) => ({ name: c.name, rating: c.rating, reviewCount: c.reviewCount, lat: c.lat, lng: c.lng, isMe: c.isMe })),
-      };
-    }
+    try {
+      const { items, myRank } = await mapsTop(keyword, pl.lat, pl.lng, { title: prof.name });
+      if (items.length > 0) {
+        const rated = items.filter((i) => i.rating);
+        const segmentAvg = rated.length ? Math.round((rated.reduce((s2, i) => s2 + (i.rating ?? 0), 0) / rated.length) * 10) / 10 : null;
+        report.competitors = {
+          keyword, segmentAvg, myRank, total: items.length,
+          list: items.slice(0, 5).map((i) => ({ rank: i.rank, name: i.title, rating: i.rating ?? 0, reviewCount: i.reviews ?? 0, isPaid: i.isPaid, lat: i.lat ?? 0, lng: i.lng ?? 0, isMe: i.me })),
+        };
+      }
+    } catch { /* sem ranking */ }
   }
 
   const { data: saved } = await supabase

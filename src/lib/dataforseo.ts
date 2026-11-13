@@ -160,3 +160,32 @@ export async function searchVolumes(keywords: string[]): Promise<KeywordVolume[]
     .filter((r) => r.keyword)
     .sort((a, b) => b.volume - a.volume);
 }
+
+export interface MapsTopItem {
+  rank: number; title: string; rating: number | null; reviews: number | null;
+  isPaid: boolean; lat: number | null; lng: number | null; me: boolean;
+}
+
+/** Top N do Google Maps para a keyword a partir de (lat,lng), na ordem de ranqueamento. */
+export async function mapsTop(keyword: string, lat: number, lng: number, target: MapsTarget, depth = 20): Promise<{ items: MapsTopItem[]; myRank: number | null }> {
+  const res = await fetch(`${BASE}/serp/google/maps/live/advanced`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify([{ keyword, location_coordinate: `${lat.toFixed(6)},${lng.toFixed(6)},14z`, language_code: "pt", depth }]),
+  });
+  if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
+  const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; result?: { items?: (MapsItem & { latitude?: number; longitude?: number; is_paid?: boolean })[] }[] }[] };
+  const task = data.tasks?.[0];
+  if (!task || (task.status_code && task.status_code >= 40000)) throw new Error(task?.status_message ?? "DataForSEO erro");
+  const raw = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search" || i.type === "maps_paid");
+  const items: MapsTopItem[] = raw.map((i) => ({
+    rank: i.rank_group ?? 0, title: i.title ?? "",
+    rating: i.rating?.value ?? null, reviews: i.rating?.votes_count ?? null,
+    isPaid: !!i.is_paid || i.type === "maps_paid",
+    lat: typeof i.latitude === "number" ? i.latitude : null,
+    lng: typeof i.longitude === "number" ? i.longitude : null,
+    me: matches(i, target),
+  }));
+  const hit = items.find((i) => i.me);
+  return { items, myRank: hit?.rank ?? null };
+}
