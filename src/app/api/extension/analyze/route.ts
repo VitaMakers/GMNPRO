@@ -2,10 +2,6 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { parseScrape, type ExtScrape } from "@/lib/extensionParse";
-import { lookupPlace } from "@/lib/places";
-import { getAccess } from "@/lib/access";
-import { preAnaliseStatus, countPreAnalise } from "@/lib/preanalise";
-import { dataForSeoConfigured, mapsTop } from "@/lib/dataforseo";
 
 export const dynamic = "force-dynamic";
 
@@ -18,8 +14,8 @@ function cors(res: NextResponse) {
 }
 export function OPTIONS() { return cors(NextResponse.json({ ok: true })); }
 
-/** Recebe o conteúdo bruto raspado pela extensão e gera a pré-análise.
- *  A extração fica aqui (servidor) para melhorar sem reinstalar a extensão. */
+/** Pré-análise GRÁTIS e ILIMITADA: usa só os dados lidos pela extensão (como o
+ *  GBP). O ranking de concorrentes é um passo separado que gasta 1 crédito. */
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
@@ -28,62 +24,18 @@ export async function POST(request: Request) {
   const body = (await request.json().catch(() => ({}))) as ExtScrape;
   if (!body.name) return cors(NextResponse.json({ error: "sem_dados" }, { status: 400 }));
 
-  // Limite mensal de pré-análises (controle de custo).
-  const access = await getAccess(supabase, user.id, user.email);
-  const pa = await preAnaliseStatus(supabase, user.id, access);
-  if (!pa.allowed) {
-    return cors(NextResponse.json({ error: "limite", detail: `Você atingiu o limite de ${pa.limit} pré-análises neste mês.` }, { status: 429 }));
-  }
-
   const prof = parseScrape(body);
-
-  // Enriquece com a Places API (dados estruturados e confiáveis), para que a
-  // análise seja a MESMA venha da busca ou do Maps. Extensão mantém os extras.
-  const q = [prof.name, prof.address].filter(Boolean).join(" ");
-  const pl = await lookupPlace(q);
-
   const place: PlaceData = {
-    name: prof.name,
-    address: pl?.address ?? prof.address,
-    primaryType: pl?.category ?? prof.category,
-    phone: pl?.phone ?? prof.phone,
-    website: pl?.website ?? prof.website,
-    rating: pl?.rating ?? prof.rating,
-    reviewCount: pl?.reviewCount ?? prof.reviewCount,
-    hasHours: pl?.hasHours ?? prof.hasHours,
-    photoCount: Math.max(pl?.photoCount ?? 0, prof.photoCount ?? 0) || undefined,
-    description: pl?.description ?? prof.description,
-    businessStatus: pl?.businessStatus ?? prof.businessStatus,
-    googleMapsUri: pl?.mapsUri ?? prof.mapsUri,
-    photoUrl: prof.photoUrl,
-    photoName: pl?.photoName,
+    name: prof.name, address: prof.address, primaryType: prof.category, phone: prof.phone, website: prof.website,
+    rating: prof.rating, reviewCount: prof.reviewCount, hasHours: prof.hasHours, photoCount: prof.photoCount,
+    description: prof.description, businessStatus: prof.businessStatus, googleMapsUri: prof.mapsUri, photoUrl: prof.photoUrl,
     postsCount: prof.postsCount, qaCount: prof.qaCount, qaAnswered: prof.qaAnswered,
     attributesCount: prof.attributesCount, secondaryCount: prof.secondaryCount,
     hasSpecialHours: prof.hasSpecialHours, videoCount: prof.videoCount, verified: prof.verified,
     hasLogo: prof.hasLogo, reviewReplies: prof.ownerReplies, reviewsSampled: prof.reviewsSampled,
-    lat: pl?.lat, lng: pl?.lng, source: "extension",
+    source: "extension",
   };
   const report = auditPlace(place);
-  report.confirmed = !!pl;
-
-  // Ranking real no Google Maps para o nicho (DataForSEO) — quem aparece primeiro.
-  if (pl?.lat != null && pl?.lng != null && dataForSeoConfigured()) {
-    const generic = /^(aliment|comida|estabelec|empresa|serviç|loja|local|neg[oó]cio)/i;
-    const cat = (pl.category || prof.category || "").trim();
-    const nameWord = (prof.name || "").split(/[\s|–\-]/).map((w) => w.trim()).find((w) => w.length >= 3);
-    const keyword = cat && !generic.test(cat) ? cat : (nameWord || cat);
-    try {
-      const { items, myRank } = await mapsTop(keyword, pl.lat, pl.lng, { title: prof.name });
-      if (items.length > 0) {
-        const rated = items.filter((i) => i.rating);
-        const segmentAvg = rated.length ? Math.round((rated.reduce((s2, i) => s2 + (i.rating ?? 0), 0) / rated.length) * 10) / 10 : null;
-        report.competitors = {
-          keyword, segmentAvg, myRank, total: items.length,
-          list: items.slice(0, 20).map((i) => ({ rank: i.rank, name: i.title, rating: i.rating ?? 0, reviewCount: i.reviews ?? 0, isPaid: i.isPaid, image: i.image, category: i.category, openNow: i.openNow, website: i.website, snippet: i.snippet, lat: i.lat ?? 0, lng: i.lng ?? 0, isMe: i.me })),
-        };
-      }
-    } catch { /* sem ranking */ }
-  }
 
   const { data: saved } = await supabase
     .from("extension_scans")
@@ -91,7 +43,6 @@ export async function POST(request: Request) {
     .select("id")
     .maybeSingle();
 
-  await countPreAnalise(supabase, user.id);
   const base = process.env.APP_BASE_URL || new URL(request.url).origin;
   return cors(NextResponse.json({ ok: true, scanId: saved?.id ?? null, url: `${base}/auditoria?scan=${saved?.id ?? ""}`, report, parsed: prof }));
 }

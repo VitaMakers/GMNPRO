@@ -238,7 +238,9 @@ function Report({ report, onReset, scanId }: { report: AuditReport; onReset: () 
       </div>
 
       {/* Concorrentes e segmento (raio de 3 km) — como o GBP */}
-      {report.competitors && <Competitors c={report.competitors} scanId={scanId} />}
+      {scanId && (
+        <Competitors scanId={scanId} defaultKeyword={(report.place.primaryType && !/aliment|servi|estabele|empresa/i.test(report.place.primaryType) ? report.place.primaryType : (report.place.name || "").split(/[\s|–-]/)[0]) || ""} />
+      )}
 
       {report.priorities.length > 0 && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
@@ -273,81 +275,83 @@ function Report({ report, onReset, scanId }: { report: AuditReport; onReset: () 
   );
 }
 
-function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["competitors"]>; scanId: string | null }) {
-  const [c, setC] = useState(initial);
-  const [kw, setKw] = useState(initial.keyword ?? "");
+function Competitors({ scanId, defaultKeyword }: { scanId: string; defaultKeyword: string }) {
+  const [c, setC] = useState<NonNullable<AuditReport["competitors"]> | null>(null);
+  const [kw, setKw] = useState(defaultKeyword);
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [credits, setCredits] = useState<number | null>(null);
   const [expanded, setExpanded] = useState(false);
-  async function update() {
-    if (!scanId || !kw.trim()) return;
+
+  async function run() {
+    if (!kw.trim()) return;
     setBusy(true); setErr("");
     try {
       const res = await fetch("/api/extension/competitors", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ scanId, keyword: kw.trim() }) });
       const d = await res.json();
-      if (!res.ok) { setErr(d.detail ?? d.error ?? "Não foi possível atualizar."); return; }
-      setC(d.competitors);
+      if (!res.ok) { setErr(d.detail ?? d.error ?? "Não foi possível."); if (typeof d.credits === "number") setCredits(d.credits); return; }
+      setC(d.competitors); if (typeof d.credits === "number") setCredits(d.credits);
     } finally { setBusy(false); }
   }
-  const points = c.list.filter((x) => x.lat).map((x) => ({ title: x.name, lat: x.lat, lng: x.lng, active: !!x.isMe, detail: `#${x.rank} no Maps` }));
+
+  const points = c ? c.list.filter((x) => x.lat).map((x) => ({ title: x.name, lat: x.lat, lng: x.lng, active: !!x.isMe, detail: `#${x.rank} no Maps` })) : [];
+
   return (
     <div className="space-y-4">
       <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-        <h3 className="font-display text-lg font-bold">Ranking no Google Maps · quem aparece primeiro</h3>
-        <p className="mt-1 text-sm text-muted">Posição real de ranqueamento no Google/Maps para o nicho buscado — e quem está pagando anúncio.</p>
-        {scanId && (
-          <div className="mt-3 flex flex-wrap items-center gap-2">
-            <span className="text-xs text-muted">Nicho / busca:</span>
-            <input value={kw} onChange={(e) => setKw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && update()}
-              placeholder="ex.: buffet para casamentos em Sorocaba"
-              className="min-w-[240px] flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand" />
-            <button onClick={update} disabled={busy || !kw.trim()} className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
-              {busy ? "Buscando…" : "Atualizar ranking"}
-            </button>
-            {err && <span className="w-full text-xs text-red-500">{err}</span>}
-          </div>
-        )}
-
-        <p className="mt-4 text-sm">
-          {c.myRank
-            ? <>A empresa aparece em <strong className={c.myRank <= 3 ? "text-emerald-600" : c.myRank <= 10 ? "text-amber-600" : "text-red-500"}>{c.myRank}º lugar</strong> no Google Maps para &ldquo;{c.keyword}&rdquo;.</>
-            : <>A empresa <strong className="text-red-500">não aparece no top {c.total}</strong> do Google Maps para &ldquo;{c.keyword}&rdquo;.</>}
-          {c.segmentAvg != null && <> Nota média dos primeiros colocados: <strong>{c.segmentAvg}★</strong>.</>}
-        </p>
-
-        {(() => {
-          const paid = c.list.filter((x) => x.isPaid);
-          const organicAll = c.list.filter((x) => !x.isPaid);
-          const organic = expanded ? organicAll : organicAll.slice(0, 5);
-          return (
-            <>
-              {/* Patrocinados */}
-              {paid.length > 0 && (
-                <>
-                  <p className="mb-2 mt-5 text-sm font-semibold">💳 Patrocinados (Google Ads)</p>
-                  <ul className="space-y-2">{paid.map((x) => <CompRow key={"p" + x.rank + x.name} x={x} showRank={false} />)}</ul>
-                </>
-              )}
-
-              {/* Orgânicos */}
-              <p className="mb-2 mt-5 text-sm font-semibold">🌱 Resultados orgânicos (top {expanded ? organicAll.length : Math.min(5, organicAll.length)})</p>
-              <ul className="space-y-2">{organic.map((x, i) => <CompRow key={"o" + x.rank + x.name} x={x} pos={i + 1} showRank />)}</ul>
-              {organicAll.length > 5 && (
-                <button onClick={() => setExpanded((v) => !v)} className="mx-auto mt-3 flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold text-brand-2 transition hover:bg-surface-2">
-                  {expanded ? "Ver menos" : `Ver mais ${organicAll.length - 5} empresas`}
-                  <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
-                </button>
-              )}
-            </>
-          );
-        })()}
-
-        <div className="mt-4 rounded-xl border border-border/60 bg-surface-2 p-3 text-xs text-muted">
-          <strong className="text-foreground">Por que esses aparecem primeiro?</strong> O Google ranqueia por <strong>relevância</strong> (nome/categoria/palavra-chave), <strong>distância</strong> de quem busca e <strong>proeminência</strong> (nota, volume de avaliações, atividade do perfil). Quem está marcado como <strong>ANÚNCIO</strong> pagou para aparecer no topo (não é ranqueamento orgânico).
+        <h3 className="font-display text-lg font-bold">Ranking de concorrentes no Google Maps</h3>
+        <p className="mt-1 text-sm text-muted">Veja quem o Google mostra primeiro no nicho e quem paga anúncio. Cada consulta usa <strong>1 crédito</strong>.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-muted">Nicho / busca:</span>
+          <input value={kw} onChange={(e) => setKw(e.target.value)} onKeyDown={(e) => e.key === "Enter" && run()}
+            placeholder="ex.: buffet para casamentos em Sorocaba"
+            className="min-w-[240px] flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand" />
+          <button onClick={run} disabled={busy || !kw.trim()} className="rounded-xl bg-brand px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">
+            {busy ? "Buscando…" : c ? "Atualizar (1 crédito)" : "Ver concorrentes (1 crédito)"}
+          </button>
         </div>
+        {credits != null && <p className="mt-1 text-[11px] text-muted">Créditos restantes: <strong>{credits}</strong></p>}
+        {err && <p className="mt-2 text-xs text-red-500">{err}</p>}
+
+        {c && (
+          <>
+            <p className="mt-4 text-sm">
+              {c.myRank
+                ? <>A empresa aparece em <strong className={c.myRank <= 3 ? "text-emerald-600" : c.myRank <= 10 ? "text-amber-600" : "text-red-500"}>{c.myRank}º lugar</strong> no Google Maps para &ldquo;{c.keyword}&rdquo;.</>
+                : <>A empresa <strong className="text-red-500">não aparece no top {c.total}</strong> do Google Maps para &ldquo;{c.keyword}&rdquo;.</>}
+              {c.segmentAvg != null && <> Nota média dos primeiros colocados: <strong>{c.segmentAvg}★</strong>.</>}
+            </p>
+            {(() => {
+              const paid = c.list.filter((x) => x.isPaid);
+              const organicAll = c.list.filter((x) => !x.isPaid);
+              const organic = expanded ? organicAll : organicAll.slice(0, 5);
+              return (
+                <>
+                  {paid.length > 0 && (
+                    <>
+                      <p className="mb-2 mt-5 text-sm font-semibold">💳 Patrocinados (Google Ads)</p>
+                      <ul className="space-y-2">{paid.map((x) => <CompRow key={"p" + x.rank + x.name} x={x} showRank={false} />)}</ul>
+                    </>
+                  )}
+                  <p className="mb-2 mt-5 text-sm font-semibold">🌱 Resultados orgânicos (top {expanded ? organicAll.length : Math.min(5, organicAll.length)})</p>
+                  <ul className="space-y-2">{organic.map((x, i) => <CompRow key={"o" + x.rank + x.name} x={x} pos={i + 1} showRank />)}</ul>
+                  {organicAll.length > 5 && (
+                    <button onClick={() => setExpanded((v) => !v)} className="mx-auto mt-3 flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold text-brand-2 transition hover:bg-surface-2">
+                      {expanded ? "Ver menos" : `Ver mais ${organicAll.length - 5} empresas`}
+                      <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+                    </button>
+                  )}
+                </>
+              );
+            })()}
+            <div className="mt-4 rounded-xl border border-border/60 bg-surface-2 p-3 text-xs text-muted">
+              <strong className="text-foreground">Por que esses aparecem primeiro?</strong> O Google ranqueia por <strong>relevância</strong>, <strong>distância</strong> e <strong>proeminência</strong> (nota, avaliações, atividade). Quem está marcado como <strong>ANÚNCIO</strong> pagou para aparecer no topo.
+            </div>
+          </>
+        )}
       </div>
 
-      {points.length > 0 && (
+      {c && points.length > 0 && (
         <div className="overflow-hidden rounded-3xl border border-border bg-white card-soft">
           <div className="border-b border-border/60 px-5 py-3"><p className="text-sm font-semibold">Mapa dos primeiros colocados (verde = a empresa)</p></div>
           <div className="p-3"><LocationsMap points={points} height={320} /></div>

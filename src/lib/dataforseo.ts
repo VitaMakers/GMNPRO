@@ -177,7 +177,11 @@ export async function mapsTop(keyword: string, lat: number, lng: number, target:
   if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; result?: { items?: (MapsItem & { latitude?: number; longitude?: number; is_paid?: boolean; main_image?: string; category?: string; url?: string; snippet?: string; work_time?: { work_hours?: { current_status?: string } } })[] }[] }[] };
   const task = data.tasks?.[0];
-  if (!task || (task.status_code && task.status_code >= 40000)) throw new Error(task?.status_message ?? "DataForSEO erro");
+  if (!task) throw new Error("DataForSEO erro");
+  // "No Search Results" e afins: não é erro — retorna vazio.
+  if (task.status_code && task.status_code >= 40000 && !/no search result|no result/i.test(task.status_message ?? "")) {
+    throw new Error(task.status_message ?? "DataForSEO erro");
+  }
   const raw = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search" || i.type === "maps_paid");
   const items: MapsTopItem[] = raw.map((i) => ({
     rank: i.rank_group ?? 0, title: i.title ?? "",
