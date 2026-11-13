@@ -49,26 +49,25 @@
 
   function findMapsLink() {
     const cand = document.querySelector('a[href*="/maps/place/"]')
-      || document.querySelector('a[href*="maps.google."][href*="/place"]')
-      || Array.from(document.querySelectorAll('a[href*="/maps/"]')).find((x) => /\/maps\/place|\/maps\?/.test(x.href))
-      || document.querySelector('a[data-url*="/maps/place"]');
+      || document.querySelector('a[href*="google.com/maps"], a[href*="maps.google"]')
+      || document.querySelector('a[data-url*="/maps"]');
     return cand ? (cand.href || cand.getAttribute("data-url")) : null;
   }
 
   async function run(btn) {
     setBtn(btn, "Lendo a ficha…", true);
     try {
-      // Na busca: se achar link do Maps, abre lá (mais dados). Senão, lê o painel da busca.
+      // Na busca: navega a PRÓPRIA aba para o Maps (mais confiável). Lá a análise roda sozinha.
       if (!isMaps) {
         const mapsLink = findMapsLink();
         if (mapsLink) {
+          setBtn(btn, "Abrindo no Maps…", true);
           const u = new URL(mapsLink, location.origin);
           u.hash = "gmnanalyze";
-          window.open(u.toString(), "_blank");
-          setBtn(btn, "Abrindo no Maps…", false);
-          setTimeout(() => setBtn(btn, "Analisar no GMN PRO", false), 2500);
+          location.assign(u.toString());
           return;
         }
+        // Sem link do Maps: lê o painel da busca mesmo.
       }
       const data = await scrape();
       if (!data.name) { setBtn(btn, "Abra uma ficha de empresa", false); return; }
