@@ -42,6 +42,8 @@ export interface PlaceData {
   secondaryCount?: number;
   reviewReplies?: number;
   reviewsSampled?: number;
+  photos360?: boolean;
+  lastPost?: string;
   hasSpecialHours?: boolean;
   videoCount?: number;
   verified?: boolean;
@@ -263,8 +265,11 @@ export function auditPlace(place: PlaceData): AuditReport {
 
     const posts = place.postsCount ?? 0;
     checks.push(check("posts", "Postagens recentes", posts >= 1 ? "ok" : "warn", posts >= 1 ? 6 : 0, 6,
-      posts > 0 ? `${posts} postagem(ns) visível(is).` : "Sem postagens recentes.",
+      posts > 0 ? `${posts} postagem(ns)${place.lastPost ? ` · última ${place.lastPost}` : ""}.` : "Sem postagens recentes.",
       "Poste novidades/ofertas toda semana para manter o perfil ativo."));
+    checks.push(check("fotos360", "Fotos 360°", place.photos360 ? "ok" : "warn", place.photos360 ? 2 : 0, 2,
+      place.photos360 ? "Tem foto(s) 360°." : "Sem fotos 360°.",
+      "Fotos 360° (tour virtual) aumentam a confiança e o tempo de atenção."));
 
     const qa = place.qaCount ?? 0;
     const qaOk = qa > 0 && (place.qaAnswered ?? 0) > 0;

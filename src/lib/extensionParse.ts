@@ -13,6 +13,8 @@ export interface ExtScrape {
   mapsUri?: string;
   isMaps?: boolean;
   reviewsText?: string;
+  mediaText?: string;
+  postsText?: string;
 }
 
 export interface ParsedProfile {
@@ -23,6 +25,7 @@ export interface ParsedProfile {
   postsCount?: number; qaCount?: number; qaAnswered?: number;
   attributesCount?: number; attributes?: string[]; foundingDate?: string; mapsUri?: string;
   secondaryCount?: number; hasSpecialHours?: boolean; videoCount?: number; hasLogo?: boolean; ownerReplies?: number; reviewsSampled?: number;
+  photos360?: boolean; lastPost?: string;
 }
 
 export function parseScrape(x: ExtScrape): ParsedProfile {
@@ -109,6 +112,10 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
   const hasSpecialHours = /feriado|Horário especial|horário comercial especial|Horas especiais/i.test(T);
   const verified = !/Reivindicar|Reivindique|É você o propriet|Seja o propriet|É o seu negócio/i.test(T);
   const RT = x.reviewsText ?? "";
+  const MT = x.mediaText ?? "";
+  const PT = x.postsText ?? "";
+  const photos360 = /\b360\b|esféric/i.test(MT);
+  const lastPost = (() => { const m = PT.match(/(há|faz)\s+([^\n.,]{1,20})/i); return m ? m[0] : undefined; })();
   const ownerReplies = (RT.match(/Resposta d[oa] propriet[áa]ri|Response from the owner/gi) || []).length;
   const reviewsSampled = (RT.match(/\b(há|faz)\s+\d|\d+\s+(dia|semana|mês|mes|ano)s?\s+atrás|ago\b/gi) || []).length || undefined;
   const videoCount = (() => { const m = T.match(/(\d+)\s*vídeos?/i); return m ? parseInt(m[1], 10) : (/\bvídeos?\b/i.test(T) ? 1 : 0); })();
@@ -125,6 +132,6 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
     attributesCount: attrSet.size || undefined, attributes: attrSet.size ? [...attrSet].slice(0, 25) : undefined,
     foundingDate: founding, mapsUri: x.mapsUri,
     secondaryCount, hasSpecialHours, videoCount, verified, hasLogo: false,
-    ownerReplies, reviewsSampled,
+    ownerReplies, reviewsSampled, photos360, lastPost,
   };
 }

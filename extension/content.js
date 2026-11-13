@@ -35,16 +35,22 @@
     const siteA = Array.from(root.querySelectorAll('a[href^="http"]')).map((a) => a.href).find((h) => !/google\.|gstatic|schema\.org|youtube\.com\/@/.test(h));
     const category = document.querySelector('[data-attrid="subtitle"] span, button[jsaction*="category"]')?.innerText?.trim();
 
-    // No Maps: abre a aba de Avaliações para captar respostas do proprietário.
-    let reviewsText = "";
+    // No Maps: abre abas de Avaliações, Mídia e Postagens para captar os dados finos.
+    let reviewsText = "", mediaText = "", postsText = "";
     if (isMaps && name) {
       try {
-        const ok = await clickTab(["avaliaç", "reviews"]);
-        if (ok) { await scrollFeed(); reviewsText = mainText().slice(0, 120000); await clickTab(["visão geral", "overview", "sobre"]); }
+        if (await clickTab(["avaliaç", "reviews"])) { await scrollFeed(); reviewsText = mainText().slice(0, 120000); }
       } catch (e) {}
+      try {
+        if (await clickTab(["fotos", "mídia", "midia", "photos"])) { await scrollFeed(); mediaText = mainText().slice(0, 60000); }
+      } catch (e) {}
+      try {
+        if (await clickTab(["atualizações", "novidades", "postagens", "updates", "posts"])) { await scrollFeed(); postsText = mainText().slice(0, 40000); }
+      } catch (e) {}
+      try { await clickTab(["visão geral", "overview", "sobre"]); } catch (e) {}
     }
 
-    return { name, text, reviewsText, photos, website: siteA, category, title: document.title, mapsUri: location.href.split("?")[0], isMaps };
+    return { name, text, reviewsText, mediaText, postsText, photos, website: siteA, category, title: document.title, mapsUri: location.href.split("?")[0], isMaps };
   }
 
   function setBtn(b, t, busy) { b.textContent = t; b.style.opacity = busy ? "0.7" : "1"; b.disabled = !!busy; }
