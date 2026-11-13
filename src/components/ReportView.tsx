@@ -5,7 +5,14 @@ export type ReportSnapshot = {
   title: string; score: number; fraco: number; razoavel: number; bom: number; analyzed_at: string;
   items: { id: string; category: string; label: string; tip: string; status: "bom" | "razoavel" | "fraco"; detail?: string }[];
   profile: { title: string; category: string; address: string; phone: string; website: string; rating: number; reviewCount: number; photoUrl: string | null; verified: boolean; description: string } | null;
+  ranking?: {
+    keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null;
+    center_lat?: number; center_lng?: number;
+    points?: { lat: number; lng: number; rank: number | null }[]; created_at: string;
+  } | null;
 };
+
+function rkColor(r: number | null) { return r == null ? "#6b7280" : r <= 3 ? "#059669" : r <= 10 ? "#d97706" : "#dc2626"; }
 
 const C = { bom: "#059669", razoavel: "#d97706", fraco: "#dc2626" } as const;
 const L = { bom: "Bom", razoavel: "Razoável", fraco: "Fraco" } as const;
@@ -105,6 +112,29 @@ export default function ReportView({ snapshot: s, branding, createdAt }: { snaps
                 </li>
               ))}
             </ol>
+          </section>
+        )}
+
+        {/* Ranking no Google Maps */}
+        {s.ranking && (
+          <section className="avoid mt-6">
+            <h2 className="mb-2 text-base font-bold">Posição no Google Maps · &ldquo;{s.ranking.keyword}&rdquo;</h2>
+            <div className="grid gap-3 sm:grid-cols-[auto_1fr]">
+              {s.ranking.points && s.ranking.points.length > 0 && (
+                <div className="grid shrink-0 gap-1" style={{ gridTemplateColumns: `repeat(${s.ranking.grid_size}, 1fr)` }}>
+                  {s.ranking.points.map((p, i) => (
+                    <span key={i} className="grid h-6 w-6 place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: rkColor(p.rank) }}>
+                      {p.rank == null ? "+" : p.rank}
+                    </span>
+                  ))}
+                </div>
+              )}
+              <div className="grid grid-cols-3 gap-2 self-start">
+                <div className="rounded-xl border border-gray-200 p-3 text-center"><p className="text-xl font-bold">{s.ranking.avg_rank ?? "—"}</p><p className="text-[11px] text-gray-500">Posição média</p></div>
+                <div className="rounded-xl border border-gray-200 p-3 text-center"><p className="text-xl font-bold" style={{ color: "#059669" }}>{s.ranking.top3_pct ?? 0}%</p><p className="text-[11px] text-gray-500">Top 3</p></div>
+                <div className="rounded-xl border border-gray-200 p-3 text-center"><p className="text-xl font-bold" style={{ color: "#d97706" }}>{s.ranking.top10_pct ?? 0}%</p><p className="text-[11px] text-gray-500">Top 10</p></div>
+              </div>
+            </div>
           </section>
         )}
 

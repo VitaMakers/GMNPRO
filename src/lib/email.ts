@@ -33,7 +33,8 @@ export async function sendEmail(opts: { to: string; subject: string; html: strin
 
 type Branding = { name?: string | null; logo_url?: string | null; color?: string | null; phone?: string | null; site?: string | null } | null;
 type Snap = { title: string; score: number; fraco: number; razoavel: number; bom: number; analyzed_at: string;
-  items: { label: string; status: "bom" | "razoavel" | "fraco"; tip: string }[] };
+  items: { label: string; status: "bom" | "razoavel" | "fraco"; tip: string }[];
+  ranking?: { keyword: string; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null } | null };
 
 const esc = (s: string) => s.replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c] ?? c);
 
@@ -60,6 +61,7 @@ export function reportEmailHtml(snap: Snap, url: string, branding: Branding, not
         <div style="font-size:13px;color:#374151;margin-top:4px"><b style="color:#dc2626">${snap.fraco}</b> fracos · <b style="color:#d97706">${snap.razoavel}</b> razoáveis · <b style="color:#059669">${snap.bom}</b> bons</div></div>
     </div>
     ${pend.length ? `<h3 style="margin:16px 0 8px;font-size:14px">O que fazer primeiro</h3><ol style="margin:0;padding-left:20px;font-size:14px;line-height:1.5">${pend.map((p) => `<li><b>${esc(p.label)}</b><br><span style="color:#6b7280;font-size:12px">${esc(p.tip)}</span></li>`).join("")}</ol>` : `<p style="font-size:14px;color:#059669">Perfil 100% otimizado. Parabéns!</p>`}
+    ${snap.ranking ? `<div style="margin:16px 0;padding:12px;border:1px solid #e5e7eb;border-radius:10px"><div style="font-weight:700;font-size:14px;margin-bottom:6px">Posição no Google Maps — "${esc(snap.ranking.keyword)}"</div><div style="font-size:13px;color:#374151">Posição média <b>${snap.ranking.avg_rank ?? "—"}</b> · Top 3 <b style="color:#059669">${snap.ranking.top3_pct ?? 0}%</b> · Top 10 <b style="color:#d97706">${snap.ranking.top10_pct ?? 0}%</b></div></div>` : ""}
     <div style="text-align:center;margin:24px 0 8px"><a href="${url}" style="background:${brand};color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;display:inline-block">Ver relatório completo</a></div>
   </div>
   <div style="padding:14px 24px;background:#f9fafb;font-size:11px;color:#9ca3af;text-align:center">${[branding?.phone, branding?.site].filter(Boolean).map((x) => esc(String(x))).join(" · ") || "Enviado pelo GMN PRO"}</div>
