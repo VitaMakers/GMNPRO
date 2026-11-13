@@ -11,6 +11,10 @@
     {
       "path": "/api/cron/report-email",
       "schedule": "0 11 1 * *"
+    },
+    {
+      "path": "/api/cron/ranking",
+      "schedule": "0 2 * * *"
     }
   ]
 }

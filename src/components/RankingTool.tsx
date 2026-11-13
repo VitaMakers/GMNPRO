@@ -53,6 +53,8 @@ export default function RankingTool({
   const [error, setError] = useState("");
   const [run, setRun] = useState<Run | null>(null);
   const [history, setHistory] = useState<Run[]>([]);
+  const [schedFreq, setSchedFreq] = useState<string | null>(null);
+  const [schedBusy, setSchedBusy] = useState(false);
 
   useEffect(() => {
     if (locations[0]) initActiveProfile(locations[0].location_name);
@@ -73,7 +75,31 @@ export default function RankingTool({
     setRun(null);
     setError("");
     loadHistory();
+    fetch(`/api/ranking/schedule?location=${encodeURIComponent(selected)}`)
+      .then((r) => r.json())
+      .then((d) => {
+        const s = (d.schedules ?? []).find((x: { enabled: boolean; frequency: string }) => x.enabled);
+        setSchedFreq(s ? s.frequency : null);
+      })
+      .catch(() => undefined);
   }, [selected, loadHistory]);
+
+  async function schedule(frequency: string | null) {
+    if (!run) return;
+    setSchedBusy(true);
+    try {
+      await fetch("/api/ranking/schedule", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          location: selected, keyword: run.keyword, grid: run.grid_size, spacingKm: run.spacing_km,
+          frequency: frequency ?? "weekly", enabled: frequency !== null,
+        }),
+      });
+      setSchedFreq(frequency);
+    } finally {
+      setSchedBusy(false);
+    }
+  }
 
   const need = gridCredits(grid);
   const canRun = !running && credits >= need && keyword.trim().length > 0;
@@ -229,6 +255,23 @@ export default function RankingTool({
 
               {/* Concorrentes: quem mais aparece no top dos pontos */}
               <Competitors run={run} myTitle={selectedTitle} />
+
+              {/* Acompanhamento automático */}
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface-2/50 p-3">
+                <span className="text-sm font-medium">Acompanhar automaticamente:</span>
+                {(["weekly", "monthly"] as const).map((f) => (
+                  <button key={f} onClick={() => schedule(f)} disabled={schedBusy}
+                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition disabled:opacity-60 ${schedFreq === f ? "border-brand bg-brand text-white" : "border-border hover:bg-surface-2"}`}>
+                    {f === "weekly" ? "Semanal" : "Mensal"}
+                  </button>
+                ))}
+                {schedFreq && (
+                  <button onClick={() => schedule(null)} disabled={schedBusy} className="rounded-lg border border-red-300 px-3 py-1.5 text-xs font-medium text-red-500 hover:bg-red-50 disabled:opacity-60">
+                    Desligar
+                  </button>
+                )}
+                <span className="text-[11px] text-muted">{schedFreq ? `Ativo (${schedFreq === "weekly" ? "toda semana" : "todo mês"}) — usa créditos automaticamente.` : "Rode sozinho e veja a evolução no gráfico abaixo."}</span>
+              </div>
             </>
           ) : (
             <div className="grid h-[420px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 text-center text-sm text-muted">

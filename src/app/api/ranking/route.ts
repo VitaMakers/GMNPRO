@@ -2,9 +2,9 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import { getValidAccessToken } from "@/lib/google/token";
-import { getLocationGeo } from "@/lib/google/audit";
-import { dataForSeoConfigured, mapsRankAt, mapLimit } from "@/lib/dataforseo";
-import { buildGrid, gridCredits, summarize, GRID_SIZES, type RankedPoint } from "@/lib/geogrid";
+import { dataForSeoConfigured } from "@/lib/dataforseo";
+import { gridCredits, GRID_SIZES } from "@/lib/geogrid";
+import { executeRanking } from "@/lib/rankingRun";
 import { getCredits, spendCredits } from "@/lib/credits";
 
 export const dynamic = "force-dynamic";
@@ -79,85 +79,17 @@ export async function POST(request: Request) {
 
   try {
     const token = await getValidAccessToken(supabase, user.id);
-    const geo = await getLocationGeo(token, location);
-    if (geo.lat == null || geo.lng == null) {
-      return NextResponse.json(
-        { error: "sem_coordenadas", detail: "O Google não retornou coordenadas para este perfil." },
-        { status: 422 },
-      );
-    }
+    const run = await executeRanking(supabase, user.id, token, { location, keyword, grid, spacingKm });
 
-    // Cacheia coordenadas (best-effort) para o Mapa de Locais.
-    try {
-      await supabase
-        .from("gmb_locations")
-        .update({ lat: geo.lat, lng: geo.lng })
-        .eq("user_id", user.id)
-        .eq("location_name", location);
-    } catch {
-      /* coluna ausente: ignora */
-    }
-
-    const points = buildGrid(geo.lat, geo.lng, grid, spacingKm);
-    const target = { placeId: geo.placeId, title: geo.title };
-
-    const ranked: RankedPoint[] = await mapLimit(points, 8, async (p) => {
-      try {
-        const r = await mapsRankAt(keyword, p.lat, p.lng, target);
-        return { ...p, rank: r.rank, top: r.top };
-      } catch {
-        return { ...p, rank: null };
-      }
-    });
-
-    const stats = summarize(ranked);
-
-    // Debita os créditos após rodar.
     await spendCredits(supabase, user.id, need);
     const remaining = Math.max(0, credits - need);
 
-    const { data: saved } = await supabase
-      .from("ranking_runs")
-      .insert({
-        user_id: user.id,
-        location_name: location,
-        keyword,
-        grid_size: grid,
-        spacing_km: spacingKm,
-        center_lat: geo.lat,
-        center_lng: geo.lng,
-        points: ranked,
-        avg_rank: stats.avgRank,
-        top3_pct: stats.top3Pct,
-        top10_pct: stats.top10Pct,
-        credits_used: need,
-      })
-      .select("id, created_at")
-      .maybeSingle();
-
-    return NextResponse.json({
-      ok: true,
-      run: {
-        id: saved?.id ?? null,
-        created_at: saved?.created_at ?? new Date().toISOString(),
-        keyword,
-        grid_size: grid,
-        spacing_km: spacingKm,
-        center_lat: geo.lat,
-        center_lng: geo.lng,
-        points: ranked,
-        avg_rank: stats.avgRank,
-        top3_pct: stats.top3Pct,
-        top10_pct: stats.top10Pct,
-        credits_used: need,
-      },
-      credits: remaining,
-      title: geo.title,
-    });
+    return NextResponse.json({ ok: true, run, credits: remaining, title: run.title });
   } catch (e) {
-    return NextResponse.json(
-      { error: "falha", detail: e instanceof Error ? e.message : "erro ao analisar" },
-      { status: 502 },
-    );
+    const msg = e instanceof Error ? e.message : "erro ao analisar";
+    if (msg === "sem_coordenadas") {
+      return NextResponse.json({ error: "sem_coordenadas", detail: "O Google não retornou coordenadas para este perfil." }, { status: 422 });
+    }
+    return NextResponse.json({ error: "falha", detail: msg }, { status: 502 });
   }
 }
