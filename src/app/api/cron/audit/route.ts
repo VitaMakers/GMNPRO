@@ -3,6 +3,9 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
 import { runProfileAudit } from "@/lib/google/audit";
 import { buildSnapshot } from "@/lib/snapshot";
+import { emailConfigured, sendEmail } from "@/lib/email";
+
+const esc = (v: string) => v.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] ?? c));
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -24,8 +27,18 @@ export async function GET(request: Request) {
     .from("gmb_locations")
     .select("user_id, location_name, title")
     .limit(2000);
-  const { data: snaps } = await admin.from("audit_snapshots").select("user_id, location_name, analyzed_at");
+  const { data: snaps } = await admin.from("audit_snapshots").select("user_id, location_name, analyzed_at, score, profile");
   const last = new Map((snaps ?? []).map((s) => [`${s.user_id}|${s.location_name}`, new Date(s.analyzed_at).getTime()]));
+  const prevSnap = new Map((snaps ?? []).map((s) => [`${s.user_id}|${s.location_name}`, s]));
+  const canAlert = emailConfigured();
+  const emailCache = new Map<string, string | null>();
+  async function ownerEmail(uid: string): Promise<string | null> {
+    if (emailCache.has(uid)) return emailCache.get(uid)!;
+    const { data } = await admin.auth.admin.getUserById(uid);
+    const e = data?.user?.email ?? null;
+    emailCache.set(uid, e);
+    return e;
+  }
 
   const queue = (locs ?? [])
     .map((l) => ({ ...l, at: last.get(`${l.user_id}|${l.location_name}`) ?? 0 }))
@@ -51,6 +64,30 @@ export async function GET(request: Request) {
           fraco: snap.fraco, razoavel: snap.razoavel, bom: snap.bom, analyzed_at: snap.analyzed_at,
         });
       } catch { /* ignora */ }
+
+      // Alertas: nota caiu >=10 ou perfil ficou fechado.
+      if (canAlert) {
+        const prev = prevSnap.get(`${l.user_id}|${l.location_name}`) as { score?: number; profile?: { open?: boolean } } | undefined;
+        const prevScore = prev?.score;
+        const wasOpen = prev?.profile?.open !== false;
+        const nowClosed = snap.profile?.open === false;
+        const dropped = typeof prevScore === "number" && snap.score <= prevScore - 10;
+        if ((dropped || (wasOpen && nowClosed))) {
+          const to = await ownerEmail(l.user_id);
+          if (to) {
+            const motivo = nowClosed
+              ? "O perfil aparece como <b>Fechado permanentemente</b> no Google."
+              : `A nota caiu de <b>${prevScore}</b> para <b>${snap.score}</b>.`;
+            try {
+              await sendEmail({
+                to,
+                subject: `⚠️ Alerta: ${snap.title}`,
+                html: `<div style="font-family:system-ui;max-width:520px;margin:0 auto"><h2 style="font-size:18px">Alerta no perfil</h2><p style="font-size:14px"><b>${esc(snap.title)}</b></p><p style="font-size:14px">${motivo}</p><p style="font-size:13px;color:#6b7280">Abra o GMN PRO para ver os detalhes e corrigir.</p></div>`,
+              });
+            } catch { /* ignora envio */ }
+          }
+        }
+      }
       ok++;
     } catch { fail++; }
   }
