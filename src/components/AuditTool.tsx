@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { AuditReport, CheckResult, PlaceData } from "@/lib/audit";
 
@@ -19,6 +19,18 @@ export default function AuditTool() {
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [report, setReport] = useState<AuditReport | null>(null);
+  const [fromExtension, setFromExtension] = useState(false);
+
+  // Resultado vindo da extensão do Chrome (?scan=<id>).
+  useEffect(() => {
+    const id = new URLSearchParams(window.location.search).get("scan");
+    if (!id) return;
+    fetch(`/api/extension/scan?id=${encodeURIComponent(id)}`)
+      .then((r) => r.json())
+      .then((d) => { if (d.report) { setReport(d.report as AuditReport); setFromExtension(true); } })
+      .catch(() => undefined);
+    window.history.replaceState({}, "", "/auditoria");
+  }, []);
 
   async function handleSearch() {
     setError("");
@@ -149,7 +161,12 @@ export default function AuditTool() {
         </div>
       )}
 
-      {report && <Report report={report} onReset={() => { setReport(null); setQuery(""); }} />}
+      {report && fromExtension && (
+        <div className="rounded-xl border border-brand/30 bg-brand/5 p-3 text-xs text-brand-2">
+          🧩 Pré-análise profunda via extensão do Chrome — inclui posts, perguntas/respostas e atributos.
+        </div>
+      )}
+      {report && <Report report={report} onReset={() => { setReport(null); setQuery(""); setFromExtension(false); }} />}
     </div>
   );
 }

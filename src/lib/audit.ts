@@ -33,6 +33,12 @@ export interface PlaceData {
   openNow?: boolean;
   photoCount?: number;
   photoName?: string;
+  // Campos extras vindos da extensão (não existem na Places API)
+  postsCount?: number;
+  qaCount?: number;
+  qaAnswered?: number;
+  attributesCount?: number;
+  source?: "places" | "extension";
   businessStatus?: string;
   description?: string;
   googleMapsUri?: string;
@@ -206,9 +212,26 @@ export function auditPlace(place: PlaceData): AuditReport {
     ),
   );
 
-  const score = Math.round(
-    checks.reduce((s, c) => s + c.points, 0),
-  );
+  // Itens extras só quando vêm da extensão (dados mais profundos).
+  if (place.source === "extension") {
+    const posts = place.postsCount ?? 0;
+    checks.push(check("posts", "Postagens recentes", posts >= 1 ? "ok" : "warn", posts >= 1 ? 6 : 0, 6,
+      posts > 0 ? `${posts} postagem(ns) visível(is).` : "Sem postagens recentes.",
+      "Poste novidades/ofertas toda semana para manter o perfil ativo."));
+    const qa = place.qaCount ?? 0;
+    const qaOk = qa > 0 && (place.qaAnswered ?? 0) > 0;
+    checks.push(check("qa", "Perguntas e respostas", qaOk ? "ok" : "warn", qaOk ? 4 : 0, 4,
+      qa > 0 ? `${place.qaAnswered ?? 0}/${qa} respondidas.` : "Sem perguntas e respostas.",
+      "Crie e responda perguntas frequentes no perfil."));
+    const attrs = place.attributesCount ?? 0;
+    checks.push(check("attrs", "Atributos preenchidos", attrs >= 3 ? "ok" : "warn", attrs >= 3 ? 4 : 0, 4,
+      attrs > 0 ? `${attrs} atributo(s).` : "Poucos atributos.",
+      "Preencha atributos (wi-fi, acessibilidade, formas de pagamento, etc.)."));
+  }
+
+  const maxTotal = checks.reduce((s, c) => s + c.maxPoints, 0);
+  const rawScore = checks.reduce((s, c) => s + c.points, 0);
+  const score = Math.round((rawScore / maxTotal) * 100);
 
   const strengths = checks.filter((c) => c.status === "ok").map((c) => c.label);
   const priorities = checks
