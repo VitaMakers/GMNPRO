@@ -46,37 +46,48 @@ $("go").addEventListener("click", async () => {
   }
 });
 
-// Executado DENTRO da página do Google (Busca OU Maps). Mira no painel da empresa.
-function scrapeProfile() {
+// Executado DENTRO da página do Google (Busca OU Maps). Rola o painel e captura tudo.
+async function scrapeProfile() {
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const isMaps = /\/maps\//.test(location.pathname) || location.hostname.includes("maps.google");
-  // Na Busca, o painel da empresa fica no container complementar (lado direito).
-  const kp = document.querySelector('[role="complementary"]')
-    || document.querySelector('#rhs')
+  const kp = document.querySelector('[role="complementary"]') || document.querySelector('#rhs')
     || document.querySelector('[data-attrid="kc:/local:merchant"]');
   const mapsMain = isMaps ? document.querySelector('[role="main"]') : null;
   const root = mapsMain || kp || document.querySelector('[role="main"]') || document.body;
 
-  const text = (root.innerText || "").slice(0, 150000);
+  // Rola o painel aos poucos para carregar seções preguiçosas (fotos, serviços, Q&A).
+  const scroller = mapsMain || root;
+  try {
+    for (let i = 0; i < 6; i++) {
+      scroller.scrollBy ? scroller.scrollBy(0, 800) : window.scrollBy(0, 800);
+      window.scrollBy(0, 400);
+      await sleep(350);
+    }
+    scroller.scrollTo ? scroller.scrollTo(0, 0) : window.scrollTo(0, 0);
+    await sleep(250);
+  } catch (e) { /* segue */ }
 
-  // Nome: no Maps é o h1; na Busca é a 1ª linha "forte" do painel.
+  const text = (root.innerText || "").slice(0, 200000);
+
   let name = mapsMain ? (document.querySelector("h1")?.innerText || "").trim() : "";
   if (!name && kp) {
     name = (kp.innerText || "").split("\n").map((x) => x.trim())
-      .find((x) => x && x.length >= 3 && !/^[\d.,]|★|avaliaç|Resultados|Patrocinad|Geral|Avaliar|Fotos|Serviços$/i.test(x)) || "";
+      .find((x) => x && x.length >= 3 && !/^[\d.,]|★|avaliaç|coment|Resultados|Patrocinad|Geral|Avaliar|Fotos|Serviços$/i.test(x)) || "";
   }
   if (!name) name = (document.title || "").replace(/\s*[-–].*Google.*/i, "").trim();
 
   const photos = [...new Set(
     Array.from(root.querySelectorAll("img"))
       .map((im) => im.currentSrc || im.src || "")
-      .filter((u) => /googleusercontent\.com|streetviewpixels|ggpht\.com|gstatic/.test(u))
+      .filter((u) => /googleusercontent\.com|streetviewpixels|ggpht\.com/.test(u))
       .map((u) => u.replace(/=w\d+-h\d+.*$/, "=w600-h400"))
   )].slice(0, 12);
 
-  // Site do negócio: âncora externa (não google) mais provável.
   const siteA = Array.from(root.querySelectorAll('a[href^="http"]'))
-    .map((a) => a.href)
-    .find((h) => !/google\.|gstatic|schema\.org|youtube\.com\/@/.test(h));
+    .map((a) => a.href).find((h) => !/google\.|gstatic|schema\.org|youtube\.com\/@/.test(h));
 
-  return { name, text, photos, website: siteA, title: document.title, mapsUri: location.href.split("?")[0], isMaps };
+  // Dica de categoria direto do DOM (quando houver)
+  const catHint = document.querySelector('[data-attrid="subtitle"] span, button[jsaction*="category"]')?.innerText?.trim();
+
+  return { name, text, photos, website: siteA, category: catHint, title: document.title, mapsUri: location.href.split("?")[0], isMaps };
 }

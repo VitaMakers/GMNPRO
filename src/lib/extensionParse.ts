@@ -8,6 +8,7 @@ export interface ExtScrape {
   text?: string;
   photos?: string[];
   website?: string;
+  category?: string;
   title?: string;
   mapsUri?: string;
   isMaps?: boolean;
@@ -44,10 +45,10 @@ export function parseScrape(x: ExtScrape): ParsedProfile {
     return m ? parseInt(m[1].replace(/\./g, ""), 10) : undefined;
   })();
 
-  // Categoria: na linha que contém o âncora, depois do último "·"
-  let category: string | undefined;
+  // Categoria: usa a dica do DOM, depois tenta no texto.
+  let category: string | undefined = (x.category || "").trim() || undefined;
   const ratingLine = lines.find((l) => anchor && l.includes(anchor[0])) || lines.find((l) => /^[0-5][.,]\d/.test(l)) || "";
-  if (ratingLine.includes("·")) category = ratingLine.split("·").pop()?.trim();
+  if (!category && ratingLine.includes("·")) category = ratingLine.split("·").pop()?.trim();
   if (category && /coment|avaliaç|Google/i.test(category)) category = undefined;
   if (!category) {
     // Linha de categoria do tipo "Ótica em Campinas, Brasil" (logo após a nota)

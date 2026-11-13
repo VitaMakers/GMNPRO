@@ -36,7 +36,7 @@ export async function POST(request: Request) {
 
   const { data: saved } = await supabase
     .from("extension_scans")
-    .insert({ user_id: user.id, name: prof.name, report, raw: { parsed: prof } })
+    .insert({ user_id: user.id, name: prof.name, report, raw: { parsed: prof, textSnippet: (body.text ?? "").slice(0, 4000) } })
     .select("id")
     .maybeSingle();
 

@@ -20,6 +20,7 @@ export default function AuditTool() {
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [report, setReport] = useState<AuditReport | null>(null);
   const [fromExtension, setFromExtension] = useState(false);
+  const [debugRaw, setDebugRaw] = useState<unknown>(null);
 
   // Resultado vindo da extensão do Chrome (?scan=<id>).
   useEffect(() => {
@@ -27,7 +28,7 @@ export default function AuditTool() {
     if (!id) return;
     fetch(`/api/extension/scan?id=${encodeURIComponent(id)}`)
       .then((r) => r.json())
-      .then((d) => { if (d.report) { setReport(d.report as AuditReport); setFromExtension(true); } })
+      .then((d) => { if (d.report) { setReport(d.report as AuditReport); setFromExtension(true); setDebugRaw(d.raw ?? null); } })
       .catch(() => undefined);
     window.history.replaceState({}, "", "/auditoria");
   }, []);
@@ -158,6 +159,12 @@ export default function AuditTool() {
       {report && fromExtension && (
         <div className="rounded-xl border border-brand/30 bg-brand/5 p-3 text-xs text-brand-2">
           🧩 Pré-análise profunda via extensão do Chrome — inclui posts, perguntas/respostas e atributos.
+          {debugRaw != null && (
+            <details className="mt-2">
+              <summary className="cursor-pointer text-muted">Ver dados capturados (para calibração)</summary>
+              <pre className="mt-2 max-h-72 overflow-auto rounded-lg bg-surface-2 p-2 text-[10px] leading-snug text-foreground">{JSON.stringify(debugRaw, null, 2)}</pre>
+            </details>
+          )}
         </div>
       )}
       {report && <Report report={report} onReset={() => { setReport(null); setQuery(""); setFromExtension(false); }} />}
@@ -198,6 +205,32 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
         <PlaceCard place={p} score={report.score} scoreColor={color} ring={ring} label={label} />
       </div>
 
+      {/* Termômetro + pontuação detalhada */}
+      <div className="grid gap-4 lg:grid-cols-[1fr_1fr]">
+        <div className="flex flex-col items-center rounded-3xl border border-border bg-white p-6 card-soft">
+          <p className="font-display text-lg font-bold">Pontuação Geral</p>
+          <p className="text-xs text-muted">Desempenho do perfil</p>
+          <Gauge value={report.score} />
+          <p className="-mt-2 text-4xl font-bold" style={{ color: ring }}>{report.score}</p>
+          <span className="mt-2 rounded-full border px-4 py-1 text-xs font-bold uppercase tracking-wide" style={{ borderColor: `${ring}66`, background: `${ring}14`, color: ring }}>{label}</span>
+        </div>
+        <div className="rounded-3xl border border-border bg-white p-6 card-soft">
+          <p className="mb-4 text-center font-display text-lg font-bold">Pontuação Detalhada</p>
+          <ul className="space-y-3">
+            {[
+              { n: report.checks.filter((c) => c.status === "fail").length, label: "Fraco", sub: "Métricas que precisam de atenção", c: "#dc2626" },
+              { n: report.checks.filter((c) => c.status === "warn").length, label: "Razoável", sub: "Métricas com potencial de melhoria", c: "#d97706" },
+              { n: report.checks.filter((c) => c.status === "ok").length, label: "Bom", sub: "Métricas em excelente estado", c: "#059669" },
+            ].map((r) => (
+              <li key={r.label} className="flex items-center gap-3 rounded-2xl border border-border/70 p-3">
+                <span className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-base font-bold text-white shadow" style={{ background: r.c }}>{r.n}</span>
+                <span><span className="block text-sm font-semibold">{r.label}</span><span className="block text-xs text-muted">{r.sub}</span></span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+
       {report.priorities.length > 0 && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
           <h3 className="mb-3 font-semibold">O que melhorar primeiro</h3>
@@ -228,6 +261,26 @@ function Report({ report, onReset }: { report: AuditReport; onReset: () => void 
         ← Analisar outra empresa
       </button>
     </div>
+  );
+}
+
+function Gauge({ value }: { value: number }) {
+  const v = Math.max(0, Math.min(100, value));
+  const angle = -90 + (v / 100) * 180;
+  const arc = (from: number, to: number, color: string) => {
+    const r = 70, cx = 100, cy = 100;
+    const a0 = (Math.PI * (180 + from * 1.8)) / 180;
+    const a1 = (Math.PI * (180 + to * 1.8)) / 180;
+    const x0 = cx + r * Math.cos(a0), y0 = cy + r * Math.sin(a0);
+    const x1 = cx + r * Math.cos(a1), y1 = cy + r * Math.sin(a1);
+    return <path d={`M ${x0} ${y0} A ${r} ${r} 0 0 1 ${x1} ${y1}`} stroke={color} strokeWidth="22" fill="none" />;
+  };
+  return (
+    <svg viewBox="0 0 200 115" className="mt-3 w-full max-w-[260px]">
+      {arc(0, 50, "#dc2626")}{arc(50, 75, "#f59e0b")}{arc(75, 100, "#059669")}
+      <g transform={`rotate(${angle} 100 100)`}><path d="M 100 100 L 96 100 L 100 38 L 104 100 Z" fill="#1f2937" /></g>
+      <circle cx="100" cy="100" r="8" fill="#1f2937" /><circle cx="100" cy="100" r="3.5" fill="#fff" />
+    </svg>
   );
 }
 
