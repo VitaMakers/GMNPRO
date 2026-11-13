@@ -16,6 +16,14 @@ export default function PrivacidadePage() {
         <p className="mt-2 text-sm text-muted">Última atualização: {new Date().toLocaleDateString("pt-BR")}</p>
 
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted">
+          <Section title="Extensão do Chrome (Pré-análise)">
+            A extensão do GMN PRO lê apenas a ficha de empresa do Google que você abre (Busca ou
+            Maps) para extrair dados públicos do perfil (nome, categoria, avaliações, endereço,
+            telefone, site, fotos, horários, atributos). Esses dados são enviados ao GMN PRO,
+            associados à sua conta, somente para gerar a pré-análise. A extensão não coleta
+            histórico de navegação, senhas, nem dados de outras abas, e não vende dados a terceiros.
+          </Section>
+
           <Section title="Quem somos">
             O GMN PRO é uma ferramenta do Grupo Vita (VitaMakers) para ajudar empresas e
             agências a otimizar e gerenciar seus perfis do Google Meu Negócio (Google Business
