@@ -1,17 +1,22 @@
 {
   "manifest_version": 3,
   "name": "GMN PRO — Pré-análise",
-  "version": "1.4.0",
-  "description": "Pré-análise de perfis do Google (Meu Negócio) direto da página, sem custo. Envia os dados para o GMN PRO.",
-  "permissions": ["activeTab", "scripting"],
+  "version": "2.0.0",
+  "description": "Pré-análise de perfis do Google (Meu Negócio) direto da ficha, sem custo. Abre o Maps, rola e envia os dados ao GMN PRO.",
+  "permissions": ["activeTab", "scripting", "tabs"],
   "host_permissions": [
     "https://www.google.com/*",
     "https://www.google.com.br/*",
     "https://maps.google.com/*",
     "https://app.vitamakers.com.br/*"
   ],
-  "action": {
-    "default_popup": "popup.html",
-    "default_title": "GMN PRO — Pré-análise"
-  }
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.google.com/*", "https://www.google.com.br/*", "https://maps.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "GMN PRO — Pré-análise" }
 }
