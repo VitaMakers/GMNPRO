@@ -57,14 +57,12 @@
   async function run(btn) {
     setBtn(btn, "Lendo a ficha…", true);
     try {
-      // Na busca: navega a PRÓPRIA aba para o Maps (mais confiável). Lá a análise roda sozinha.
+      // Na busca: marca "pendente" e navega para o Maps. O flag sobrevive ao reload.
       if (!isMaps) {
         const mapsLink = findMapsLink();
         if (mapsLink) {
           setBtn(btn, "Abrindo no Maps…", true);
-          const u = new URL(mapsLink, location.origin);
-          u.hash = "gmnanalyze";
-          location.assign(u.toString());
+          chrome.storage.local.set({ gmnPending: Date.now() }, () => location.assign(mapsLink));
           return;
         }
         // Sem link do Maps: lê o painel da busca mesmo.
@@ -97,17 +95,40 @@
     document.body.appendChild(btn);
   }
 
-  // Auto-análise quando chegamos ao Maps vindos da busca (#gmnanalyze).
-  async function maybeAuto() {
-    if (!(isMaps && location.hash.includes("gmnanalyze"))) return;
-    // Espera a ficha do Maps carregar (h1 do negócio).
+  // Auto-análise ao chegar no Maps vindo da busca (flag na memória da extensão).
+  async function autoAnalyze() {
+    const banner = showBanner("GMN PRO: analisando a ficha… rolando para carregar tudo");
     for (let i = 0; i < 24; i++) { if (document.querySelector('[role="main"] h1')) break; await sleep(500); }
     await sleep(600);
     const data = await scrape();
     if (data.name) {
-      try { history.replaceState(null, "", location.pathname + location.search); } catch (e) {}
-      chrome.runtime.sendMessage({ type: "gmnpro-analyze", data }, () => {});
+      banner.textContent = "GMN PRO: enviando pré-análise…";
+      chrome.runtime.sendMessage({ type: "gmnpro-analyze", data }, (resp) => {
+        banner.textContent = resp?.ok ? "GMN PRO: pré-análise aberta ✓" : "GMN PRO: " + (resp?.error ?? "falhou");
+        setTimeout(() => banner.remove(), 4000);
+      });
+    } else { banner.textContent = "GMN PRO: não consegui ler a ficha"; setTimeout(() => banner.remove(), 4000); }
+  }
+  function maybeAuto() {
+    try {
+      chrome.storage.local.get(["gmnPending"], (r) => {
+        if (isMaps && r && r.gmnPending && Date.now() - r.gmnPending < 120000) {
+          chrome.storage.local.remove("gmnPending");
+          autoAnalyze();
+        }
+      });
+    } catch (e) {}
+  }
+  function showBanner(text) {
+    let b = document.getElementById("gmnpro-banner");
+    if (!b) {
+      b = document.createElement("div");
+      b.id = "gmnpro-banner";
+      b.style.cssText = "position:fixed;z-index:1000000;top:0;left:0;right:0;background:#059669;color:#fff;font:600 13px system-ui;padding:8px 14px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,.2)";
+      document.body.appendChild(b);
     }
+    b.textContent = text;
+    return b;
   }
 
   // Injeta e reage a mudanças (Google recarrega conteúdo via JS).
