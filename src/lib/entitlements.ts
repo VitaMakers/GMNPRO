@@ -13,6 +13,7 @@ export interface Entitlements {
   geoGrid: boolean;
   whiteLabelReport: boolean;
   monthlyCredits: number; // créditos de geo-grid inclusos por mês
+  preAnalyses: number;    // pré-análises de terceiros por mês (controle de custo)
 }
 
 export const ENTITLEMENTS: Record<Tier, Entitlements> = {
@@ -25,6 +26,7 @@ export const ENTITLEMENTS: Record<Tier, Entitlements> = {
     geoGrid: false,
     whiteLabelReport: false,
     monthlyCredits: 0,
+    preAnalyses: 10,
   },
   agencia2: {
     tier: "agencia2",
@@ -35,6 +37,7 @@ export const ENTITLEMENTS: Record<Tier, Entitlements> = {
     geoGrid: true,
     whiteLabelReport: true,
     monthlyCredits: 500,
+    preAnalyses: 100,
   },
   agencia4: {
     tier: "agencia4",
@@ -45,6 +48,7 @@ export const ENTITLEMENTS: Record<Tier, Entitlements> = {
     geoGrid: true,
     whiteLabelReport: true,
     monthlyCredits: 500,
+    preAnalyses: 250,
   },
 };
 
@@ -63,4 +67,5 @@ export const ADMIN_ENTITLEMENTS: Entitlements = {
   geoGrid: true,
   whiteLabelReport: true,
   monthlyCredits: 500,
+  preAnalyses: 99999,
 };

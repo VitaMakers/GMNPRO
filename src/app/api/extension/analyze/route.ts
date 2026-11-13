@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { parseScrape, type ExtScrape } from "@/lib/extensionParse";
 import { lookupPlace } from "@/lib/places";
+import { getAccess } from "@/lib/access";
+import { preAnaliseStatus, countPreAnalise } from "@/lib/preanalise";
 import { dataForSeoConfigured, mapsTop } from "@/lib/dataforseo";
 
 export const dynamic = "force-dynamic";
@@ -25,6 +27,13 @@ export async function POST(request: Request) {
 
   const body = (await request.json().catch(() => ({}))) as ExtScrape;
   if (!body.name) return cors(NextResponse.json({ error: "sem_dados" }, { status: 400 }));
+
+  // Limite mensal de pré-análises (controle de custo).
+  const access = await getAccess(supabase, user.id, user.email);
+  const pa = await preAnaliseStatus(supabase, user.id, access);
+  if (!pa.allowed) {
+    return cors(NextResponse.json({ error: "limite", detail: `Você atingiu o limite de ${pa.limit} pré-análises neste mês.` }, { status: 429 }));
+  }
 
   const prof = parseScrape(body);
 
@@ -82,6 +91,7 @@ export async function POST(request: Request) {
     .select("id")
     .maybeSingle();
 
+  await countPreAnalise(supabase, user.id);
   const base = process.env.APP_BASE_URL || new URL(request.url).origin;
   return cors(NextResponse.json({ ok: true, scanId: saved?.id ?? null, url: `${base}/auditoria?scan=${saved?.id ?? ""}`, report, parsed: prof }));
 }

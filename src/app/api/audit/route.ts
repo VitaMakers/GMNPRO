@@ -1,5 +1,8 @@
 import { NextResponse } from "next/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
+import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
+import { preAnaliseStatus, countPreAnalise } from "@/lib/preanalise";
 
 const PLACES_BASE = "https://places.googleapis.com/v1";
 
@@ -141,7 +144,20 @@ export async function GET(request: Request) {
       });
     }
 
-    // Fase 2: auditar o lugar escolhido
+    // Fase 2: auditar o lugar escolhido — conta no limite mensal de pré-análises.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (user) {
+      const access = await getAccess(supabase, user.id, user.email);
+      const pa = await preAnaliseStatus(supabase, user.id, access);
+      if (!pa.allowed) {
+        return NextResponse.json({ error: "limite", message: `Você atingiu o limite de ${pa.limit} pré-análises neste mês.` }, { status: 429 });
+      }
+      const details = await placeDetails(placeId!, key);
+      const report = auditPlace(toPlaceData(details, placeId!));
+      await countPreAnalise(supabase, user.id);
+      return NextResponse.json({ report });
+    }
     const details = await placeDetails(placeId!, key);
     const report = auditPlace(toPlaceData(details, placeId!));
     return NextResponse.json({ report });
