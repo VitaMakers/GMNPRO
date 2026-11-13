@@ -68,6 +68,23 @@ export default function LocaisTool({ rows: initial, branding: initialBranding }:
     try { await navigator.clipboard.writeText(d.url); setMsg("Link copiado!"); } catch { /* ignore */ }
   }
 
+  function exportCsv() {
+    const head = ["Perfil", "Nota", "Fracos", "Razoaveis", "Bons", "Analisado em"];
+    const lines = rows.map((r) => {
+      const s = r.snap;
+      return [
+        `"${(r.title ?? "").replace(/"/g, '""')}"`,
+        s?.score ?? "", s?.fraco ?? "", s?.razoavel ?? "", s?.bom ?? "",
+        s ? new Date(s.analyzed_at).toLocaleString("pt-BR") : "",
+      ].join(";");
+    });
+    const csv = "\uFEFF" + [head.join(";"), ...lines].join("\n");
+    const url = URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" }));
+    const a = document.createElement("a");
+    a.href = url; a.download = `clientes-gmnpro-${new Date().toISOString().slice(0, 10)}.csv`;
+    a.click(); URL.revokeObjectURL(url);
+  }
+
   const list = rows.filter((r) => (r.title ?? "").toLowerCase().includes(filter.toLowerCase()));
   const pend = rows.reduce((s, r) => s + (r.snap?.fraco ?? 0), 0);
   const analyzed = rows.filter((r) => r.snap).length;
@@ -102,9 +119,12 @@ export default function LocaisTool({ rows: initial, branding: initialBranding }:
       <div className="rounded-3xl border border-border bg-white p-5 card-soft">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Buscar perfil…" className="rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand" />
-          <button onClick={analyzeAll} disabled={running !== ""} className="rounded-xl border border-brand px-4 py-2 text-sm font-semibold text-brand-2 hover:bg-brand/10 disabled:opacity-60">
-            {running === "all" ? "Analisando todos…" : "Analisar todos"}
-          </button>
+          <div className="flex gap-2">
+            <button onClick={exportCsv} className="rounded-xl border border-border px-4 py-2 text-sm font-medium transition hover:bg-surface-2">Exportar CSV</button>
+            <button onClick={analyzeAll} disabled={running !== ""} className="rounded-xl border border-brand px-4 py-2 text-sm font-semibold text-brand-2 hover:bg-brand/10 disabled:opacity-60">
+              {running === "all" ? "Analisando todos…" : "Analisar todos"}
+            </button>
+          </div>
         </div>
         {msg && <p className="mb-2 text-xs text-brand-2">{msg}</p>}
         {link && (

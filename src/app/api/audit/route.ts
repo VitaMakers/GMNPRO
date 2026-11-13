@@ -21,7 +21,7 @@ interface PlacesDetails {
   rating?: number;
   userRatingCount?: number;
   regularOpeningHours?: { weekdayDescriptions?: string[]; openNow?: boolean };
-  photos?: unknown[];
+  photos?: { name?: string }[];
   businessStatus?: string;
   editorialSummary?: { text: string };
   googleMapsUri?: string;
@@ -101,6 +101,7 @@ function toPlaceData(d: PlacesDetails, placeId: string): PlaceData {
     weekdayDescriptions: d.regularOpeningHours?.weekdayDescriptions,
     openNow: d.regularOpeningHours?.openNow,
     photoCount: Array.isArray(d.photos) ? d.photos.length : 0,
+    photoName: Array.isArray(d.photos) && d.photos[0]?.name ? d.photos[0].name : undefined,
     businessStatus: d.businessStatus,
     description: d.editorialSummary?.text,
     googleMapsUri: d.googleMapsUri,

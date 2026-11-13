@@ -32,6 +32,7 @@ export interface PlaceData {
   weekdayDescriptions?: string[];
   openNow?: boolean;
   photoCount?: number;
+  photoName?: string;
   businessStatus?: string;
   description?: string;
   googleMapsUri?: string;
