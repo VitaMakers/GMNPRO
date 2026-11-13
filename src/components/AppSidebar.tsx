@@ -95,7 +95,7 @@ const ITEMS = [
   { href: "/agendamento", label: "Agendamentos", Icon: IAgenda },
   { href: "/avaliacoes", label: "Avaliações", Icon: IAvaliacoes },
   { href: "/checklist", label: "Análise Completa", Icon: IChecklist },
-  { href: "/auditoria", label: "Auditoria", Icon: IAuditoria },
+  { href: "/auditoria", label: "Pré-análise", Icon: IAuditoria },
   { href: "/suporte", label: "Suporte", Icon: ISuporte },
 ];
 

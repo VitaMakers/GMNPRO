@@ -57,7 +57,7 @@ const STEPS: Step[] = [
   {
     emoji: "✅",
     title: "6. Descubra o que melhorar",
-    body: "A Análise Completa lê seu perfil do Google em tempo real e dá uma nota com o mapa de locais e as prioridades. A Auditoria avalia qualquer empresa pelos dados públicos do Google Maps.",
+    body: "A Análise Completa lê seu perfil do Google em tempo real e dá uma nota com o mapa de locais e as prioridades. A Pré-análise avalia qualquer empresa (mesmo sem acesso) pelos dados públicos do Google Maps.",
     href: "/checklist",
     cta: "Abrir Análise Completa",
   },

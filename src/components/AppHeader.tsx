@@ -15,7 +15,7 @@ const links = [
   { href: "/agendamento", label: "Agendamentos" },
   { href: "/avaliacoes", label: "Avaliações" },
   { href: "/checklist", label: "Análise Completa" },
-  { href: "/auditoria", label: "Auditoria" },
+  { href: "/auditoria", label: "Pré-análise" },
   { href: "/suporte", label: "Suporte" },
 ];
 
