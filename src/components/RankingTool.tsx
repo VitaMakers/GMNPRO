@@ -18,7 +18,8 @@ type Run = {
   spacing_km: number;
   center_lat: number;
   center_lng: number;
-  points: { lat: number; lng: number; rank: number | null; row?: number; col?: number }[];
+  points: { lat: number; lng: number; rank: number | null; row?: number; col?: number;
+    top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean }[] }[];
   avg_rank: number | null;
   top3_pct: number | null;
   top10_pct: number | null;
@@ -225,6 +226,9 @@ export default function RankingTool({
                 <Stat label="Top 10" value={`${run.top10_pct ?? 0}%`} color={rankColor(5)} />
                 <Stat label="Pontos" value={`${run.grid_size}×${run.grid_size}`} />
               </div>
+
+              {/* Concorrentes: quem mais aparece no top dos pontos */}
+              <Competitors run={run} myTitle={selectedTitle} />
             </>
           ) : (
             <div className="grid h-[420px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 text-center text-sm text-muted">
@@ -236,6 +240,9 @@ export default function RankingTool({
           )}
         </div>
       </div>
+
+      {/* Evolução da posição no tempo (mesma palavra-chave) */}
+      {run && <Evolution history={history} keyword={run.keyword} />}
 
       {/* Histórico */}
       {history.length > 0 && (
@@ -265,6 +272,75 @@ export default function RankingTool({
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+type TopItem = { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean };
+
+function Competitors({ run, myTitle }: { run: Run; myTitle: string }) {
+  // Agrega todos os concorrentes que aparecem no top de cada ponto.
+  const agg = new Map<string, { title: string; count: number; best: number; sum: number; rating: number | null; reviews: number | null }>();
+  let myCount = 0;
+  const myName = myTitle.toLowerCase();
+  for (const p of run.points) {
+    for (const t of (p.top ?? []) as TopItem[]) {
+      if (t.me || t.title.toLowerCase() === myName) { myCount++; continue; }
+      const k = t.title;
+      const cur = agg.get(k) ?? { title: t.title, count: 0, best: 99, sum: 0, rating: t.rating, reviews: t.reviews };
+      cur.count++; cur.sum += t.rank; cur.best = Math.min(cur.best, t.rank);
+      agg.set(k, cur);
+    }
+  }
+  const rivals = [...agg.values()].sort((a, b) => b.count - a.count || a.sum / a.count - b.sum / b.count).slice(0, 5);
+  if (rivals.length === 0) return null;
+  const maxCount = Math.max(myCount, ...rivals.map((r) => r.count), 1);
+  const Bar = ({ label, count, best, mine, rating, reviews }: { label: string; count: number; best: number; mine?: boolean; rating?: number | null; reviews?: number | null }) => (
+    <div className="flex items-center gap-2">
+      <span className={`w-40 shrink-0 truncate text-xs ${mine ? "font-bold text-brand-2" : ""}`} title={label}>{label}</span>
+      <div className="h-5 flex-1 overflow-hidden rounded-full bg-surface-2">
+        <div className="h-full rounded-full" style={{ width: `${(count / maxCount) * 100}%`, background: mine ? "#059669" : "#9ca3af" }} />
+      </div>
+      <span className="w-28 shrink-0 text-right text-[11px] text-muted">{count} pontos · top {best}{rating ? ` · ${rating}★` : ""}</span>
+    </div>
+  );
+  return (
+    <div className="mt-4 rounded-2xl border border-border bg-surface-2/50 p-4">
+      <p className="mb-3 text-sm font-semibold">Você × concorrentes (nesta palavra-chave)</p>
+      <div className="space-y-2">
+        <Bar label={`${myTitle} (você)`} count={myCount} best={run.avg_rank != null ? Math.round(run.avg_rank) : 20} mine rating={run.points[0]?.top?.find((t) => t.me)?.rating} />
+        {rivals.map((r) => <Bar key={r.title} label={r.title} count={r.count} best={r.best} rating={r.rating} reviews={r.reviews} />)}
+      </div>
+      <p className="mt-2 text-[11px] text-muted">Quantos pontos da grade cada um aparece no topo. Quem aparece em mais pontos domina a região.</p>
+    </div>
+  );
+}
+
+function Evolution({ history, keyword }: { history: Run[]; keyword: string }) {
+  const runs = history.filter((h) => h.keyword === keyword && h.avg_rank != null).slice(0, 12).reverse();
+  if (runs.length < 2) return null;
+  const vals = runs.map((r) => r.avg_rank as number);
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const W = 560, H = 120, pad = 24;
+  const x = (i: number) => pad + (i * (W - 2 * pad)) / (runs.length - 1);
+  // menor posição = melhor, então invertemos o eixo Y
+  const y = (v: number) => { const r = max === min ? 0.5 : (v - min) / (max - min); return pad + r * (H - 2 * pad); };
+  const path = runs.map((r, i) => `${i ? "L" : "M"} ${x(i)} ${y(r.avg_rank as number)}`).join(" ");
+  const first = vals[0], last = vals[vals.length - 1];
+  const improved = last < first; // posição menor = melhor
+  return (
+    <div className="rounded-3xl border border-border bg-white p-5 card-soft">
+      <div className="mb-2 flex items-center justify-between">
+        <p className="text-sm font-semibold">Evolução da posição · &ldquo;{keyword}&rdquo;</p>
+        <span className={`text-xs font-semibold ${improved ? "text-emerald-600" : last > first ? "text-red-500" : "text-muted"}`}>
+          {improved ? "▲ melhorou" : last > first ? "▼ piorou" : "estável"} ({first} → {last})
+        </span>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+        <path d={path} fill="none" stroke="#059669" strokeWidth="2.5" />
+        {runs.map((r, i) => <circle key={i} cx={x(i)} cy={y(r.avg_rank as number)} r="3.5" fill="#059669" />)}
+      </svg>
+      <p className="text-[11px] text-muted">Posição média ao longo das análises (mais baixo = melhor). Rode análises periódicas para acompanhar.</p>
     </div>
   );
 }
