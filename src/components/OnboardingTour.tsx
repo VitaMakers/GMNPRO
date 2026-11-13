@@ -62,6 +62,20 @@ const STEPS: Step[] = [
     cta: "Abrir Análise Completa",
   },
   {
+    emoji: "📍",
+    title: "7. Ranking no Google Maps (Agência)",
+    body: "Veja em que posição seu perfil aparece em vários pontos da cidade para cada palavra-chave, compare com concorrentes e acompanhe a evolução — com acompanhamento semanal automático.",
+    href: "/ranking",
+    cta: "Abrir Análise de Ranking",
+  },
+  {
+    emoji: "🗂️",
+    title: "8. Gestão de Locais e relatórios (Agência)",
+    body: "Gerencie todos os clientes num painel, gere relatórios PDF com a sua marca e envie por link ou e-mail — com atualização automática. Tudo em Gestão de Locais.",
+    href: "/locais",
+    cta: "Abrir Gestão de Locais",
+  },
+  {
     emoji: "💬",
     title: "Precisa de ajuda?",
     body: "Fale com a gente pela aba Suporte, direto no WhatsApp. Estamos aqui para te ajudar a vender mais com o Google.",
