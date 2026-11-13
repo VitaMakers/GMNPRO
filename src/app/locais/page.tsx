@@ -14,16 +14,23 @@ export default async function LocaisPage() {
   if (!access.allowed) redirect("/assinar");
   if (!access.entitlements.isAgency) redirect("/desempenho");
 
-  const [{ data: locs }, { data: snaps }, { data: branding }] = await Promise.all([
-    supabase.from("gmb_locations").select("location_name, title, photo_url").order("title", { ascending: true }),
+  const [locsRes, { data: snaps }, { data: branding }] = await Promise.all([
+    supabase.from("gmb_locations").select("location_name, title, photo_url, credit_cap").order("title", { ascending: true }),
     supabase.from("audit_snapshots").select("location_name, score, fraco, razoavel, bom, analyzed_at"),
     supabase.from("agency_branding").select("name, logo_url, color, phone, site").maybeSingle(),
   ]);
+  // Coluna credit_cap pode não existir (migração 0022 não rodou): cai no básico.
+  let locs = locsRes.data;
+  if (locsRes.error) {
+    const base = await supabase.from("gmb_locations").select("location_name, title, photo_url").order("title", { ascending: true });
+    locs = (base.data as typeof locs) ?? [];
+  }
   const byLoc = new Map((snaps ?? []).map((s) => [s.location_name, s]));
   const rows = (locs ?? []).map((l) => ({
     location_name: l.location_name,
     title: l.title,
     photoUrl: l.photo_url || null,
+    creditCap: (l as { credit_cap?: number | null }).credit_cap ?? null,
     snap: byLoc.get(l.location_name) ?? null,
   }));
 

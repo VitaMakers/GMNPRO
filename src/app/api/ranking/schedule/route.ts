@@ -33,8 +33,10 @@ export async function POST(request: Request) {
     location?: string; keyword?: string; grid?: number; spacingKm?: number; frequency?: string; enabled?: boolean;
   };
   if (!b.location || !b.keyword) return NextResponse.json({ error: "dados_incompletos" }, { status: 400 });
-  const grid = Number(b.grid ?? 7);
+  let grid = Number(b.grid ?? 7);
   if (!(GRID_SIZES as readonly number[]).includes(grid)) return NextResponse.json({ error: "grade_invalida" }, { status: 400 });
+  // Acompanhamento automático limitado a 7x7 para proteger o custo/créditos.
+  if (grid > 7) grid = 7;
   const frequency = b.frequency === "monthly" ? "monthly" : "weekly";
 
   if (b.enabled === false) {

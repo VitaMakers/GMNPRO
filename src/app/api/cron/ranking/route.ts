@@ -4,6 +4,7 @@ import { getValidAccessToken } from "@/lib/google/token";
 import { dataForSeoConfigured } from "@/lib/dataforseo";
 import { gridCredits } from "@/lib/geogrid";
 import { executeRanking } from "@/lib/rankingRun";
+import { monthUsage } from "@/lib/rankingUsage";
 import { entitlementsFor } from "@/lib/entitlements";
 
 export const dynamic = "force-dynamic";
@@ -40,7 +41,11 @@ export async function GET(request: Request) {
       const ent = entitlementsFor(tier);
       const paid = sub?.status === "active" || sub?.manual_access === true;
       const need = gridCredits(sch.grid_size);
-      if (!ent.geoGrid || !paid || (sub?.credits ?? 0) < need) { skipped++; 
+      // Teto mensal por perfil
+      const { data: loc } = await admin.from("gmb_locations").select("credit_cap").eq("user_id", sch.user_id).eq("location_name", sch.location_name).maybeSingle();
+      const cap = (loc as { credit_cap?: number | null } | null)?.credit_cap;
+      const overCap = typeof cap === "number" && cap > 0 && (await monthUsage(admin, sch.user_id, sch.location_name)) + need > cap;
+      if (!ent.geoGrid || !paid || (sub?.credits ?? 0) < need || overCap) { skipped++; 
         // adia 1 dia para não travar
         await admin.from("ranking_schedules").update({ next_run_at: new Date(Date.now() + 86400000).toISOString() }).eq("id", sch.id);
         continue;

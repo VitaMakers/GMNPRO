@@ -4,7 +4,7 @@ import { useState } from "react";
 import { setActiveProfile } from "@/lib/profileStore";
 
 type Snap = { score: number; fraco: number; razoavel: number; bom: number; analyzed_at: string } | null;
-type Row = { location_name: string; title: string | null; photoUrl: string | null; snap: Snap };
+type Row = { location_name: string; title: string | null; photoUrl: string | null; creditCap?: number | null; snap: Snap };
 type Branding = { name?: string | null; logo_url?: string | null; color?: string | null; phone?: string | null; site?: string | null };
 
 export default function LocaisTool({ rows: initial, branding: initialBranding }: { rows: Row[]; branding: Branding | null }) {
@@ -85,6 +85,11 @@ export default function LocaisTool({ rows: initial, branding: initialBranding }:
     a.click(); URL.revokeObjectURL(url);
   }
 
+  async function saveCap(loc: string, cap: number | null) {
+    await fetch("/api/ranking/cap", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ location: loc, cap }) });
+    setRows((rs) => rs.map((r) => (r.location_name === loc ? { ...r, creditCap: cap } : r)));
+  }
+
   const list = rows.filter((r) => (r.title ?? "").toLowerCase().includes(filter.toLowerCase()));
   const pend = rows.reduce((s, r) => s + (r.snap?.fraco ?? 0), 0);
   const analyzed = rows.filter((r) => r.snap).length;
@@ -159,6 +164,7 @@ export default function LocaisTool({ rows: initial, branding: initialBranding }:
                   <button onClick={() => analyzeOne(r.location_name)} disabled={running !== ""} className="rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-surface-2 disabled:opacity-60">
                     {running === r.location_name ? "…" : s ? "Atualizar" : "Analisar"}
                   </button>
+                  <CapInput value={r.creditCap ?? null} onSave={(v) => saveCap(r.location_name, v)} />
                   <a href="/checklist" onClick={() => setActiveProfile(r.location_name)} className="rounded-lg border border-border px-2.5 py-1.5 text-xs hover:bg-surface-2">Abrir</a>
                   {s && <button onClick={() => share(r.location_name)} className="rounded-lg bg-foreground px-2.5 py-1.5 text-xs font-medium text-white">Relatório / Link</button>}
                   {s && <button onClick={() => setMail({ loc: r.location_name, title: r.title ?? "" })} className="rounded-lg border border-brand px-2.5 py-1.5 text-xs font-medium text-brand-2 hover:bg-brand/10">E-mail</button>}
@@ -201,6 +207,22 @@ function MailModal({ title, to, setTo, note, setNote, monthly, setMonthly, busy,
         </div>
       </div>
     </div>
+  );
+}
+
+function CapInput({ value, onSave }: { value: number | null; onSave: (v: number | null) => void }) {
+  const [v, setV] = useState(value != null ? String(value) : "");
+  return (
+    <span className="inline-flex items-center gap-1" title="Teto de créditos de ranking por mês (vazio = sem limite)">
+      <input
+        value={v}
+        onChange={(e) => setV(e.target.value.replace(/[^0-9]/g, ""))}
+        onBlur={() => onSave(v === "" ? null : Number(v))}
+        placeholder="∞"
+        className="w-14 rounded-lg border border-border bg-surface-2 px-2 py-1 text-xs outline-none focus:border-brand"
+      />
+      <span className="text-[10px] text-muted">cr/mês</span>
+    </span>
   );
 }
 

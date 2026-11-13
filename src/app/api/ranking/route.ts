@@ -5,6 +5,7 @@ import { getValidAccessToken } from "@/lib/google/token";
 import { dataForSeoConfigured } from "@/lib/dataforseo";
 import { gridCredits, GRID_SIZES } from "@/lib/geogrid";
 import { executeRanking } from "@/lib/rankingRun";
+import { monthUsage } from "@/lib/rankingUsage";
 import { getCredits, spendCredits } from "@/lib/credits";
 
 export const dynamic = "force-dynamic";
@@ -69,6 +70,19 @@ export async function POST(request: Request) {
   }
 
   const need = gridCredits(grid);
+
+  // Teto mensal por perfil (opcional): protege o saldo da agência.
+  try {
+    const { data: loc } = await supabase.from("gmb_locations").select("credit_cap").eq("user_id", user.id).eq("location_name", location).maybeSingle();
+    const cap = (loc as { credit_cap?: number | null } | null)?.credit_cap;
+    if (typeof cap === "number" && cap > 0) {
+      const used = await monthUsage(supabase, user.id, location);
+      if (used + need > cap) {
+        return NextResponse.json({ error: "limite_do_perfil", detail: `Este perfil tem limite de ${cap} créditos/mês. Já usou ${used}.` }, { status: 402 });
+      }
+    }
+  } catch { /* coluna ausente: ignora */ }
+
   const credits = await getCredits(supabase, user.id, access);
   if (credits < need) {
     return NextResponse.json(

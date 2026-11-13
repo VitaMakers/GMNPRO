@@ -86,12 +86,24 @@ export default function RankingTool({
 
   async function schedule(frequency: string | null) {
     if (!run) return;
+    // Acompanhamento usa no máximo grade 7x7 para proteger o saldo.
+    const schedGrid = Math.min(run.grid_size, 7);
+    if (frequency) {
+      const perRun = schedGrid * schedGrid;
+      const perMonth = frequency === "weekly" ? perRun * 4 : perRun;
+      const ok = window.confirm(
+        `Acompanhamento ${frequency === "weekly" ? "semanal" : "mensal"} em grade ${schedGrid}×${schedGrid}.\n` +
+        `Cada rodada usa ${perRun} créditos (~${perMonth}/mês).\n` +
+        `Só roda em plano pago e com saldo; para sozinho quando acaba. Confirmar?`,
+      );
+      if (!ok) return;
+    }
     setSchedBusy(true);
     try {
       await fetch("/api/ranking/schedule", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          location: selected, keyword: run.keyword, grid: run.grid_size, spacingKm: run.spacing_km,
+          location: selected, keyword: run.keyword, grid: schedGrid, spacingKm: run.spacing_km,
           frequency: frequency ?? "weekly", enabled: frequency !== null,
         }),
       });
@@ -270,7 +282,7 @@ export default function RankingTool({
                     Desligar
                   </button>
                 )}
-                <span className="text-[11px] text-muted">{schedFreq ? `Ativo (${schedFreq === "weekly" ? "toda semana" : "todo mês"}) — usa créditos automaticamente.` : "Rode sozinho e veja a evolução no gráfico abaixo."}</span>
+                <span className="text-[11px] text-muted">{schedFreq ? `Ativo (${schedFreq === "weekly" ? "toda semana" : "todo mês"}) — usa ${Math.min(run.grid_size, 7) ** 2} créditos por rodada (grade até 7×7).` : "Acompanhamento usa grade até 7×7 para proteger o saldo. Só roda em plano pago com crédito."}</span>
               </div>
             </>
           ) : (
