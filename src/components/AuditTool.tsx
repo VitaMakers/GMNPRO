@@ -278,6 +278,7 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
   const [kw, setKw] = useState(initial.keyword ?? "");
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState("");
+  const [expanded, setExpanded] = useState(false);
   async function update() {
     if (!scanId || !kw.trim()) return;
     setBusy(true); setErr("");
@@ -316,7 +317,8 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
 
         {(() => {
           const paid = c.list.filter((x) => x.isPaid);
-          const organic = c.list.filter((x) => !x.isPaid).slice(0, 5);
+          const organicAll = c.list.filter((x) => !x.isPaid);
+          const organic = expanded ? organicAll : organicAll.slice(0, 5);
           const me = c.list.find((x) => x.isMe);
           const leader = organic.find((x) => !x.isMe) ?? organic[0];
           const cmp = (mine?: number, other?: number) => (mine ?? 0) >= (other ?? 0);
@@ -356,8 +358,14 @@ function Competitors({ c: initial, scanId }: { c: NonNullable<AuditReport["compe
               )}
 
               {/* Orgânicos */}
-              <p className="mb-2 mt-5 text-sm font-semibold">🌱 Resultados orgânicos (top 5)</p>
+              <p className="mb-2 mt-5 text-sm font-semibold">🌱 Resultados orgânicos (top {expanded ? organicAll.length : Math.min(5, organicAll.length)})</p>
               <ul className="space-y-2">{organic.map((x, i) => <CompRow key={"o" + x.rank + x.name} x={x} pos={i + 1} showRank />)}</ul>
+              {organicAll.length > 5 && (
+                <button onClick={() => setExpanded((v) => !v)} className="mx-auto mt-3 flex items-center gap-1.5 rounded-full border border-border bg-white px-4 py-2 text-xs font-semibold text-brand-2 transition hover:bg-surface-2">
+                  {expanded ? "Ver menos" : `Ver mais ${organicAll.length - 5} empresas`}
+                  <svg viewBox="0 0 24 24" className={`h-4 w-4 transition-transform ${expanded ? "rotate-180" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M6 9l6 6 6-6" /></svg>
+                </button>
+              )}
             </>
           );
         })()}

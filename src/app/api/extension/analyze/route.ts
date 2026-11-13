@@ -70,7 +70,7 @@ export async function POST(request: Request) {
         const segmentAvg = rated.length ? Math.round((rated.reduce((s2, i) => s2 + (i.rating ?? 0), 0) / rated.length) * 10) / 10 : null;
         report.competitors = {
           keyword, segmentAvg, myRank, total: items.length,
-          list: items.slice(0, 8).map((i) => ({ rank: i.rank, name: i.title, rating: i.rating ?? 0, reviewCount: i.reviews ?? 0, isPaid: i.isPaid, image: i.image, category: i.category, openNow: i.openNow, website: i.website, snippet: i.snippet, lat: i.lat ?? 0, lng: i.lng ?? 0, isMe: i.me })),
+          list: items.slice(0, 20).map((i) => ({ rank: i.rank, name: i.title, rating: i.rating ?? 0, reviewCount: i.reviews ?? 0, isPaid: i.isPaid, image: i.image, category: i.category, openNow: i.openNow, website: i.website, snippet: i.snippet, lat: i.lat ?? 0, lng: i.lng ?? 0, isMe: i.me })),
         };
       }
     } catch { /* sem ranking */ }
