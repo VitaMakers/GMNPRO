@@ -23,7 +23,7 @@ export default async function AssinarPage() {
 
   return (
     <div className="min-h-screen">
-      {minimal ? <MinimalHeader /> : <AppHeader />}
+      {minimal ? <MinimalHeader /> : <AppHeader isAgency={access.entitlements.isAgency} isAdmin={access.status === "admin"} trial={access.trial ? { daysLeft: access.daysLeft } : null} />}
       <main className="mx-auto max-w-4xl px-4 py-12">
         <div className="mb-8 text-center">
           <h1 className="font-display text-3xl font-bold tracking-tight">Assine o GMN Profile</h1>

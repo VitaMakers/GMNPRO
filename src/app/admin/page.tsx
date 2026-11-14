@@ -216,7 +216,7 @@ export default async function AdminPage() {
 
   return (
     <div className="min-h-screen">
-      <AppHeader />
+      <AppHeader isAgency isAdmin />
       <main className="mx-auto max-w-6xl px-4 py-8">
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold tracking-tight">Painel Admin</h1>

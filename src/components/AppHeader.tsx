@@ -20,14 +20,26 @@ const links = [
   { href: "/suporte", label: "Suporte" },
 ];
 
-export default function AppHeader() {
+export default function AppHeader({
+  isAgency: isAgencyProp,
+  isAdmin: isAdminProp,
+  trial: trialProp,
+}: {
+  isAgency?: boolean;
+  isAdmin?: boolean;
+  trial?: { daysLeft: number } | null;
+} = {}) {
   const router = useRouter();
   const pathname = usePathname();
-  const [trial, setTrial] = useState<{ daysLeft: number } | null>(null);
-  const [isAdmin, setIsAdmin] = useState(false);
-  const [isAgency, setIsAgency] = useState(false);
+  // Semeia com os valores que o servidor já conhece (evita o "pisca" do menu
+  // abrindo curto e expandindo, e dispensa o fetch quando os props vêm prontos).
+  const seeded = isAgencyProp !== undefined || isAdminProp !== undefined;
+  const [trial, setTrial] = useState<{ daysLeft: number } | null>(trialProp ?? null);
+  const [isAdmin, setIsAdmin] = useState(isAdminProp ?? false);
+  const [isAgency, setIsAgency] = useState(isAgencyProp ?? false);
 
   useEffect(() => {
+    if (seeded) return; // já veio pronto do servidor
     (async () => {
       try {
         const res = await fetch("/api/access");
@@ -41,7 +53,7 @@ export default function AppHeader() {
         /* ignora */
       }
     })();
-  }, []);
+  }, [seeded]);
 
   async function sair() {
     const supabase = createClient();

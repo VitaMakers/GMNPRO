@@ -30,7 +30,7 @@ export default async function AvaliacoesPage() {
 
   return (
     <div className="min-h-screen">
-      <AppHeader />
+      <AppHeader isAgency={access.entitlements.isAgency} isAdmin={access.status === "admin"} trial={access.trial ? { daysLeft: access.daysLeft } : null} />
       <main className="mx-auto max-w-4xl px-4 py-8">
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold tracking-tight">Avaliações com IA</h1>
