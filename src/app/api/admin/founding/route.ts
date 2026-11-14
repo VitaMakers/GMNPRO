@@ -18,13 +18,15 @@ export async function POST(request: Request) {
   if (!userId || !cents || cents < 500 || !tier) return NextResponse.json({ error: "dados_invalidos" }, { status: 400 });
 
   const admin = createAdminClient();
+  const LABEL: Record<string, string> = { essencial: "Essencial", agencia2: "Agência 2", agencia4: "Agência 4" };
+  const planName = LABEL[tier] ?? tier;
   try {
     const stripe = getStripe();
     const price = await stripe.prices.create({
       currency: "brl",
       unit_amount: cents,
       recurring: { interval: "month" },
-      product_data: { name: `GMN PRO — Desconto exclusivo (${tier})` },
+      product_data: { name: `GMN PRO — ${planName}` },
     });
     const link = await stripe.paymentLinks.create({
       line_items: [{ price: price.id, quantity: 1 }],
