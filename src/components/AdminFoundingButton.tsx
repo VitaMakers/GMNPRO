@@ -6,7 +6,7 @@ export default function AdminFoundingButton({ userId }: { userId: string }) {
   const [busy, setBusy] = useState(false);
 
   async function gen() {
-    const valor = prompt("Valor mensal do fundador (R$):", "80");
+    const valor = prompt("Valor mensal do desconto exclusivo (R$):", "80");
     if (!valor) return;
     const tier = prompt("Plano (agencia2 ou agencia4):", "agencia2") as string;
     if (!tier) return;
@@ -25,7 +25,7 @@ export default function AdminFoundingButton({ userId }: { userId: string }) {
 
   return (
     <button onClick={gen} disabled={busy} className="rounded-lg border border-brand/40 px-2.5 py-1 text-xs font-medium text-brand-2 transition hover:bg-brand/10 disabled:opacity-60">
-      {busy ? "…" : "R$ fundador"}
+      {busy ? "…" : "Desconto exclusivo"}
     </button>
   );
 }
