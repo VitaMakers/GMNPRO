@@ -40,8 +40,8 @@ export function BrandMark({ className = "" }: { className?: string }) {
 export function BrandWordmark({ className = "" }: { className?: string }) {
   return (
     <span className={`font-logo ${className}`}>
-      <span className="font-bold text-navy">GMN</span>{" "}
-      <span className="font-normal text-navy/90">Profile</span>
+      <span className="font-semibold text-navy">GMN</span>{" "}
+      <span className="font-light text-navy">Profile</span>
     </span>
   );
 }

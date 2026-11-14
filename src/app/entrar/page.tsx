@@ -113,10 +113,13 @@ export default function EntrarPage() {
         {/* Esquerda — marca */}
         <div className="flex flex-1 items-center pb-6 pt-16 lg:py-16">
           <div>
-            <span className="font-serif text-2xl text-brand-2">Grupo Vita</span>
-            <h1 className="mt-3 flex items-center gap-4 whitespace-nowrap font-logo text-6xl leading-[0.9] sm:text-7xl lg:text-8xl">
-              <span><span className="font-bold text-navy">GMN</span> <span className="font-normal text-navy/90">Profile</span></span>
-              <BrandMark className="h-14 w-auto sm:h-16 lg:h-20" />
+            <div className="flex items-center gap-2.5">
+              <span className="font-serif text-2xl text-brand-2">Grupo Vita</span>
+              <BrandMark className="h-6 w-auto" />
+            </div>
+            <h1 className="mt-3 whitespace-nowrap font-logo text-6xl leading-[0.9] sm:text-7xl lg:text-8xl">
+              <span className="font-semibold text-navy">GMN</span>{" "}
+              <span className="font-light text-navy">Profile</span>
             </h1>
             <p className="mt-6 max-w-sm text-muted">
               Otimize, agende e cresça no seu Google Meu Negócio. Entre para começar.
