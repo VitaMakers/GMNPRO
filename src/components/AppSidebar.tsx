@@ -117,7 +117,7 @@ export default function AppSidebar({ isAdmin, isAgency = false }: { isAdmin: boo
   ];
 
   return (
-    <nav className="fixed left-5 top-1/2 z-30 hidden -translate-y-1/2 min-[1320px]:block">
+    <nav className="fixed left-8 top-1/2 z-30 hidden -translate-y-1/2 min-[1600px]:left-16 min-[1320px]:block">
       <div className="flex flex-col items-center gap-1.5 rounded-full border border-border bg-white p-2 card-soft">
         {items.map(({ href, label, Icon }) => {
           const active = pathname === href;

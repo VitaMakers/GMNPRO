@@ -17,7 +17,7 @@ export default async function EquipePage() {
   return (
     <div className="min-h-screen">
       <AppHeader isAgency={access.entitlements.isAgency} isAdmin={access.status === "admin"} trial={access.trial ? { daysLeft: access.daysLeft } : null} />
-      <main className="mx-auto max-w-3xl px-4 py-8">
+      <main className="page-enter mx-auto max-w-3xl px-4 py-8">
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold tracking-tight">Equipe</h1>
           <p className="mt-1 text-sm text-muted">Convide usuários para acessar os perfis da sua agência. Eles entram com o próprio login e herdam o seu plano.</p>

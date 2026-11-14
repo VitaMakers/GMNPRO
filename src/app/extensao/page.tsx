@@ -15,7 +15,7 @@ export default function ExtensaoPage() {
   return (
     <div className="min-h-screen">
       <AppHeader />
-      <main className="mx-auto max-w-2xl px-4 py-8">
+      <main className="page-enter mx-auto max-w-2xl px-4 py-8">
         <div className="mb-6">
           <h1 className="font-display text-2xl font-bold tracking-tight">Extensão de Pré-análise</h1>
           <p className="mt-1 text-sm text-muted">

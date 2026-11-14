@@ -134,14 +134,32 @@ export default function AppHeader({
               );
             })}
             {isAgency && (
-              <Link
-                href="/ranking"
-                className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
-                  pathname === "/ranking" ? "bg-brand/10 text-brand-2" : "text-muted"
-                }`}
-              >
-                Ranking
-              </Link>
+              <>
+                <Link
+                  href="/ranking"
+                  className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                    pathname === "/ranking" ? "bg-brand/10 text-brand-2" : "text-muted"
+                  }`}
+                >
+                  Ranking
+                </Link>
+                <Link
+                  href="/locais"
+                  className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                    pathname === "/locais" ? "bg-brand/10 text-brand-2" : "text-muted"
+                  }`}
+                >
+                  Locais
+                </Link>
+                <Link
+                  href="/equipe"
+                  className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                    pathname === "/equipe" ? "bg-brand/10 text-brand-2" : "text-muted"
+                  }`}
+                >
+                  Equipe
+                </Link>
+              </>
             )}
             {isAdmin && (
               <Link

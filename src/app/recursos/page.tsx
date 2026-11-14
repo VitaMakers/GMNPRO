@@ -41,7 +41,7 @@ export default function RecursosPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-20">
+      <main className="page-enter mx-auto max-w-6xl px-4 py-20">
         {/* Como funciona */}
         <div className="mb-24 grid gap-5 sm:grid-cols-3">
           {STEPS.map((s) => (

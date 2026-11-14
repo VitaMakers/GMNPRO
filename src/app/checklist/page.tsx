@@ -69,7 +69,7 @@ export default async function ChecklistPage() {
   return (
     <div className="min-h-screen">
       <AppHeader isAgency={access.entitlements.isAgency} isAdmin={access.status === "admin"} trial={access.trial ? { daysLeft: access.daysLeft } : null} />
-      <main className="mx-auto max-w-6xl px-4 py-8">
+      <main className="page-enter mx-auto max-w-6xl px-4 py-8">
         <div className="mb-8">
           <h1 className="font-display text-2xl font-bold tracking-tight">
             Análise Completa

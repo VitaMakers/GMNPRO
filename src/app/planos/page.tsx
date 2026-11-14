@@ -33,7 +33,7 @@ export default function PlanosPage() {
         </div>
       </section>
 
-      <main className="mx-auto max-w-6xl px-4 py-16">
+      <main className="page-enter mx-auto max-w-6xl px-4 py-16">
         <PlanosCards />
 
         <p className="mx-auto mt-8 max-w-sm text-center text-xs text-muted">

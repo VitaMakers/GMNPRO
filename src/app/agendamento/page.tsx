@@ -29,7 +29,7 @@ export default async function AgendamentoPage() {
   return (
     <div className="min-h-screen">
       <AppHeader isAgency={access.entitlements.isAgency} isAdmin={access.status === "admin"} trial={access.trial ? { daysLeft: access.daysLeft } : null} />
-      <main className="mx-auto max-w-5xl px-4 py-8">
+      <main className="page-enter mx-auto max-w-5xl px-4 py-8">
         <div className="mb-8 flex items-start justify-between gap-4">
           <div>
             <h1 className="font-display text-2xl font-bold tracking-tight">Agendamento de Postagens</h1>
