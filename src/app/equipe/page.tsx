@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import TeamTool from "@/components/TeamTool";
 
-export const metadata = { title: "Equipe — GMN PRO" };
+export const metadata = { title: "Equipe — GMN Profile" };
 
 export default async function EquipePage() {
   const supabase = await createClient();

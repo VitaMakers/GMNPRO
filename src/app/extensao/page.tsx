@@ -1,13 +1,13 @@
 import AppHeader from "@/components/AppHeader";
 
-export const metadata = { title: "Extensão de Pré-análise — GMN PRO" };
+export const metadata = { title: "Extensão de Pré-análise — GMN Profile" };
 
 const steps = [
   "Baixe a pasta da extensão (peça ao suporte o arquivo .zip e descompacte).",
   "Abra chrome://extensions no Google Chrome.",
   'Ligue o "Modo do desenvolvedor" (canto superior direito).',
   'Clique em "Carregar sem compactação" e selecione a pasta da extensão.',
-  "Faça login no GMN PRO neste mesmo navegador.",
+  "Faça login no GMN Profile neste mesmo navegador.",
 ];
 
 export default function ExtensaoPage() {
@@ -43,7 +43,7 @@ export default function ExtensaoPage() {
           </ol>
           <div className="mt-5 rounded-xl border border-brand/30 bg-brand/5 p-4 text-sm">
             <p className="font-medium">Como usar</p>
-            <p className="mt-1 text-muted">Abra a ficha de uma empresa no Google Maps → clique no ícone da extensão → <strong>Analisar este perfil</strong>. A pré-análise completa abre aqui no GMN PRO.</p>
+            <p className="mt-1 text-muted">Abra a ficha de uma empresa no Google Maps → clique no ícone da extensão → <strong>Analisar este perfil</strong>. A pré-análise completa abre aqui no GMN Profile.</p>
           </div>
         </div>
       </main>

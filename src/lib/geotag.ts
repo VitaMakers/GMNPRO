@@ -182,7 +182,7 @@ export async function geotagPhoto(
   };
 
   const zeroth: Record<number, unknown> = {
-    [piexif.ImageIFD.Software]: "GMN PRO",
+    [piexif.ImageIFD.Software]: "GMN Profile",
   };
 
   if (meta.description.trim()) {

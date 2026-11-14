@@ -9,7 +9,7 @@ import CtaSection from "@/components/CtaSection";
 import Faq from "@/components/Faq";
 
 export const metadata: Metadata = {
-  title: "Geotag de Fotos — GMN PRO",
+  title: "Geotag de Fotos — GMN Profile",
   description:
     "Adicione localização, título e palavras-chave nas fotos do seu Google Meu Negócio. As imagens nunca saem do seu navegador.",
 };

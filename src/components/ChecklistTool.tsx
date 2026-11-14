@@ -243,7 +243,7 @@ export default function ChecklistTool({
           <h2 className="font-semibold">Análise completa do perfil</h2>
           <p className="mt-1 text-sm text-muted">
             Escolha o perfil e o sistema lê o Google em tempo real e marca sozinho o que já está
-            feito, calcula a nota e mostra o que falta. Sem extensão do Chrome — tudo dentro do GMN PRO.
+            feito, calcula a nota e mostra o que falta. Sem extensão do Chrome — tudo dentro do GMN Profile.
           </p>
           <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center">
             <span className="inline-flex items-center gap-2 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2.5 text-sm font-medium text-brand-2 sm:max-w-xs">

@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import { whatsappLink, supportWhatsappDisplay, SUPPORT_EMAIL } from "@/lib/support";
 
-export const metadata = { title: "Suporte — GMN PRO" };
+export const metadata = { title: "Suporte — GMN Profile" };
 
 export default async function SuportePage() {
   const supabase = await createClient();
@@ -16,7 +16,7 @@ export default async function SuportePage() {
   const access = await getAccess(supabase, user.id, user.email);
   if (!access.allowed) redirect("/assinar");
 
-  const msg = "Olá! Preciso de ajuda com o GMN PRO.";
+  const msg = "Olá! Preciso de ajuda com o GMN Profile.";
 
   return (
     <div className="min-h-screen">
@@ -26,7 +26,7 @@ export default async function SuportePage() {
           <h1 className="font-display text-2xl font-bold tracking-tight">Falar com o suporte</h1>
           <p className="mt-1 text-sm text-muted">
             Estamos aqui para ajudar. Fale com a nossa equipe pelo WhatsApp e responda suas
-            dúvidas sobre o GMN PRO.
+            dúvidas sobre o GMN Profile.
           </p>
         </div>
 

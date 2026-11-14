@@ -1,4 +1,4 @@
-// Número de WhatsApp do suporte GMN PRO.
+// Número de WhatsApp do suporte GMN Profile.
 // Formato internacional só com dígitos: 55 (Brasil) + DDD + número.
 export const SUPPORT_WHATSAPP = "5515991876671";
 

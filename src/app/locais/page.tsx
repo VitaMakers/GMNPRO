@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import LocaisTool from "@/components/LocaisTool";
 
-export const metadata = { title: "Gestão de Locais — GMN PRO" };
+export const metadata = { title: "Gestão de Locais — GMN Profile" };
 
 export default async function LocaisPage() {
   const supabase = await createClient();

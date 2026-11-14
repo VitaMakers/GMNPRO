@@ -5,9 +5,9 @@ import NetworkBackground from "@/components/NetworkBackground";
 import PlanosCards from "@/components/PlanosCards";
 
 export const metadata: Metadata = {
-  title: "Planos — GMN PRO",
+  title: "Planos — GMN Profile",
   description:
-    "Teste o GMN PRO grátis por 7 dias. Planos para o dono do negócio (R$ 20/mês) e para agências (perfis ilimitados, Análise de Ranking e relatórios com a sua marca).",
+    "Teste o GMN Profile grátis por 7 dias. Planos para o dono do negócio (R$ 20/mês) e para agências (perfis ilimitados, Análise de Ranking e relatórios com a sua marca).",
 };
 
 export default function PlanosPage() {

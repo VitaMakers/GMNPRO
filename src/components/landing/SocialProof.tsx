@@ -24,7 +24,7 @@ export default function SocialProof() {
       </div>
       <p className="text-center text-sm text-muted sm:text-left">
         Empresas de vários segmentos já confiam no{" "}
-        <span className="font-semibold text-foreground">GMN PRO</span>
+        <span className="font-semibold text-foreground">GMN Profile</span>
       </p>
     </div>
   );

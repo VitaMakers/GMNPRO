@@ -9,7 +9,7 @@ import AuditTool from "@/components/AuditTool";
 import CtaSection from "@/components/CtaSection";
 
 export const metadata: Metadata = {
-  title: "Pré-análise de perfil de terceiros — GMN PRO",
+  title: "Pré-análise de perfil de terceiros — GMN Profile",
   description:
     "Analise como sua empresa aparece no Google Maps e veja o que melhorar na ficha do Google Meu Negócio.",
 };

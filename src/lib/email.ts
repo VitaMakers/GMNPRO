@@ -1,6 +1,6 @@
 /**
  * Envio de e-mail via Resend (https://resend.com) — sem SDK, só fetch.
- * Variáveis (Vercel): RESEND_API_KEY e EMAIL_FROM (ex.: "GMN PRO <relatorios@seudominio.com.br>").
+ * Variáveis (Vercel): RESEND_API_KEY e EMAIL_FROM (ex.: "GMN Profile <relatorios@seudominio.com.br>").
  */
 export function emailConfigured(): boolean {
   return !!process.env.RESEND_API_KEY;
@@ -15,14 +15,14 @@ function normalizeFrom(raw?: string): string {
     const name = m[1].trim().replace(/^["']+|["']+$/g, "").trim();
     return name ? `${name} <${m[2]}>` : m[2];
   }
-  if (/^[^\s<>]+@[^\s<>]+\.[^\s<>]+$/.test(v)) return `GMN PRO <${v}>`;
+  if (/^[^\s<>]+@[^\s<>]+\.[^\s<>]+$/.test(v)) return `GMN Profile <${v}>`;
   return "";
 }
 
 export async function sendEmail(opts: { to: string; subject: string; html: string; replyTo?: string }): Promise<void> {
   const key = process.env.RESEND_API_KEY;
   if (!key) throw new Error("RESEND_API_KEY não configurada");
-  const from = normalizeFrom(process.env.EMAIL_FROM) || "GMN PRO <onboarding@resend.dev>";
+  const from = normalizeFrom(process.env.EMAIL_FROM) || "GMN Profile <onboarding@resend.dev>";
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
@@ -44,7 +44,7 @@ export function reportEmailHtml(snap: Snap, url: string, branding: Branding, not
   const ring = snap.score >= 75 ? "#059669" : snap.score >= 50 ? "#d97706" : "#dc2626";
   const label = snap.score >= 75 ? "Bom" : snap.score >= 50 ? "Razoável" : "Fraco";
   const pend = snap.items.filter((i) => i.status !== "bom").sort((a) => (a.status === "fraco" ? -1 : 1)).slice(0, 5);
-  const who = branding?.name ? esc(branding.name) : "GMN PRO";
+  const who = branding?.name ? esc(branding.name) : "GMN Profile";
   return `<!doctype html><html><body style="margin:0;background:#f6f7f8;font-family:system-ui,Segoe UI,Arial,sans-serif;color:#111827">
 <div style="max-width:600px;margin:24px auto;background:#fff;border-radius:16px;overflow:hidden;border:1px solid #e5e7eb">
   <div style="padding:20px 24px;border-bottom:3px solid ${brand};display:flex;align-items:center;gap:12px">
@@ -64,6 +64,6 @@ export function reportEmailHtml(snap: Snap, url: string, branding: Branding, not
     ${snap.ranking ? `<div style="margin:16px 0;padding:12px;border:1px solid #e5e7eb;border-radius:10px"><div style="font-weight:700;font-size:14px;margin-bottom:6px">Posição no Google Maps — "${esc(snap.ranking.keyword)}"</div><div style="font-size:13px;color:#374151">Posição média <b>${snap.ranking.avg_rank ?? "—"}</b> · Top 3 <b style="color:#059669">${snap.ranking.top3_pct ?? 0}%</b> · Top 10 <b style="color:#d97706">${snap.ranking.top10_pct ?? 0}%</b></div></div>` : ""}
     <div style="text-align:center;margin:24px 0 8px"><a href="${url}" style="background:${brand};color:#fff;text-decoration:none;padding:12px 22px;border-radius:10px;font-weight:700;font-size:14px;display:inline-block">Ver relatório completo</a></div>
   </div>
-  <div style="padding:14px 24px;background:#f9fafb;font-size:11px;color:#9ca3af;text-align:center">${[branding?.phone, branding?.site].filter(Boolean).map((x) => esc(String(x))).join(" · ") || "Enviado pelo GMN PRO"}</div>
+  <div style="padding:14px 24px;background:#f9fafb;font-size:11px;color:#9ca3af;text-align:center">${[branding?.phone, branding?.site].filter(Boolean).map((x) => esc(String(x))).join(" · ") || "Enviado pelo GMN Profile"}</div>
 </div></body></html>`;
 }

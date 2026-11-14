@@ -4,7 +4,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import DesempenhoDashboard from "@/components/DesempenhoDashboard";
 
-export const metadata = { title: "Desempenho — GMN PRO" };
+export const metadata = { title: "Desempenho — GMN Profile" };
 
 export default async function DesempenhoPage() {
   const supabase = await createClient();

@@ -26,7 +26,7 @@ export async function POST(request: Request) {
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
       customer: customerId,
-      line_items: [{ quantity: 1, price_data: { currency: "brl", recurring: { interval: "month" }, unit_amount: 4850, product_data: { name: "GMN PRO — Usuário extra" } } }],
+      line_items: [{ quantity: 1, price_data: { currency: "brl", recurring: { interval: "month" }, unit_amount: 4850, product_data: { name: "GMN Profile — Usuário extra" } } }],
       metadata: { kind: "extra_seat", owner_id: user.id, user_id: user.id },
       success_url: `${base}/equipe?seat=1`,
       cancel_url: `${base}/equipe`,

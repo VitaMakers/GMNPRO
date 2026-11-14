@@ -10,7 +10,7 @@ import CtaSection from "@/components/CtaSection";
 import Faq from "@/components/Faq";
 
 export const metadata: Metadata = {
-  title: "Análise Completa do Google Meu Negócio — GMN PRO",
+  title: "Análise Completa do Google Meu Negócio — GMN Profile",
   description:
     "Análise completa e automática do seu perfil do Google Meu Negócio: nota de 0 a 100, mapa de locais, card detalhado e as prioridades do que melhorar.",
 };

@@ -19,7 +19,7 @@ export function OPTIONS() { return cors(NextResponse.json({ ok: true })); }
 export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return cors(NextResponse.json({ error: "nao_autenticado", detail: "Faça login no GMN PRO neste navegador." }, { status: 401 }));
+  if (!user) return cors(NextResponse.json({ error: "nao_autenticado", detail: "Faça login no GMN Profile neste navegador." }, { status: 401 }));
 
   const body = (await request.json().catch(() => ({}))) as ExtScrape;
   if (!body.name) return cors(NextResponse.json({ error: "sem_dados" }, { status: 400 }));

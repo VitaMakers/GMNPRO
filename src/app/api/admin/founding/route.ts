@@ -26,7 +26,7 @@ export async function POST(request: Request) {
       currency: "brl",
       unit_amount: cents,
       recurring: { interval: "month" },
-      product_data: { name: `GMN PRO — ${planName}` },
+      product_data: { name: `GMN Profile — ${planName}` },
     });
     const link = await stripe.paymentLinks.create({
       line_items: [{ price: price.id, quantity: 1 }],

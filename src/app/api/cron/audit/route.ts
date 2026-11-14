@@ -82,7 +82,7 @@ export async function GET(request: Request) {
               await sendEmail({
                 to,
                 subject: `⚠️ Alerta: ${snap.title}`,
-                html: `<div style="font-family:system-ui;max-width:520px;margin:0 auto"><h2 style="font-size:18px">Alerta no perfil</h2><p style="font-size:14px"><b>${esc(snap.title)}</b></p><p style="font-size:14px">${motivo}</p><p style="font-size:13px;color:#6b7280">Abra o GMN PRO para ver os detalhes e corrigir.</p></div>`,
+                html: `<div style="font-family:system-ui;max-width:520px;margin:0 auto"><h2 style="font-size:18px">Alerta no perfil</h2><p style="font-size:14px"><b>${esc(snap.title)}</b></p><p style="font-size:14px">${motivo}</p><p style="font-size:13px;color:#6b7280">Abra o GMN Profile para ver os detalhes e corrigir.</p></div>`,
               });
             } catch { /* ignora envio */ }
           }

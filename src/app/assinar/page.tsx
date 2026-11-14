@@ -6,7 +6,7 @@ import ManageSubscriptionButton from "@/components/ManageSubscriptionButton";
 import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 
-export const metadata = { title: "Assinar — GMN PRO" };
+export const metadata = { title: "Assinar — GMN Profile" };
 
 export default async function AssinarPage() {
   const supabase = await createClient();
@@ -26,7 +26,7 @@ export default async function AssinarPage() {
       {minimal ? <MinimalHeader /> : <AppHeader />}
       <main className="mx-auto max-w-4xl px-4 py-12">
         <div className="mb-8 text-center">
-          <h1 className="font-display text-3xl font-bold tracking-tight">Assine o GMN PRO</h1>
+          <h1 className="font-display text-3xl font-bold tracking-tight">Assine o GMN Profile</h1>
           {access.needsPlan ? (
             <p className="mt-2 text-muted">
               Escolha um plano para começar seu <span className="font-semibold text-foreground">teste grátis de 7 dias</span> —

@@ -5,7 +5,7 @@ import { getAccess } from "@/lib/access";
 import RankingTool from "@/components/RankingTool";
 import { getCredits } from "@/lib/credits";
 
-export const metadata = { title: "Análise de Ranking — GMN PRO" };
+export const metadata = { title: "Análise de Ranking — GMN Profile" };
 
 export default async function RankingPage() {
   const supabase = await createClient();

@@ -45,16 +45,16 @@ export interface PlanPricing {
 }
 export const PLAN_PRICING: Record<Tier, Record<Cycle, PlanPricing>> = {
   essencial: {
-    mensal: { amount: 2000, interval: "month", label: "GMN PRO — Essencial (Mensal)" },
-    anual: { amount: 22500, interval: "year", label: "GMN PRO — Essencial (Anual)" },
+    mensal: { amount: 2000, interval: "month", label: "GMN Profile — Essencial (Mensal)" },
+    anual: { amount: 22500, interval: "year", label: "GMN Profile — Essencial (Anual)" },
   },
   agencia2: {
-    mensal: { amount: 9700, interval: "month", label: "GMN PRO — Agência 2 (Mensal)" },
-    anual: { amount: 109100, interval: "year", label: "GMN PRO — Agência 2 (Anual)" },
+    mensal: { amount: 9700, interval: "month", label: "GMN Profile — Agência 2 (Mensal)" },
+    anual: { amount: 109100, interval: "year", label: "GMN Profile — Agência 2 (Anual)" },
   },
   agencia4: {
-    mensal: { amount: 13000, interval: "month", label: "GMN PRO — Agência 4 (Mensal)" },
-    anual: { amount: 146300, interval: "year", label: "GMN PRO — Agência 4 (Anual)" },
+    mensal: { amount: 13000, interval: "month", label: "GMN Profile — Agência 4 (Mensal)" },
+    anual: { amount: 146300, interval: "year", label: "GMN Profile — Agência 4 (Anual)" },
   },
 };
 

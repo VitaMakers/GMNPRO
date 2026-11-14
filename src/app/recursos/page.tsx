@@ -6,9 +6,9 @@ import NetworkBackground from "@/components/NetworkBackground";
 import { FeaturesShowcase, BenefitsGrid } from "@/components/Showcase";
 
 export const metadata: Metadata = {
-  title: "Recursos — GMN PRO",
+  title: "Recursos — GMN Profile",
   description:
-    "Tudo o que o GMN PRO faz pelo seu Google Meu Negócio: otimização de fotos, agendamento, desempenho, avaliações e mais.",
+    "Tudo o que o GMN Profile faz pelo seu Google Meu Negócio: otimização de fotos, agendamento, desempenho, avaliações e mais.",
 };
 
 const STEPS = [
@@ -28,7 +28,7 @@ export default function RecursosPage() {
         <div className="relative mx-auto max-w-4xl px-4 py-24 text-center">
           <span className="inline-flex items-center gap-2 rounded-full border border-border bg-surface/60 px-3 py-1 text-xs text-muted backdrop-blur">
             <span className="h-1.5 w-1.5 rounded-full bg-brand-2" />
-            Recursos do GMN PRO
+            Recursos do GMN Profile
           </span>
           <h1 className="mt-6 font-display text-4xl font-extrabold tracking-tight sm:text-6xl">
             Uma solução completa para o seu Google

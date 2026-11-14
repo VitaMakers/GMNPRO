@@ -12,7 +12,7 @@ import { GRACE_DAYS } from "@/lib/access";
 const DAY = 24 * 60 * 60 * 1000;
 
 export const dynamic = "force-dynamic";
-export const metadata = { title: "Painel Admin — GMN PRO" };
+export const metadata = { title: "Painel Admin — GMN Profile" };
 
 const PLAN_MONTHLY: Record<string, number> = { mensal: 20, anual: 225 / 12 };
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });

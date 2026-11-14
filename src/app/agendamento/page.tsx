@@ -5,7 +5,7 @@ import { getAccess } from "@/lib/access";
 import AgendamentoDashboard from "@/components/AgendamentoDashboard";
 
 export const metadata = {
-  title: "Agendamento de Postagens — GMN PRO",
+  title: "Agendamento de Postagens — GMN Profile",
 };
 
 export default async function AgendamentoPage() {

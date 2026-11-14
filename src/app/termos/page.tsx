@@ -3,8 +3,8 @@ import MarketingHeader from "@/components/MarketingHeader";
 import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Termos de Uso — GMN PRO",
-  description: "Termos e condições de uso do GMN PRO.",
+  title: "Termos de Uso — GMN Profile",
+  description: "Termos e condições de uso do GMN Profile.",
 };
 
 export default function TermosPage() {
@@ -17,17 +17,17 @@ export default function TermosPage() {
 
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted">
           <Section title="1. Aceitação">
-            Ao usar o GMN PRO, operado pelo Grupo Vita (VitaMakers), você concorda com estes
+            Ao usar o GMN Profile, operado pelo Grupo Vita (VitaMakers), você concorda com estes
             Termos de Uso e com a nossa Política de Privacidade.
           </Section>
           <Section title="2. O serviço">
-            O GMN PRO oferece ferramentas para otimizar fotos, avaliar e agendar postagens em
+            O GMN Profile oferece ferramentas para otimizar fotos, avaliar e agendar postagens em
             perfis do Google Meu Negócio. Você é responsável pelo conteúdo que publica e por ter
             autorização para gerenciar os perfis conectados.
           </Section>
           <Section title="3. Conta e acesso ao Google">
             Você é responsável por manter a segurança da sua conta. Ao conectar o Google, você
-            autoriza o GMN PRO a publicar em seu nome nos perfis que você gerencia. Você pode
+            autoriza o GMN Profile a publicar em seu nome nos perfis que você gerencia. Você pode
             revogar esse acesso a qualquer momento.
           </Section>
           <Section title="4. Uso aceitável">

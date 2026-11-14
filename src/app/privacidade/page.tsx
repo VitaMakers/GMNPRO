@@ -3,8 +3,8 @@ import MarketingHeader from "@/components/MarketingHeader";
 import SiteFooter from "@/components/SiteFooter";
 
 export const metadata: Metadata = {
-  title: "Política de Privacidade — GMN PRO",
-  description: "Como o GMN PRO coleta, usa e protege seus dados.",
+  title: "Política de Privacidade — GMN Profile",
+  description: "Como o GMN Profile coleta, usa e protege seus dados.",
 };
 
 export default function PrivacidadePage() {
@@ -17,15 +17,15 @@ export default function PrivacidadePage() {
 
         <div className="mt-8 space-y-6 text-sm leading-relaxed text-muted">
           <Section title="Extensão do Chrome (Pré-análise)">
-            A extensão do GMN PRO lê apenas a ficha de empresa do Google que você abre (Busca ou
+            A extensão do GMN Profile lê apenas a ficha de empresa do Google que você abre (Busca ou
             Maps) para extrair dados públicos do perfil (nome, categoria, avaliações, endereço,
-            telefone, site, fotos, horários, atributos). Esses dados são enviados ao GMN PRO,
+            telefone, site, fotos, horários, atributos). Esses dados são enviados ao GMN Profile,
             associados à sua conta, somente para gerar a pré-análise. A extensão não coleta
             histórico de navegação, senhas, nem dados de outras abas, e não vende dados a terceiros.
           </Section>
 
           <Section title="Quem somos">
-            O GMN PRO é uma ferramenta do Grupo Vita (VitaMakers) para ajudar empresas e
+            O GMN Profile é uma ferramenta do Grupo Vita (VitaMakers) para ajudar empresas e
             agências a otimizar e gerenciar seus perfis do Google Meu Negócio (Google Business
             Profile). Contato:{" "}
             <a href="mailto:contato@vitamakers.com.br" className="text-brand-2 hover:underline">
@@ -55,7 +55,7 @@ export default function PrivacidadePage() {
           </Section>
 
           <Section title="Uso das APIs do Google">
-            O uso e a transferência de informações recebidas das APIs do Google pelo GMN PRO
+            O uso e a transferência de informações recebidas das APIs do Google pelo GMN Profile
             seguem a{" "}
             <a
               href="https://developers.google.com/terms/api-services-user-data-policy"

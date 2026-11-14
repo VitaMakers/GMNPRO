@@ -16,7 +16,7 @@ type Step = {
 const STEPS: Step[] = [
   {
     emoji: "👋",
-    title: "Bem-vindo ao GMN PRO",
+    title: "Bem-vindo ao GMN Profile",
     body: "Aqui você cuida do seu Google Meu Negócio num lugar só: fotos, postagens, avaliações e desempenho. Vou te mostrar o caminho em 1 minuto.",
   },
   {
