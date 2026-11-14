@@ -146,6 +146,16 @@ export default function RankingTool({
 
   return (
     <div className="space-y-5">
+      <details className="rounded-2xl border border-border bg-white p-4 text-sm card-soft">
+        <summary className="cursor-pointer font-semibold">Como funciona o Mapa de Ranqueamento?</summary>
+        <div className="mt-3 space-y-2 text-muted">
+          <p>Dividimos a região ao redor da empresa numa <strong>grade de pontos</strong>. Em <strong>cada ponto</strong>, consultamos o Google Maps como se alguém estivesse buscando ali e anotamos <strong>em que posição</strong> a empresa aparece para a palavra-chave.</p>
+          <p><span className="font-semibold text-emerald-600">Verde (1–3)</span> = aparece no topo · <span className="font-semibold text-amber-600">amarelo (4–10)</span> · <span className="font-semibold text-red-500">vermelho (11–20)</span> · <span className="font-semibold text-gray-500">cinza (20+)</span> = não aparece no top 20 ali.</p>
+          <p><strong>Posição média / Top 3 / Top 10</strong> resumem o desempenho na região. <strong>Você × concorrentes</strong> mostra quem domina mais pontos.</p>
+          <p>Os dados são <strong>reais do Google Maps</strong> (via DataForSEO), posição por posição. Cada ponto = 1 crédito.</p>
+        </div>
+      </details>
+
       {/* Saldo */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4 card-soft">
         <span className="inline-flex items-center gap-2 rounded-full border border-brand/30 bg-brand/5 px-3 py-1.5 text-sm font-medium text-brand-2">
@@ -267,6 +277,9 @@ export default function RankingTool({
 
               {/* Concorrentes: quem mais aparece no top dos pontos */}
               <Competitors run={run} myTitle={selectedTitle} />
+
+              {/* Diagnóstico e o que fazer */}
+              <Diagnosis run={run} />
 
               {/* Acompanhamento automático */}
               <div className="mt-4 flex flex-wrap items-center gap-2 rounded-2xl border border-border bg-surface-2/50 p-3">
@@ -396,6 +409,60 @@ function Evolution({ history, keyword }: { history: Run[]; keyword: string }) {
         {runs.map((r, i) => <circle key={i} cx={x(i)} cy={y(r.avg_rank as number)} r="3.5" fill="#059669" />)}
       </svg>
       <p className="text-[11px] text-muted">Posição média ao longo das análises (mais baixo = melhor). Rode análises periódicas para acompanhar.</p>
+    </div>
+  );
+}
+
+function Diagnosis({ run }: { run: Run }) {
+  const pts = run.points;
+  const n = pts.length || 1;
+  const found = pts.filter((p) => p.rank != null);
+  const top3 = pts.filter((p) => p.rank != null && (p.rank as number) <= 3).length;
+  const beyond = pts.filter((p) => p.rank == null).length;
+  const size = run.grid_size;
+  const c = (size - 1) / 2;
+
+  // Direção mais fraca (menor % de aparição). row 0 = norte, col 0 = oeste.
+  const dir = { norte: [0, 0], sul: [0, 0], leste: [0, 0], oeste: [0, 0] } as Record<string, [number, number]>;
+  for (const p of pts) {
+    const r = p.row ?? 0, col = p.col ?? 0, ok = p.rank != null ? 1 : 0;
+    if (r < c) { dir.norte[0] += ok; dir.norte[1]++; }
+    if (r > c) { dir.sul[0] += ok; dir.sul[1]++; }
+    if (col > c) { dir.leste[0] += ok; dir.leste[1]++; }
+    if (col < c) { dir.oeste[0] += ok; dir.oeste[1]++; }
+  }
+  const dirPct = Object.entries(dir).map(([k, v]) => ({ k, pct: v[1] ? Math.round((v[0] / v[1]) * 100) : 100 }));
+  const weak = dirPct.sort((a, b) => a.pct - b.pct)[0];
+
+  // Concorrentes que mais dominam.
+  const agg = new Map<string, number>();
+  for (const p of pts) for (const t of (p.top ?? [])) if (!t.me && t.rank <= 3) agg.set(t.title, (agg.get(t.title) ?? 0) + 1);
+  const rivals = [...agg.entries()].sort((a, b) => b[1] - a[1]).slice(0, 3).map((x) => x[0]);
+
+  const recs: string[] = [];
+  if (top3 / n < 0.5) recs.push("Aumente a proeminência: peça avaliações toda semana (com link/QR no pós-venda), responda todas e poste novidades semanalmente — é o que mais sobe posição.");
+  if (beyond / n > 0.3) recs.push(`Você some (20+) em boa parte da região, principalmente ao ${weak.k}. Como distância pesa, reforce relevância e autoridade: inclua a palavra-chave na descrição e nos serviços, confirme a categoria principal certa e adicione categorias secundárias.`);
+  recs.push(`Trabalhe os bairros a ${weak.k} (onde está mais fraco): consiga avaliações de clientes dessas regiões citando o bairro e, se você atende no local do cliente, cadastre a área de atendimento no perfil.`);
+  if (rivals.length) recs.push(`Quem domina a região: ${rivals.join(", ")}. Veja o que eles têm a mais (nº de avaliações, fotos, posts) e supere no volume e na constância.`);
+  recs.push("Construa menções locais (site, redes, listas e parceiros citando nome + endereço + bairros) — ajuda o Google a entender seu alcance e melhora o ranqueamento nas bordas.");
+
+  return (
+    <div className="mt-4 rounded-2xl border border-brand/30 bg-brand/5 p-4">
+      <p className="text-sm font-semibold">🩺 Diagnóstico — como melhorar as regiões fracas</p>
+      <p className="mt-1 text-xs text-muted">
+        Você aparece no top 3 em <strong>{Math.round((top3 / n) * 100)}%</strong> da região e some (20+) em <strong>{Math.round((beyond / n) * 100)}%</strong>. Região mais fraca: <strong>ao {weak.k}</strong>.
+      </p>
+      <ol className="mt-3 space-y-2">
+        {recs.map((r, i) => (
+          <li key={i} className="flex gap-2 text-sm">
+            <span className="font-semibold text-brand-2">{i + 1}.</span>
+            <span className="text-foreground/90">{r}</span>
+          </li>
+        ))}
+      </ol>
+      <p className="mt-3 border-t border-border/50 pt-2 text-[11px] text-muted">
+        Por que você fica 20+ nos pontos distantes: o Google pesa muito a <strong>distância</strong> de quem busca. Você não muda o endereço, mas melhora <strong>relevância</strong> (palavra-chave/categorias) e <strong>proeminência</strong> (avaliações, posts, autoridade) — é isso que amplia seu raio.
+      </p>
     </div>
   );
 }
