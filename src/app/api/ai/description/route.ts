@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateBusinessDescription, type Provider } from "@/lib/ai";
+import { generateBusinessDescription, systemProvider, type Provider } from "@/lib/ai";
 import { decryptSecret } from "@/lib/crypto";
 import { getValidAccessToken } from "@/lib/google/token";
 import { getProfileDescription } from "@/lib/google/business";
@@ -78,9 +78,10 @@ export async function POST(request: Request) {
 
   // Se houver uma chave OpenAI do sistema (sua, escondida), as descrições
   // usam o ChatGPT com ela. Senão, usa o provedor/chave configurados no perfil.
-  const ownGpt = !!process.env.OPENAI_API_KEY;
-  const provider = (ownGpt ? "openai" : body.provider ?? settings?.provider ?? "claude") as Provider;
-  const keyToUse = ownGpt ? undefined : clientKey;
+  // Padrão: IA gratuita do sistema. Se o usuário configurou provedor + chave própria, usa a dele.
+  const hasOwn = !!settings?.provider && !!clientKey;
+  const provider = (hasOwn ? (settings!.provider as Provider) : systemProvider());
+  const keyToUse = hasOwn ? clientKey : undefined;
 
   try {
     const description = await generateBusinessDescription(

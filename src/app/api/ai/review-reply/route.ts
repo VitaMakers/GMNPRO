@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { generateReply, type Provider } from "@/lib/ai";
+import { generateReply, systemProvider, type Provider } from "@/lib/ai";
 import { decryptSecret } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
@@ -45,7 +45,8 @@ export async function POST(request: Request) {
     .eq("location_name", location)
     .maybeSingle();
 
-  const provider = (body.provider ?? settings?.provider ?? "claude") as Provider;
+  const hasOwn = !!settings?.provider && !!clientKey;
+  const provider = (body.provider ?? (hasOwn ? (settings?.provider as Provider) : systemProvider())) as Provider;
 
   try {
     const reply = await generateReply(provider, {

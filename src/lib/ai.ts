@@ -8,6 +8,16 @@ import Anthropic from "@anthropic-ai/sdk";
 
 export type Provider = "claude" | "openai" | "gemini" | "groq";
 
+/** Provedor principal do sistema: prioriza os GRATUITOS (Groq, Gemini).
+ *  Quem configurar a própria chave no perfil sobrepõe isto. */
+export function systemProvider(): Provider {
+  if (process.env.GROQ_API_KEY) return "groq";
+  if (process.env.GEMINI_API_KEY) return "gemini";
+  if (process.env.ANTHROPIC_API_KEY) return "claude";
+  if (process.env.OPENAI_API_KEY) return "openai";
+  return "groq";
+}
+
 export interface ReplyExample {
   review: string;
   reply: string;

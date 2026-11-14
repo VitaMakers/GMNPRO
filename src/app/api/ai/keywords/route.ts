@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { suggestKeywords, type Provider } from "@/lib/ai";
+import { suggestKeywords, systemProvider, type Provider } from "@/lib/ai";
 import { decryptSecret } from "@/lib/crypto";
 import { dataForSeoConfigured, searchVolumes } from "@/lib/dataforseo";
 
@@ -27,8 +27,8 @@ export async function POST(request: Request) {
   if (settings?.api_key) {
     try { clientKey = decryptSecret(settings.api_key); } catch { clientKey = undefined; }
   }
-  const ownGpt = !!process.env.OPENAI_API_KEY;
-  const provider = (ownGpt ? "openai" : settings?.provider ?? "claude") as Provider;
+  const hasOwn = !!settings?.provider && !!clientKey;
+  const provider = (hasOwn ? (settings!.provider as Provider) : systemProvider());
 
   // Cidade a partir do endereço cacheado ("..., Sorocaba - SP").
   const city = (loc?.address ?? "").split(",").pop()?.replace(/-\s*[A-Z]{2}\s*$/, "").trim() || undefined;
@@ -37,7 +37,7 @@ export async function POST(request: Request) {
     const ideas = await suggestKeywords(
       provider,
       { businessName: settings?.business_name || loc?.title || "empresa", category: body.category, city, extra: body.extra },
-      ownGpt ? undefined : clientKey,
+      hasOwn ? clientKey : undefined,
     );
     if (!dataForSeoConfigured()) {
       return NextResponse.json({ ok: true, keywords: ideas.map((k) => ({ keyword: k, volume: null, competition: null })), volumes: false });
