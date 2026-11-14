@@ -1,12 +1,14 @@
 import Link from "next/link";
+import { BrandMark, BrandWordmark } from "@/components/BrandLogo";
 
 export default function SiteFooter() {
   return (
     <footer className="mt-16 border-t border-border bg-surface">
       <div className="mx-auto grid max-w-6xl gap-8 px-4 py-10 sm:grid-cols-3">
         <div>
-          <div className="font-display font-semibold">
-            GMN <span className="text-brand-2">PRO</span>
+          <div className="inline-flex items-center gap-2">
+            <BrandMark className="h-6 w-auto" />
+            <BrandWordmark className="text-base" />
           </div>
           <p className="mt-3 text-sm text-muted">
             A plataforma completa para otimizar e crescer o seu Google Meu Negócio.
@@ -34,7 +36,7 @@ export default function SiteFooter() {
         </div>
       </div>
       <div className="border-t border-border px-4 py-4 text-center text-xs text-muted">
-        © {new Date().getFullYear()} Grupo Vita · GMN PRO
+        © {new Date().getFullYear()} Grupo Vita · GMN Profile
       </div>
     </footer>
   );

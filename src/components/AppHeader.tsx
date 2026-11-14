@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { GoogleG } from "@/components/GoogleBadge";
+import BrandLogo from "@/components/BrandLogo";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import AppSidebar from "@/components/AppSidebar";
 import OnboardingTour from "@/components/OnboardingTour";
@@ -64,12 +65,7 @@ export default function AppHeader() {
         <div className="mx-auto max-w-6xl px-4">
           {/* Linha 1: marca · seletor de perfis · ações */}
           <div className="flex items-center gap-3 py-3">
-            <Link
-              href="/desempenho"
-              className="flex shrink-0 items-center gap-2 font-display text-lg font-semibold tracking-tight"
-            >
-              GMN <span className="text-brand-2">PRO</span>
-            </Link>
+            <BrandLogo href="/desempenho" className="shrink-0" markClassName="h-7 w-auto" textClassName="text-lg" />
             <span
               title="Integração oficial com a API do Google Perfil da Empresa"
               className="hidden shrink-0 items-center gap-1.5 rounded-full border border-border bg-surface px-2.5 py-1 text-[11px] font-semibold text-muted xl:inline-flex"

@@ -2,15 +2,17 @@
 @import "tailwindcss";
 
 :root {
-  /* Tema claro (fundo branco), verde esmeralda como marca. */
+  /* Tema claro (fundo branco). Marca GMN Profile: azul-marinho + turquesa. */
   --background: #f6f7f9;  /* página (cinza bem claro) */
   --surface: #ffffff;     /* cards */
   --surface-2: #f1f3f6;   /* inputs / fundo secundário */
   --border: #e4e7ec;      /* bordas suaves */
-  --foreground: #0f172a;  /* texto principal (quase preto) */
+  --foreground: #0a2149;  /* texto principal (azul-marinho da marca) */
   --muted: #667085;       /* texto secundário */
-  --brand: #059669;       /* ações primárias (verde, texto branco) */
-  --brand-2: #047857;     /* verde escuro p/ texto/destaque com bom contraste no branco */
+  --brand: #0d9488;       /* ações primárias (turquesa, texto branco) */
+  --brand-2: #0f766e;     /* turquesa escuro p/ texto/destaque com bom contraste no branco */
+  --brand-bright: #22c7b8;/* turquesa vivo da logo (check, realces) */
+  --navy: #0a2149;        /* azul-marinho da marca */
   --accent: #d97706;      /* avisos (âmbar) */
 }
 
@@ -23,6 +25,8 @@
   --color-muted: var(--muted);
   --color-brand: var(--brand);
   --color-brand-2: var(--brand-2);
+  --color-brand-bright: var(--brand-bright);
+  --color-navy: var(--navy);
   --color-accent: var(--accent);
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
   --font-display: var(--font-display), var(--font-inter), sans-serif;
@@ -113,15 +117,15 @@ h4,
   66%  { transform: translate(-4%, 4%) scale(1.06); }
   100% { transform: translate(0, 0) scale(1); }
 }
-.mesh { position: absolute; inset: 0; overflow: hidden; background: #e9fbf2; }
+.mesh { position: absolute; inset: 0; overflow: hidden; background: #e6faf7; }
 .mesh::before,
 .mesh::after {
   content: ""; position: absolute; inset: -25%;
   background:
-    radial-gradient(32% 32% at 22% 30%, rgba(52,211,153,0.95), transparent 62%),
-    radial-gradient(28% 28% at 78% 24%, rgba(45,212,191,0.75), transparent 62%),
-    radial-gradient(38% 38% at 62% 74%, rgba(16,185,129,0.85), transparent 62%),
-    radial-gradient(30% 30% at 18% 80%, rgba(167,243,208,0.95), transparent 62%);
+    radial-gradient(32% 32% at 22% 30%, rgba(34,199,184,0.90), transparent 62%),
+    radial-gradient(28% 28% at 78% 24%, rgba(13,148,136,0.70), transparent 62%),
+    radial-gradient(38% 38% at 62% 74%, rgba(10,33,73,0.55), transparent 62%),
+    radial-gradient(30% 30% at 18% 80%, rgba(153,246,228,0.95), transparent 62%);
   filter: blur(42px);
   animation: meshmove 16s ease-in-out infinite;
 }

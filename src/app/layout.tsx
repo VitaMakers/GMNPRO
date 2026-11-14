@@ -23,7 +23,7 @@ const serif = Playfair_Display({
 });
 
 export const metadata: Metadata = {
-  title: "GMN PRO — Ferramentas para o seu Google Meu Negócio",
+  title: "GMN Profile — Ferramentas para o seu Google Meu Negócio",
   description:
     "Geotag de fotos, checklist, auditoria e agendamento de postagens para o seu Google Meu Negócio.",
 };
