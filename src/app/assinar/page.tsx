@@ -15,7 +15,7 @@ export default async function AssinarPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email);
+  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
 
   // Novos usuários (sem plano) ou bloqueados veem só a tela de escolher plano,
   // sem o menu/abas do sistema. Quem já tem acesso vê o cabeçalho completo.

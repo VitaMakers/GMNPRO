@@ -41,7 +41,7 @@ export default async function ChecklistPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email);
+  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
   if (!access.allowed) redirect("/assinar");
 
   const { data: connection } = await supabase

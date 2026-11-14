@@ -13,7 +13,7 @@ export default async function SuportePage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email);
+  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
   if (!access.allowed) redirect("/assinar");
 
   const msg = "Olá! Preciso de ajuda com o GMN Profile.";

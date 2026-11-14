@@ -37,6 +37,7 @@ export async function getAccess(
   supabase: SupabaseClient,
   userId: string,
   email?: string | null,
+  opts?: { meta?: Record<string, unknown> | null },
 ): Promise<Access> {
   if (email && ADMIN_EMAILS.includes(email.toLowerCase())) {
     return { allowed: true, trial: false, daysLeft: 0, status: "admin", tier: "agencia4", entitlements: ADMIN_ENTITLEMENTS, accountId: userId };
@@ -60,6 +61,9 @@ export async function getAccess(
   let meta: Record<string, unknown>;
   if (isMember && ownerMeta) {
     meta = ownerMeta;
+  } else if (opts?.meta) {
+    // Metadados já carregados pelo chamador (evita um segundo auth.getUser por página).
+    meta = opts.meta;
   } else {
     const { data: authData } = await supabase.auth.getUser();
     meta = (authData?.user?.user_metadata ?? {}) as Record<string, unknown>;
