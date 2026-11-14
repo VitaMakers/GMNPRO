@@ -4,6 +4,7 @@ import SiteFooter from "@/components/SiteFooter";
 import CtaSection from "@/components/CtaSection";
 import { BenefitsGrid } from "@/components/Showcase";
 import HeroCommand from "@/components/landing/HeroCommand";
+import CinematicHero from "@/components/landing/CinematicHero";
 import { TrustBadges } from "@/components/GoogleBadge";
 import SocialProof from "@/components/landing/SocialProof";
 import MockProfiles from "@/components/landing/MockProfiles";
@@ -64,35 +65,15 @@ export default function Home() {
     <div className="min-h-screen">
       <MarketingHeader />
 
-      {/* Hero */}
-      <section className="px-4 pb-8 pt-16 sm:pt-24">
+      {/* Abertura cinematográfica (estilo keynote) */}
+      <CinematicHero />
+
+      {/* Produto + prova social */}
+      <section className="px-4 pb-8 pt-12 sm:pt-16">
         <div className="mx-auto max-w-4xl text-center">
           <TrustBadges className="mb-7" />
-          <h1 className="font-display text-5xl font-extrabold leading-[1.02] tracking-tight sm:text-7xl">
-            Seu Google Meu Negócio
-            <br />
-            no automático.
-          </h1>
-          <p className="mx-auto mt-6 max-w-2xl text-lg text-muted sm:text-xl">
-            Agende posts, otimize fotos com IA, responda avaliações e acompanhe o desempenho do seu
-            perfil — tudo num só lugar.
-          </p>
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-            <Link
-              href="/entrar?signup=1"
-              className="rounded-full bg-foreground px-7 py-3.5 text-sm font-semibold text-white transition hover:opacity-90"
-            >
-              Começar teste grátis
-            </Link>
-            <Link
-              href="/recursos"
-              className="inline-flex items-center gap-2 text-sm font-semibold transition hover:text-brand-2"
-            >
-              Ver o que faz <span>→</span>
-            </Link>
-          </div>
         </div>
-        <div className="mx-auto mt-12 max-w-5xl">
+        <div className="mx-auto max-w-5xl">
           <HeroCommand />
           <SocialProof />
         </div>
