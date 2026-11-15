@@ -13,8 +13,14 @@ function masterKey(): Buffer {
   return crypto.createHash("sha256").update(secret).digest();
 }
 
-/** Cifra um texto e devolve "v1:<base64(iv|tag|ciphertext)>". */
+/** Cifra um texto e devolve "v1:<base64(iv|tag|ciphertext)>".
+ *  Se ENCRYPTION_KEY não estiver configurada, NÃO quebra o fluxo: guarda o
+ *  valor como está (compatível com decryptSecret) e registra um aviso. */
 export function encryptSecret(plain: string): string {
+  if (!process.env.ENCRYPTION_KEY) {
+    console.warn("[crypto] ENCRYPTION_KEY não configurada — valor guardado sem cifra.");
+    return plain;
+  }
   const iv = crypto.randomBytes(12);
   const cipher = crypto.createCipheriv("aes-256-gcm", masterKey(), iv);
   const ct = Buffer.concat([cipher.update(plain, "utf8"), cipher.final()]);
@@ -26,11 +32,18 @@ export function encryptSecret(plain: string): string {
  *  (sem o prefixo "v1:") são devolvidos como estão, por compatibilidade. */
 export function decryptSecret(payload: string): string {
   if (!payload.startsWith("v1:")) return payload;
-  const raw = Buffer.from(payload.slice(3), "base64");
-  const iv = raw.subarray(0, 12);
-  const tag = raw.subarray(12, 28);
-  const ct = raw.subarray(28);
-  const decipher = crypto.createDecipheriv("aes-256-gcm", masterKey(), iv);
-  decipher.setAuthTag(tag);
-  return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+  try {
+    const raw = Buffer.from(payload.slice(3), "base64");
+    const iv = raw.subarray(0, 12);
+    const tag = raw.subarray(12, 28);
+    const ct = raw.subarray(28);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", masterKey(), iv);
+    decipher.setAuthTag(tag);
+    return Buffer.concat([decipher.update(ct), decipher.final()]).toString("utf8");
+  } catch {
+    // Chave ausente/incorreta: não derruba a requisição. Devolve vazio para que
+    // o fluxo trate como token inválido (pedir reconexão) em vez de dar erro 500.
+    console.warn("[crypto] Falha ao decifrar — ENCRYPTION_KEY ausente ou incorreta.");
+    return "";
+  }
 }

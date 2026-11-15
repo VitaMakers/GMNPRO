@@ -42,17 +42,17 @@ export async function GET(request: NextRequest) {
   const providerRefresh = session.provider_refresh_token;
 
   if (providerToken) {
-    const expiry = new Date(Date.now() + 3300 * 1000).toISOString();
-    await supabase.from("google_connections").upsert({
-      user_id: user.id,
-      google_email: user.email ?? null,
-      access_token: encryptSecret(providerToken),
-      refresh_token: providerRefresh ? encryptSecret(providerRefresh) : null,
-      token_expiry: expiry,
-      scope: "https://www.googleapis.com/auth/business.manage",
-    });
-
     try {
+      const expiry = new Date(Date.now() + 3300 * 1000).toISOString();
+      await supabase.from("google_connections").upsert({
+        user_id: user.id,
+        google_email: user.email ?? null,
+        access_token: encryptSecret(providerToken),
+        refresh_token: providerRefresh ? encryptSecret(providerRefresh) : null,
+        token_expiry: expiry,
+        scope: "https://www.googleapis.com/auth/business.manage",
+      });
+
       const accounts = await listAccounts(providerToken);
       for (const acc of accounts) {
         const locations = await listLocations(providerToken, acc.name);
