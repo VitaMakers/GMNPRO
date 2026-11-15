@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { exchangeCode, fetchUserEmail, hasBusinessScope } from "@/lib/google/oauth";
 import { listAccounts, listLocations } from "@/lib/google/business";
+import { encryptSecret } from "@/lib/crypto";
 
 function back(path: string) {
   return NextResponse.redirect(new URL(path, process.env.APP_BASE_URL));
@@ -41,8 +42,8 @@ export async function GET(request: Request) {
     await supabase.from("google_connections").upsert({
       user_id: user.id,
       google_email: email,
-      access_token: token.access_token,
-      refresh_token: token.refresh_token ?? null,
+      access_token: encryptSecret(token.access_token),
+      refresh_token: token.refresh_token ? encryptSecret(token.refresh_token) : null,
       token_expiry: expiry,
       scope: token.scope,
     });

@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { listAccounts, listLocations } from "@/lib/google/business";
+import { encryptSecret } from "@/lib/crypto";
 
 export const dynamic = "force-dynamic";
 
@@ -45,8 +46,8 @@ export async function GET(request: NextRequest) {
     await supabase.from("google_connections").upsert({
       user_id: user.id,
       google_email: user.email ?? null,
-      access_token: providerToken,
-      refresh_token: providerRefresh ?? null,
+      access_token: encryptSecret(providerToken),
+      refresh_token: providerRefresh ? encryptSecret(providerRefresh) : null,
       token_expiry: expiry,
       scope: "https://www.googleapis.com/auth/business.manage",
     });

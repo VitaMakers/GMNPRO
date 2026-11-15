@@ -26,9 +26,7 @@ function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = request.headers.get("authorization");
-  const url = new URL(request.url);
-  const qs = url.searchParams.get("secret");
-  return auth === `Bearer ${secret}` || qs === secret;
+  return auth === `Bearer ${secret}`;
 }
 
 export async function GET(request: Request) {

@@ -5,24 +5,31 @@ import { parseScrape, type ExtScrape } from "@/lib/extensionParse";
 
 export const dynamic = "force-dynamic";
 
-function cors(res: NextResponse) {
-  res.headers.set("Access-Control-Allow-Origin", "*");
+function cors(res: NextResponse, origin: string | null) {
+  // Credenciais (cookie de sessão) só são liberadas para a extensão do navegador
+  // — nunca "*" com credenciais, que permitiria qualquer site fazer requisições
+  // autenticadas em nome do usuário.
+  if (origin && (origin.startsWith("chrome-extension://") || origin.startsWith("moz-extension://"))) {
+    res.headers.set("Access-Control-Allow-Origin", origin);
+    res.headers.set("Access-Control-Allow-Credentials", "true");
+    res.headers.set("Vary", "Origin");
+  }
   res.headers.set("Access-Control-Allow-Methods", "POST, OPTIONS");
   res.headers.set("Access-Control-Allow-Headers", "Content-Type");
-  res.headers.set("Access-Control-Allow-Credentials", "true");
   return res;
 }
-export function OPTIONS() { return cors(NextResponse.json({ ok: true })); }
+export function OPTIONS(request: Request) { return cors(NextResponse.json({ ok: true }), request.headers.get("origin")); }
 
 /** Pré-análise GRÁTIS e ILIMITADA: usa só os dados lidos pela extensão (como o
  *  GBP). O ranking de concorrentes é um passo separado que gasta 1 crédito. */
 export async function POST(request: Request) {
+  const origin = request.headers.get("origin");
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) return cors(NextResponse.json({ error: "nao_autenticado", detail: "Faça login no GMN Profile neste navegador." }, { status: 401 }));
+  if (!user) return cors(NextResponse.json({ error: "nao_autenticado", detail: "Faça login no GMN Profile neste navegador." }, { status: 401 }), origin);
 
   const body = (await request.json().catch(() => ({}))) as ExtScrape;
-  if (!body.name) return cors(NextResponse.json({ error: "sem_dados" }, { status: 400 }));
+  if (!body.name) return cors(NextResponse.json({ error: "sem_dados" }, { status: 400 }), origin);
 
   const prof = parseScrape(body);
   const place: PlaceData = {
@@ -44,5 +51,5 @@ export async function POST(request: Request) {
     .maybeSingle();
 
   const base = process.env.APP_BASE_URL || new URL(request.url).origin;
-  return cors(NextResponse.json({ ok: true, scanId: saved?.id ?? null, url: `${base}/auditoria?scan=${saved?.id ?? ""}`, report, parsed: prof }));
+  return cors(NextResponse.json({ ok: true, scanId: saved?.id ?? null, url: `${base}/auditoria?scan=${saved?.id ?? ""}`, report, parsed: prof }), origin);
 }

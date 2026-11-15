@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { getAccess } from "@/lib/access";
 import { suggestKeywords, systemProvider, type Provider } from "@/lib/ai";
 import { decryptSecret } from "@/lib/crypto";
 import { dataForSeoConfigured, searchVolumes } from "@/lib/dataforseo";
@@ -14,6 +15,8 @@ export async function POST(request: Request) {
     data: { user },
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
+  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
+  if (!access.allowed) return NextResponse.json({ error: "sem_acesso", detail: "Seu acesso expirou. Assine para continuar usando a IA." }, { status: 403 });
 
   const body = (await request.json().catch(() => ({}))) as { location?: string; extra?: string; category?: string };
   if (!body.location) return NextResponse.json({ error: "sem_local" }, { status: 400 });

@@ -9,8 +9,7 @@ function authorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return false;
   const auth = request.headers.get("authorization");
-  const qs = new URL(request.url).searchParams.get("secret");
-  return auth === `Bearer ${secret}` || qs === secret;
+  return auth === `Bearer ${secret}`;
 }
 
 export async function GET(request: Request) {
