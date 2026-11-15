@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/server";
+import { recordFirstPayment } from "@/lib/affiliate";
 
 export const dynamic = "force-dynamic";
 
@@ -76,6 +77,10 @@ export async function POST(request: Request) {
         );
         // tier à parte (best-effort; ignora se a coluna não existir).
         await admin.from("subscriptions").update({ tier }).eq("user_id", userId);
+        // Afiliado: comissão de 20% sobre o primeiro pagamento do indicado.
+        if (typeof s.amount_total === "number" && s.amount_total > 0) {
+          await recordFirstPayment(admin, userId, s.amount_total);
+        }
       }
     } else if (
       event.type === "customer.subscription.updated" ||

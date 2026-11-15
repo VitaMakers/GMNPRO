@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { cookies } from "next/headers";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ENTITLEMENTS, type Tier } from "@/lib/entitlements";
+import { attachReferral } from "@/lib/affiliate";
 
 export const dynamic = "force-dynamic";
 
@@ -52,6 +54,15 @@ export async function POST(request: Request) {
   // 3) Marca "escolheu plano" nos metadados do usuário (fonte do portão de
   //    acesso — não depende de migração).
   await supabase.auth.updateUser({ data: { plan_chosen: true, plan_tier: tier } });
+
+  // 4) Atribuição de afiliado: se a pessoa veio por um link /r/<codigo>, vincula
+  //    (uma vez só). Não bloqueia a escolha do plano se falhar.
+  try {
+    const ref = (await cookies()).get("gmn_ref")?.value;
+    if (ref) await attachReferral(createAdminClient(), ref, user.id);
+  } catch {
+    /* ignora */
+  }
 
   return NextResponse.json({ ok: true, tier });
 }

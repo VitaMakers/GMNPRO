@@ -5,6 +5,7 @@ import { ADMIN_EMAILS } from "@/lib/stripe";
 import AdminGrantButton from "@/components/AdminGrantButton";
 import AdminTierSelect from "@/components/AdminTierSelect";
 import AdminFoundingButton from "@/components/AdminFoundingButton";
+import AdminAffiliateButton from "@/components/AdminAffiliateButton";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
 import MetricChart from "@/components/MetricChart";
 import { GRACE_DAYS } from "@/lib/access";
@@ -430,6 +431,7 @@ export default async function AdminPage() {
                     <div className="flex items-center gap-2">
                       {!r.isAdmin && <AdminTierSelect userId={r.userId} tier={r.tier} />}
                       {!r.isAdmin && <AdminFoundingButton userId={r.userId} />}
+                      {!r.isAdmin && <AdminAffiliateButton userId={r.userId} email={r.email} />}
                       <AdminGrantButton userId={r.userId} granted={r.manual} />
                       {!r.isAdmin && <AdminDeleteButton userId={r.userId} email={r.email} />}
                     </div>
