@@ -10,7 +10,7 @@ export default function CtaSection() {
         href="mailto:contato@vitamakers.com.br?subject=Quero%20ajuda%20com%20meu%20Google%20Meu%20Negócio"
         className="mt-5 inline-block rounded-lg bg-brand px-6 py-2.5 text-sm font-semibold text-white transition hover:opacity-90"
       >
-        Falar com a VitaMakers
+        Fale conosco
       </a>
     </section>
   );
