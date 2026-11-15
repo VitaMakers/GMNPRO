@@ -94,6 +94,24 @@ export async function POST(request: Request) {
         status: sub.status,
         current_period_end: periodEnd(sub.current_period_end),
       });
+    } else if (event.type === "invoice.payment_succeeded") {
+      // Primeira cobrança REAL (após o teste). Aqui sim entra a comissão do
+      // afiliado: só conta quando o indicado paga de verdade. A fatura de R$0
+      // do início do teste é ignorada (amount_paid = 0), e as mensalidades
+      // seguintes não contam de novo (recordFirstPayment ignora se já pago).
+      const inv = event.data.object as Stripe.Invoice & { amount_paid?: number };
+      const amount = typeof inv.amount_paid === "number" ? inv.amount_paid : 0;
+      if (amount > 0) {
+        const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
+        if (customerId) {
+          const { data } = await admin
+            .from("subscriptions")
+            .select("user_id")
+            .eq("stripe_customer_id", customerId)
+            .maybeSingle();
+          if (data?.user_id) await recordFirstPayment(admin, data.user_id as string, amount);
+        }
+      }
     } else if (event.type === "invoice.payment_failed") {
       const inv = event.data.object as Stripe.Invoice;
       const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
