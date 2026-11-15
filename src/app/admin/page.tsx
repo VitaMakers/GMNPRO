@@ -6,6 +6,7 @@ import AdminGrantButton from "@/components/AdminGrantButton";
 import AdminTierSelect from "@/components/AdminTierSelect";
 import AdminFoundingButton from "@/components/AdminFoundingButton";
 import AdminAffiliateButton from "@/components/AdminAffiliateButton";
+import AdminAffiliates from "@/components/AdminAffiliates";
 import AdminDeleteButton from "@/components/AdminDeleteButton";
 import MetricChart from "@/components/MetricChart";
 import { GRACE_DAYS } from "@/lib/access";
@@ -450,6 +451,9 @@ export default async function AdminPage() {
           As pessoas em vermelho (teste expirado / cancelou / pagamento falhou) são as de contato prioritário para fechar a mensalidade.
           Contas de teste expirado são <strong>excluídas automaticamente {GRACE_DAYS} dias</strong> após o fim do teste (o contato fica salvo abaixo).
         </p>
+
+        {/* Afiliados */}
+        <AdminAffiliates />
 
         {/* Contatos de contas excluídas (follow-up) */}
         <h2 className="mb-3 mt-8 text-base font-semibold">
