@@ -5,7 +5,7 @@ import { createLocalPost, createMediaItem } from "@/lib/google/business";
 import { runAutoReplies } from "@/lib/autoReply";
 
 export const dynamic = "force-dynamic";
-export const maxDuration = 60;
+export const maxDuration = 300;
 
 interface DuePost {
   id: string;

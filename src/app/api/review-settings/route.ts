@@ -72,6 +72,15 @@ export async function POST(request: Request) {
   };
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
+  // Estado atual, para detectar quando a resposta automática está sendo LIGADA.
+  const { data: existing } = await supabase
+    .from("review_settings")
+    .select("auto_reply")
+    .eq("user_id", user.id)
+    .eq("location_name", location)
+    .maybeSingle();
+  const turningOn = !!autoReply && !existing?.auto_reply;
+
   const cleanExamples = (Array.isArray(examples) ? examples : [])
     .map((e) => ({ review: (e.review ?? "").trim(), reply: (e.reply ?? "").trim() }))
     .filter((e) => e.review && e.reply)
@@ -90,6 +99,12 @@ export async function POST(request: Request) {
     banned_words: bannedWords?.trim() || null,
     updated_at: new Date().toISOString(),
   };
+
+  // Ao LIGAR a resposta automática, marca a linha de corte "a partir de agora":
+  // só avaliações novas (criadas daqui pra frente) serão respondidas — nunca as antigas.
+  if (turningOn) {
+    row.auto_reply_last_run = new Date().toISOString();
+  }
 
   // Só mexe na chave se o usuário digitou uma nova. Em branco = mantém a atual.
   if (typeof apiKey === "string" && apiKey.trim()) {
