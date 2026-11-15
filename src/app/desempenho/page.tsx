@@ -13,14 +13,13 @@ export default async function DesempenhoPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
+  // Acesso e lista de locais são independentes → busca em paralelo (1 ida em vez de 2).
+  const [access, locsRes] = await Promise.all([
+    getAccess(supabase, user.id, user.email, { meta: user.user_metadata }),
+    supabase.from("gmb_locations").select("location_name, title").order("title", { ascending: true }),
+  ]);
   if (!access.allowed) redirect("/assinar");
-
-  const { data: locs } = await supabase
-    .from("gmb_locations")
-    .select("location_name, title")
-    .order("title", { ascending: true });
-  const locations = (locs as { location_name: string; title: string | null }[]) ?? [];
+  const locations = (locsRes.data as { location_name: string; title: string | null }[]) ?? [];
 
   return (
     <div className="min-h-screen">

@@ -16,14 +16,13 @@ export default async function AgendamentoPage() {
 
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
+  // Acesso e conexão do Google são independentes → busca em paralelo.
+  const [access, connRes] = await Promise.all([
+    getAccess(supabase, user.id, user.email, { meta: user.user_metadata }),
+    supabase.from("google_connections").select("google_email, access_token").maybeSingle(),
+  ]);
   if (!access.allowed) redirect("/assinar");
-
-  const { data: connection } = await supabase
-    .from("google_connections")
-    .select("google_email, access_token")
-    .maybeSingle();
-
+  const connection = connRes.data;
   const connected = !!connection?.access_token;
 
   return (

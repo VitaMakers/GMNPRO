@@ -41,21 +41,17 @@ export default async function ChecklistPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
+  // Acesso, conexão e locais são independentes → tudo em paralelo.
+  const [access, connRes, withCoords] = await Promise.all([
+    getAccess(supabase, user.id, user.email, { meta: user.user_metadata }),
+    supabase.from("google_connections").select("access_token").maybeSingle(),
+    supabase.from("gmb_locations").select("location_name, title, lat, lng").order("title", { ascending: true }),
+  ]);
   if (!access.allowed) redirect("/assinar");
-
-  const { data: connection } = await supabase
-    .from("google_connections")
-    .select("access_token")
-    .maybeSingle();
-  const connected = !!connection?.access_token;
+  const connected = !!connRes.data?.access_token;
 
   // Tenta trazer coordenadas (migração 0016); cai para o básico se a coluna não existir.
   let locations: { location_name: string; title: string | null; lat?: number | null; lng?: number | null }[] = [];
-  const withCoords = await supabase
-    .from("gmb_locations")
-    .select("location_name, title, lat, lng")
-    .order("title", { ascending: true });
   if (withCoords.error) {
     const base = await supabase
       .from("gmb_locations")

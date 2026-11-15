@@ -10,15 +10,16 @@ export default async function LocaisPage() {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
-  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
-  if (!access.allowed) redirect("/assinar");
-  if (!access.entitlements.isAgency) redirect("/desempenho");
-
-  const [locsRes, { data: snaps }, { data: branding }] = await Promise.all([
+  // Acesso e dados dos locais são independentes → tudo em paralelo (os dados
+  // são descartados caso o acesso leve a um redirect).
+  const [access, locsRes, { data: snaps }, { data: branding }] = await Promise.all([
+    getAccess(supabase, user.id, user.email, { meta: user.user_metadata }),
     supabase.from("gmb_locations").select("location_name, title, photo_url, credit_cap").order("title", { ascending: true }),
     supabase.from("audit_snapshots").select("location_name, score, fraco, razoavel, bom, analyzed_at"),
     supabase.from("agency_branding").select("name, logo_url, color, phone, site").maybeSingle(),
   ]);
+  if (!access.allowed) redirect("/assinar");
+  if (!access.entitlements.isAgency) redirect("/desempenho");
   // Coluna credit_cap pode não existir (migração 0022 não rodou): cai no básico.
   let locs = locsRes.data;
   if (locsRes.error) {

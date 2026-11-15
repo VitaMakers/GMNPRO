@@ -13,20 +13,15 @@ export default async function AvaliacoesPage() {
   } = await supabase.auth.getUser();
   if (!user) redirect("/entrar");
 
-  const access = await getAccess(supabase, user.id, user.email, { meta: user.user_metadata });
+  // Acesso, conexão do Google e locais são independentes → tudo em paralelo.
+  const [access, connRes, locsRes] = await Promise.all([
+    getAccess(supabase, user.id, user.email, { meta: user.user_metadata }),
+    supabase.from("google_connections").select("access_token").maybeSingle(),
+    supabase.from("gmb_locations").select("location_name, title").order("title", { ascending: true }),
+  ]);
   if (!access.allowed) redirect("/assinar");
-
-  const { data: connection } = await supabase
-    .from("google_connections")
-    .select("access_token")
-    .maybeSingle();
-  const connected = !!connection?.access_token;
-
-  const { data: locs } = await supabase
-    .from("gmb_locations")
-    .select("location_name, title")
-    .order("title", { ascending: true });
-  const locations = (locs as { location_name: string; title: string | null }[]) ?? [];
+  const connected = !!connRes.data?.access_token;
+  const locations = (locsRes.data as { location_name: string; title: string | null }[]) ?? [];
 
   return (
     <div className="min-h-screen">
