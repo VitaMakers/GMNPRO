@@ -429,7 +429,7 @@ export default async function AdminPage() {
                   <td className="px-4 py-3">{r.valor ? brl(r.valor) : "—"}</td>
                   <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
                   <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
+                    <div className="flex min-w-[240px] max-w-[300px] flex-wrap items-center gap-1.5">
                       {!r.isAdmin && <AdminTierSelect userId={r.userId} tier={r.tier} />}
                       {!r.isAdmin && <AdminFoundingButton userId={r.userId} />}
                       {!r.isAdmin && <AdminAffiliateButton userId={r.userId} email={r.email} />}
