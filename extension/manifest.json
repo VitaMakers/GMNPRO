@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
-  "name": "GMN PRO — Pré-análise",
-  "version": "4.1.0",
-  "description": "Pré-análise de perfis do Google (Meu Negócio) direto da ficha, sem custo. Abre o Maps, rola e envia os dados ao GMN PRO.",
+  "name": "GMN Profile — Pré-análise",
+  "version": "4.2.0",
+  "description": "Pré-análise de perfis do Google (Meu Negócio) direto da ficha, sem custo. Abre o Maps, rola e envia os dados ao GMN Profile.",
   "permissions": [
     "activeTab",
     "scripting"
@@ -31,7 +31,7 @@
   ],
   "action": {
     "default_popup": "popup.html",
-    "default_title": "GMN PRO — Pré-análise",
+    "default_title": "GMN Profile — Pré-análise",
     "default_icon": {
       "16": "icon16.png",
       "48": "icon48.png",

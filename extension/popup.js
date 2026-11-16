@@ -8,10 +8,10 @@ $("go").addEventListener("click", async () => {
     if (!tab || !/google\./.test(tab.url || "")) { setStatus("Abra um perfil no Google/Maps primeiro.", "err"); $("go").disabled = false; return; }
     const [{ result }] = await chrome.scripting.executeScript({ target: { tabId: tab.id }, func: scrapePanel });
     if (!result?.name) { setStatus("Não encontrei uma ficha de empresa aqui.", "err"); $("go").disabled = false; return; }
-    setStatus("Enviando ao GMN PRO…");
+    setStatus("Enviando ao GMN Profile…");
     chrome.runtime.sendMessage({ type: "gmnpro-analyze", data: result }, (resp) => {
       if (resp?.ok) setStatus('Pronto! Nota ' + (resp.score ?? "—") + '. <a href="' + resp.url + '" target="_blank">Abrir</a>', "ok");
-      else if (resp?.status === 401) setStatus('Faça login no <a href="https://app.vitamakers.com.br/entrar" target="_blank">GMN PRO</a>.', "err");
+      else if (resp?.status === 401) setStatus('Faça login no <a href="https://app.vitamakers.com.br/entrar" target="_blank">GMN Profile</a>.', "err");
       else setStatus("Erro: " + (resp?.error ?? "falhou"), "err");
       $("go").disabled = false;
     });

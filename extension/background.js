@@ -1,6 +1,6 @@
 const API = "https://app.vitamakers.com.br";
 
-// Recebe os dados raspados pelo content script e envia ao GMN PRO (autenticado por cookie).
+// Recebe os dados raspados pelo content script e envia ao GMN Profile (autenticado por cookie).
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg?.type !== "gmnpro-analyze") return;
   (async () => {

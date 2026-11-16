@@ -1,4 +1,4 @@
-/* GMN PRO — content script v4: lê a ficha aberta e, no Maps, abre as abas de Avaliações/Sobre para captar mais dados. */
+/* GMN Profile — content script v4: lê a ficha aberta e, no Maps, abre as abas de Avaliações/Sobre para captar mais dados. */
 (function () {
   const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
   const isMaps = /\/maps\//.test(location.pathname) || location.hostname.includes("maps.google");
@@ -57,18 +57,18 @@
   async function run(btn) {
     setBtn(btn, isMaps ? "Lendo a ficha e avaliações…" : "Lendo a ficha…", true);
     const data = await scrape();
-    if (!data.name) { setBtn(btn, "Abra a ficha de uma empresa", false); setTimeout(() => setBtn(btn, "Analisar no GMN PRO", false), 3000); return; }
+    if (!data.name) { setBtn(btn, "Abra a ficha de uma empresa", false); setTimeout(() => setBtn(btn, "Analisar no GMN Profile", false), 3000); return; }
     setBtn(btn, "Enviando…", true);
     chrome.runtime.sendMessage({ type: "gmnpro-analyze", data }, (resp) => {
-      setBtn(btn, resp?.ok ? "✓ Pré-análise aberta (nota " + (resp.score ?? "—") + ")" : (resp?.status === 401 ? "Faça login no GMN PRO" : "Erro: " + (resp?.error ?? "falhou")), false);
-      setTimeout(() => setBtn(btn, "Analisar no GMN PRO", false), 4000);
+      setBtn(btn, resp?.ok ? "✓ Pré-análise aberta (nota " + (resp.score ?? "—") + ")" : (resp?.status === 401 ? "Faça login no GMN Profile" : "Erro: " + (resp?.error ?? "falhou")), false);
+      setTimeout(() => setBtn(btn, "Analisar no GMN Profile", false), 4000);
     });
   }
 
   function injectButton() {
     if (document.getElementById("gmnpro-btn")) return;
     const btn = document.createElement("button");
-    btn.id = "gmnpro-btn"; btn.textContent = "Analisar no GMN PRO";
+    btn.id = "gmnpro-btn"; btn.textContent = "Analisar no GMN Profile";
     btn.style.cssText = "position:fixed;z-index:999999;top:88px;right:24px;background:#059669;color:#fff;border:0;border-radius:10px;padding:10px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25)";
     btn.addEventListener("click", () => run(btn));
     document.body.appendChild(btn);
