@@ -1,4 +1,5 @@
 import AppHeader from "@/components/AppHeader";
+import { extensionUrl } from "@/lib/extensionUrl";
 
 export const metadata = { title: "Extensão de Pré-análise — GMN Profile" };
 
@@ -11,7 +12,7 @@ const steps = [
 ];
 
 export default function ExtensaoPage() {
-  const extUrl = process.env.NEXT_PUBLIC_EXTENSION_URL;
+  const extUrl = extensionUrl;
   return (
     <div className="min-h-screen">
       <AppHeader />
