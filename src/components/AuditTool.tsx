@@ -3,6 +3,7 @@
 import { useEffect, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import type { AuditReport, CheckResult, PlaceData } from "@/lib/audit";
+import { extensionUrl } from "@/lib/extensionUrl";
 
 const LocationsMap = dynamic(() => import("@/components/LocationsMap"), { ssr: false });
 
@@ -83,7 +84,7 @@ export default function AuditTool() {
     }
   }
 
-  const extUrl = process.env.NEXT_PUBLIC_EXTENSION_URL;
+  const extUrl = extensionUrl;
   return (
     <div className="space-y-6">
       {/* Extensão opcional para dados ainda mais profundos */}
