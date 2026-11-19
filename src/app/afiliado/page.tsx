@@ -3,7 +3,7 @@ import AppHeader from "@/components/AppHeader";
 import CopyButton from "@/components/CopyButton";
 import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
-import { BONUS_EVERY, COMMISSION_PCT, BONUS_PCT } from "@/lib/affiliate";
+import { COMMISSION_PCT } from "@/lib/affiliate";
 
 export const metadata = { title: "Programa de Afiliados — GMN Profile" };
 
@@ -49,25 +49,35 @@ export default async function AfiliadoPage() {
   const base = process.env.APP_BASE_URL || "";
   const link = `${base}/r/${code}`;
 
-  const [clicksCount, clicksRows, refsRes] = await Promise.all([
+  const [clicksCount, clicksRows, refsRes, commRes] = await Promise.all([
     supabase.from("affiliate_clicks").select("*", { count: "exact", head: true }).eq("code", code),
     supabase.from("affiliate_clicks").select("visitor").eq("code", code).limit(5000),
     supabase
       .from("affiliate_referrals")
-      .select("status, first_payment_cents, commission_cents, created_at, paid_at")
+      .select("referred_user_id, status, first_payment_cents, created_at, paid_at")
       .eq("affiliate_user_id", user.id)
       .order("created_at", { ascending: false }),
+    supabase
+      .from("affiliate_commissions")
+      .select("referred_user_id, commission_cents")
+      .eq("affiliate_user_id", user.id),
   ]);
 
   const totalClicks = clicksCount.count ?? 0;
   const uniqueVisitors = new Set((clicksRows.data ?? []).map((r) => (r as { visitor: string | null }).visitor).filter(Boolean)).size;
-  const refs = (refsRes.data as { status: string; commission_cents: number | null; first_payment_cents: number | null; created_at: string; paid_at: string | null }[]) ?? [];
+  const refs = (refsRes.data as { referred_user_id: string; status: string; first_payment_cents: number | null; created_at: string; paid_at: string | null }[]) ?? [];
   const signups = refs.length;
   const paid = refs.filter((r) => r.status === "paid");
   const paidCount = paid.length;
-  const commissionCents = paid.reduce((a, r) => a + (r.commission_cents ?? 0), 0);
-  const bonuses = Math.floor(paidCount / BONUS_EVERY);
-  const faltam = (BONUS_EVERY - (paidCount % BONUS_EVERY)) % BONUS_EVERY;
+
+  // Comissão recorrente acumulada (extrato de todas as mensalidades pagas).
+  const comm = (commRes.data as { referred_user_id: string; commission_cents: number | null }[]) ?? [];
+  const commByReferred = new Map<string, number>();
+  let commissionCents = 0;
+  for (const c of comm) {
+    commissionCents += c.commission_cents ?? 0;
+    commByReferred.set(c.referred_user_id, (commByReferred.get(c.referred_user_id) ?? 0) + (c.commission_cents ?? 0));
+  }
 
   const cards = [
     { label: "Visitas no link", value: totalClicks.toString(), hint: "cliques totais" },
@@ -111,19 +121,11 @@ export default async function AfiliadoPage() {
         </div>
 
         {/* Ganhos */}
-        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+        <div className="mt-5">
           <div className="rounded-2xl border border-brand-2/30 bg-brand/5 p-5">
             <p className="text-xs font-semibold uppercase tracking-wide text-brand-2">Comissão acumulada</p>
             <p className="mt-1 font-display text-3xl font-bold tracking-tight text-brand-2">{brl(commissionCents)}</p>
-            <p className="mt-1 text-xs text-muted">{Math.round(COMMISSION_PCT * 100)}% do 1º pagamento de cada cliente</p>
-          </div>
-          <div className="rounded-2xl border border-border bg-white p-5 card-soft">
-            <p className="text-xs font-semibold uppercase tracking-wide text-muted">Bônus conquistados</p>
-            <p className="mt-1 font-display text-3xl font-bold tracking-tight">{bonuses}</p>
-            <p className="mt-1 text-xs text-muted">
-              A cada {BONUS_EVERY} clientes pagantes: {Math.round(BONUS_PCT * 100)}% da sua mensalidade do mês seguinte.
-              {paidCount > 0 && faltam > 0 ? ` Falta ${faltam} para o próximo bônus.` : ""}
-            </p>
+            <p className="mt-1 text-xs text-muted">{Math.round(COMMISSION_PCT * 100)}% de cada mensalidade paga dos seus indicados (recorrente)</p>
           </div>
         </div>
 
@@ -155,7 +157,7 @@ export default async function AfiliadoPage() {
                       )}
                     </td>
                     <td className="px-4 py-3 text-muted">{r.first_payment_cents ? brl(r.first_payment_cents) : "—"}</td>
-                    <td className="px-4 py-3 font-medium">{r.commission_cents ? brl(r.commission_cents) : "—"}</td>
+                    <td className="px-4 py-3 font-medium">{(commByReferred.get(r.referred_user_id) ?? 0) > 0 ? brl(commByReferred.get(r.referred_user_id) ?? 0) : "—"}</td>
                   </tr>
                 ))
               )}

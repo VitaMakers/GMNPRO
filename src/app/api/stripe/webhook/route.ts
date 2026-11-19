@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import type Stripe from "stripe";
 import { getStripe } from "@/lib/stripe";
 import { createAdminClient } from "@/lib/supabase/server";
-import { recordFirstPayment } from "@/lib/affiliate";
+import { recordRecurringCommission } from "@/lib/affiliate";
 
 export const dynamic = "force-dynamic";
 
@@ -77,10 +77,9 @@ export async function POST(request: Request) {
         );
         // tier à parte (best-effort; ignora se a coluna não existir).
         await admin.from("subscriptions").update({ tier }).eq("user_id", userId);
-        // Afiliado: comissão de 20% sobre o primeiro pagamento do indicado.
-        if (typeof s.amount_total === "number" && s.amount_total > 0) {
-          await recordFirstPayment(admin, userId, s.amount_total);
-        }
+        // Comissão do afiliado NÃO entra aqui: a 1ª fatura real (e as seguintes)
+        // chegam como invoice.payment_succeeded, onde a comissão recorrente é
+        // registrada. A fatura de R$0 do início do teste é ignorada lá.
       }
     } else if (
       event.type === "customer.subscription.updated" ||
@@ -95,13 +94,12 @@ export async function POST(request: Request) {
         current_period_end: periodEnd(sub.current_period_end),
       });
     } else if (event.type === "invoice.payment_succeeded") {
-      // Primeira cobrança REAL (após o teste). Aqui sim entra a comissão do
-      // afiliado: só conta quando o indicado paga de verdade. A fatura de R$0
-      // do início do teste é ignorada (amount_paid = 0), e as mensalidades
-      // seguintes não contam de novo (recordFirstPayment ignora se já pago).
+      // Cada mensalidade paga gera 10% de comissão recorrente para o afiliado.
+      // A fatura de R$0 do início do teste é ignorada (amount_paid = 0); o
+      // registro é idempotente por invoice_id (não duplica em reenvios).
       const inv = event.data.object as Stripe.Invoice & { amount_paid?: number };
       const amount = typeof inv.amount_paid === "number" ? inv.amount_paid : 0;
-      if (amount > 0) {
+      if (amount > 0 && inv.id) {
         const customerId = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
         if (customerId) {
           const { data } = await admin
@@ -109,7 +107,7 @@ export async function POST(request: Request) {
             .select("user_id")
             .eq("stripe_customer_id", customerId)
             .maybeSingle();
-          if (data?.user_id) await recordFirstPayment(admin, data.user_id as string, amount);
+          if (data?.user_id) await recordRecurringCommission(admin, data.user_id as string, amount, inv.id);
         }
       }
     } else if (event.type === "invoice.payment_failed") {

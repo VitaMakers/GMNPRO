@@ -1,14 +1,15 @@
 /**
  * Regras do programa de afiliados.
- * - Comissão: 20% do PRIMEIRO pagamento do indicado (quando cai na Stripe).
- * - Bônus: a cada 2 indicados que pagam, o afiliado ganha 50% da mensalidade
- *   do mês seguinte (aplicado/pago manualmente; aqui só calculamos o devido).
+ * - Comissão RECORRENTE: 10% de CADA mensalidade paga do indicado (enquanto
+ *   ele continuar cliente). Cada fatura paga vira uma linha no extrato
+ *   affiliate_commissions (idempotente por invoice_id).
  */
 import type { SupabaseClient } from "@supabase/supabase-js";
 
-export const COMMISSION_PCT = 0.2;
-export const BONUS_EVERY = 2;
-export const BONUS_PCT = 0.5;
+export const COMMISSION_PCT = 0.1;
+// 0 = vitalício (comissiona toda mensalidade enquanto o cliente pagar).
+// Defina, por exemplo, 12 para limitar a 12 mensalidades por indicado.
+export const COMMISSION_MONTHS_CAP = 0;
 
 /** Gera um código curto e legível a partir de um nome/base. */
 export function makeAffiliateCode(base: string): string {
@@ -80,29 +81,63 @@ export async function attachReferral(
   }
 }
 
-/** Marca a indicação como paga e calcula a comissão (20% do 1º pagamento). */
-export async function recordFirstPayment(
+/**
+ * Registra a comissão recorrente de 10% de UMA mensalidade paga do indicado.
+ * Chamado no webhook a cada `invoice.payment_succeeded` com valor > 0.
+ * Idempotente por `invoice_id` (não duplica se o Stripe reenviar o evento).
+ * Respeita COMMISSION_MONTHS_CAP (0 = vitalício).
+ */
+export async function recordRecurringCommission(
   admin: SupabaseClient,
   referredUserId: string,
   amountCents: number,
+  invoiceId: string,
 ): Promise<void> {
   try {
+    if (amountCents <= 0 || !invoiceId) return;
+
     const { data: ref } = await admin
       .from("affiliate_referrals")
-      .select("id, status")
+      .select("id, affiliate_user_id, code, status")
       .eq("referred_user_id", referredUserId)
       .maybeSingle();
-    if (!ref || (ref as { status: string }).status === "paid") return;
+    if (!ref) return;
+    const r = ref as { id: string; affiliate_user_id: string; code: string; status: string };
+
+    // Esta fatura já foi comissionada? (idempotência além do UNIQUE no banco)
+    const { data: already } = await admin
+      .from("affiliate_commissions")
+      .select("id")
+      .eq("invoice_id", invoiceId)
+      .maybeSingle();
+    if (already) return;
+
+    // Quantas mensalidades deste indicado já foram comissionadas.
+    const { count } = await admin
+      .from("affiliate_commissions")
+      .select("*", { count: "exact", head: true })
+      .eq("referred_user_id", referredUserId);
+    const paidMonths = count ?? 0;
+    if (COMMISSION_MONTHS_CAP > 0 && paidMonths >= COMMISSION_MONTHS_CAP) return;
+
     const commission = Math.round(amountCents * COMMISSION_PCT);
-    await admin
-      .from("affiliate_referrals")
-      .update({
-        status: "paid",
-        first_payment_cents: amountCents,
-        commission_cents: commission,
-        paid_at: new Date().toISOString(),
-      })
-      .eq("id", (ref as { id: string }).id);
+    await admin.from("affiliate_commissions").insert({
+      affiliate_user_id: r.affiliate_user_id,
+      referred_user_id: referredUserId,
+      code: r.code,
+      invoice_id: invoiceId,
+      amount_cents: amountCents,
+      commission_cents: commission,
+      month_index: paidMonths + 1,
+    });
+
+    // Marca a indicação como "pagante" na 1ª comissão (para os painéis).
+    if (r.status !== "paid") {
+      await admin
+        .from("affiliate_referrals")
+        .update({ status: "paid", first_payment_cents: amountCents, paid_at: new Date().toISOString() })
+        .eq("id", r.id);
+    }
   } catch {
     /* não quebra o webhook */
   }
