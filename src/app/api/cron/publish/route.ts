@@ -3,6 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
 import { createLocalPost, createMediaItem } from "@/lib/google/business";
 import { runAutoReplies } from "@/lib/autoReply";
+import { blockedUserIds } from "@/lib/subscriptionAccess";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -53,7 +54,15 @@ export async function GET(request: Request) {
   const posts = (due as DuePost[]) ?? [];
   const results: { id: string; status: string; error?: string }[] = [];
 
+  // Trava: posts de quem testou e não assinou (ou cancelou) NÃO são publicados.
+  // Ficam como "scheduled" e voltam a publicar sozinhos assim que a conta reativar.
+  const blocked = await blockedUserIds(admin, posts.map((p) => p.user_id));
+
   for (const post of posts) {
+    if (blocked.has(post.user_id)) {
+      results.push({ id: post.id, status: "bloqueado_sem_plano" });
+      continue;
+    }
     try {
       const accessToken = await getValidAccessToken(admin, post.user_id);
       let created: { name: string };

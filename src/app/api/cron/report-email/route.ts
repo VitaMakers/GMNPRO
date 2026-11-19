@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import { emailConfigured, sendEmail, reportEmailHtml } from "@/lib/email";
+import { blockedUserIds } from "@/lib/subscriptionAccess";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -29,7 +30,9 @@ export async function GET(request: Request) {
 
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
   let sent = 0, skipped = 0, failed = 0;
+  const blocked = await blockedUserIds(admin, (subs ?? []).map((s: { user_id: string }) => s.user_id));
   for (const s of subs ?? []) {
+    if (blocked.has(s.user_id)) { skipped++; continue; }
     const [{ data: snap }, { data: branding }] = await Promise.all([
       admin.from("audit_snapshots").select("*").eq("user_id", s.user_id).eq("location_name", s.location_name).maybeSingle(),
       admin.from("agency_branding").select("name, logo_url, color, phone, site").eq("user_id", s.user_id).maybeSingle(),
