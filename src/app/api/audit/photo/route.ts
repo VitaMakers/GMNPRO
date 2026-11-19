@@ -1,10 +1,18 @@
 import { NextResponse } from "next/server";
+import { createClient } from "@/lib/supabase/server";
 
 export const dynamic = "force-dynamic";
 
 /** Proxy da foto do Places: recebe o "name" da foto e redireciona para a
- *  imagem real, sem expor a chave da API no navegador. */
+ *  imagem real, sem expor a chave da API no navegador.
+ *  Exige login: evita que terceiros gastem a cota paga da API do Google. */
 export async function GET(request: Request) {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
+
   const key = process.env.GOOGLE_PLACES_API_KEY;
   const name = new URL(request.url).searchParams.get("name");
   if (!key || !name || !/^places\/[^/]+\/photos\/[^/]+$/.test(name)) {
