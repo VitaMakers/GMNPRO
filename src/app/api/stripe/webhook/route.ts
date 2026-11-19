@@ -107,7 +107,11 @@ export async function POST(request: Request) {
             .select("user_id")
             .eq("stripe_customer_id", customerId)
             .maybeSingle();
-          if (data?.user_id) await recordRecurringCommission(admin, data.user_id as string, amount, inv.id);
+          if (data?.user_id) {
+            // Guarda o valor REAL pago (já com desconto) p/ o painel admin mostrar certo.
+            await admin.from("subscriptions").update({ price_cents: amount, updated_at: ts() }).eq("user_id", data.user_id);
+            await recordRecurringCommission(admin, data.user_id as string, amount, inv.id);
+          }
         }
       }
     } else if (event.type === "invoice.payment_failed") {

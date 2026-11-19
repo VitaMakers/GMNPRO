@@ -16,7 +16,22 @@ const DAY = 24 * 60 * 60 * 1000;
 export const dynamic = "force-dynamic";
 export const metadata = { title: "Painel Admin — GMN Profile" };
 
-const PLAN_MONTHLY: Record<string, number> = { mensal: 20, anual: 225 / 12 };
+// Preço mensal (equivalente) por plano e ciclo — usado só como ESTIMATIVA quando
+// ainda não temos o valor real do Stripe (price_cents). Espelha a tabela do Stripe.
+const PLAN_PRICES: Record<string, { mensal: number; anual: number }> = {
+  essencial: { mensal: 20, anual: 225 / 12 },
+  agencia2: { mensal: 97, anual: 1091 / 12 },
+  agencia4: { mensal: 130, anual: 1463 / 12 },
+};
+/** Valor mensal da conta: usa o valor REAL do Stripe se houver; senão estima pelo plano. */
+function monthlyValue(priceCents: number | null | undefined, tier: string | null | undefined, cycle: string | null | undefined): number {
+  if (typeof priceCents === "number" && priceCents > 0) {
+    const real = priceCents / 100;
+    return cycle === "anual" ? real / 12 : real;
+  }
+  const p = PLAN_PRICES[tier ?? "essencial"] ?? PLAN_PRICES.essencial;
+  return cycle === "anual" ? p.anual : p.mensal;
+}
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dt = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
@@ -28,6 +43,7 @@ interface SubRow {
   trial_ends_at: string | null;
   current_period_end: string | null;
   manual_access: boolean | null;
+  price_cents: number | null;
 }
 
 export default async function AdminPage() {
@@ -42,7 +58,7 @@ export default async function AdminPage() {
 
   const { data: subs } = await admin
     .from("subscriptions")
-    .select("user_id, status, plan, tier, trial_ends_at, current_period_end, manual_access");
+    .select("user_id, status, plan, tier, trial_ends_at, current_period_end, manual_access, price_cents");
   const subMap = new Map<string, SubRow>((subs as SubRow[] | null)?.map((s) => [s.user_id, s]) ?? []);
 
   const { count: perfis } = await admin
@@ -106,13 +122,13 @@ export default async function AdminPage() {
       categoria = "Assinante ativo";
       rank = 4;
       ativos++;
-      valor = PLAN_MONTHLY[plan ?? ""] ?? 0;
+      valor = monthlyValue(s?.price_cents, effTier, plan);
       mrr += valor;
     } else if (status === "trialing") {
       categoria = "Assinou (em teste)";
       rank = 3;
       assinouTeste++;
-      valor = PLAN_MONTHLY[plan ?? ""] ?? 0;
+      valor = monthlyValue(s?.price_cents, effTier, plan);
       potencialTeste += valor;
     } else if (status === "past_due") {
       categoria = "Pagamento falhou";
