@@ -35,6 +35,115 @@ function monthlyValue(priceCents: number | null | undefined, tier: string | null
 const brl = (n: number) => n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 const dt = (s?: string | null) => (s ? new Date(s).toLocaleDateString("pt-BR") : "—");
 
+// --- Custos sobre a receita (para mostrar o "dinheiro real") ---
+const STRIPE_PCT = 0.0399;  // taxa variável da Stripe (Brasil)
+const STRIPE_FIXED = 0.39;  // taxa fixa por cobrança
+const DATA_COST = 5.5;      // custo dos 500 créditos (DataForSEO) por conta de agência/mês
+const isAgencyTier = (tier?: string | null) => tier === "agencia2" || tier === "agencia4";
+const stripeFee = (gross: number) => (gross > 0 ? gross * STRIPE_PCT + STRIPE_FIXED : 0);
+const dataCost = (tier?: string | null) => (isAgencyTier(tier) ? DATA_COST : 0);
+
+type Grupo = "ativos" | "teste" | "expirados";
+function grupoDe(categoria: string): Grupo {
+  if (categoria.startsWith("Assinante") || categoria.startsWith("Liberado")) return "ativos";
+  if (categoria.startsWith("Em teste") || categoria.startsWith("Assinou")) return "teste";
+  return "expirados";
+}
+
+const corCategoria = (c: string) =>
+  c.startsWith("Assinante")
+    ? "text-brand-2"
+    : c.startsWith("Liberado")
+      ? "text-sky-500"
+      : c.startsWith("Em teste") || c.startsWith("Assinou")
+        ? "text-accent"
+        : "text-red-500";
+
+type Row = {
+  userId: string;
+  email: string;
+  phone: string;
+  created: string;
+  categoria: string;
+  rank: number;
+  plano: string | null;
+  valor: number;
+  manual: boolean;
+  tier: string;
+  periodEnd: string | null;
+  deletionInDays: number | null;
+  isAdmin: boolean;
+  grupo: Grupo;
+};
+
+/** Tabela de contas (reutilizada por grupo: ativos, em teste, expirados). */
+function AccountsTable({ title, accent, rows }: { title: string; accent: string; rows: Row[] }) {
+  return (
+    <>
+      <h3 className={`mb-2 mt-6 flex items-center gap-2 text-sm font-semibold ${accent}`}>
+        {title}
+        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">{rows.length}</span>
+      </h3>
+      <div className="overflow-x-auto rounded-3xl border border-border bg-white card-soft">
+        <table className="w-full min-w-[640px] text-sm">
+          <thead className="border-b border-border text-left text-xs text-muted">
+            <tr>
+              <th className="px-4 py-3">E-mail</th>
+              <th className="px-4 py-3">Contato (WhatsApp)</th>
+              <th className="px-4 py-3">Situação</th>
+              <th className="px-4 py-3">Plano</th>
+              <th className="px-4 py-3">Valor/mês</th>
+              <th className="px-4 py-3">Cadastro</th>
+              <th className="px-4 py-3">Ação</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r, i) => (
+              <tr key={i} className="border-b border-border/60">
+                <td className="px-4 py-3">{r.email}</td>
+                <td className="px-4 py-3">
+                  {r.phone ? (
+                    <a href={`https://wa.me/${r.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-brand-2 hover:underline">
+                      {r.phone}
+                    </a>
+                  ) : (
+                    <span className="text-muted">—</span>
+                  )}
+                </td>
+                <td className={`px-4 py-3 font-medium ${corCategoria(r.categoria)}`}>
+                  {r.categoria}
+                  {r.deletionInDays !== null && (
+                    <span className="mt-0.5 block text-[11px] font-normal text-red-500">
+                      exclui em {r.deletionInDays} dia{r.deletionInDays === 1 ? "" : "s"}
+                    </span>
+                  )}
+                </td>
+                <td className="px-4 py-3 text-muted">{r.plano ?? "—"}</td>
+                <td className="px-4 py-3">{r.valor ? brl(r.valor) : "—"}</td>
+                <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
+                <td className="px-4 py-3">
+                  <div className="flex min-w-[240px] max-w-[300px] flex-wrap items-center gap-1.5">
+                    {!r.isAdmin && <AdminTierSelect userId={r.userId} tier={r.tier} />}
+                    {!r.isAdmin && <AdminFoundingButton userId={r.userId} />}
+                    {!r.isAdmin && <AdminAffiliateButton userId={r.userId} email={r.email} />}
+                    <AdminGrantButton userId={r.userId} granted={r.manual} />
+                    {!r.isAdmin && <AdminDeleteButton userId={r.userId} email={r.email} />}
+                  </div>
+                </td>
+              </tr>
+            ))}
+            {rows.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-4 py-6 text-center text-muted">Nenhuma conta aqui.</td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+}
+
 interface SubRow {
   user_id: string;
   status: string | null;
@@ -77,21 +186,6 @@ export default async function AdminPage() {
     (lostData as { email: string | null; phone: string | null; reason: string | null; tier: string | null; deleted_at: string }[] | null) ?? [];
 
   const now = Date.now();
-  type Row = {
-    userId: string;
-    email: string;
-    phone: string;
-    created: string;
-    categoria: string;
-    rank: number;
-    plano: string | null;
-    valor: number;
-    manual: boolean;
-    tier: string;
-    periodEnd: string | null;
-    deletionInDays: number | null;
-    isAdmin: boolean;
-  };
   const rows: Row[] = [];
   let emTeste = 0;
   let ativos = 0;
@@ -100,6 +194,11 @@ export default async function AdminPage() {
   let liberados = 0;
   let mrr = 0;
   let potencialTeste = 0;
+  // Custos sobre a receita, somados conforme as contas entram.
+  let taxasStripe = 0;    // taxas Stripe sobre a receita ATIVA
+  let custoData = 0;      // créditos Data sobre a receita ATIVA
+  let taxasStripeTeste = 0;
+  let custoDataTeste = 0;
 
   for (const u of users) {
     const s = subMap.get(u.id);
@@ -124,12 +223,16 @@ export default async function AdminPage() {
       ativos++;
       valor = monthlyValue(s?.price_cents, effTier, plan);
       mrr += valor;
+      taxasStripe += stripeFee(valor);
+      custoData += dataCost(effTier);
     } else if (status === "trialing") {
       categoria = "Assinou (em teste)";
       rank = 3;
       assinouTeste++;
       valor = monthlyValue(s?.price_cents, effTier, plan);
       potencialTeste += valor;
+      taxasStripeTeste += stripeFee(valor);
+      custoDataTeste += dataCost(effTier);
     } else if (status === "past_due") {
       categoria = "Pagamento falhou";
       rank = 0;
@@ -142,6 +245,11 @@ export default async function AdminPage() {
       categoria = "Em teste grátis";
       rank = 2;
       emTeste++;
+      // Potencial: valor estimado pelo plano que a pessoa escolheu.
+      valor = monthlyValue(s?.price_cents, effTier, plan);
+      potencialTeste += valor;
+      taxasStripeTeste += stripeFee(valor);
+      custoDataTeste += dataCost(effTier);
     } else {
       categoria = "Teste expirado (não fechou)";
       rank = 0;
@@ -170,8 +278,14 @@ export default async function AdminPage() {
       periodEnd: s?.current_period_end ?? null,
       deletionInDays,
       isAdmin: isUserAdmin,
+      grupo: grupoDe(categoria),
     });
   }
+
+  // Dinheiro real (o que sobra de verdade na conta, após Stripe + Data).
+  const receitaRealAtiva = Math.max(0, mrr - taxasStripe - custoData);
+  const receitaRealTeste = Math.max(0, potencialTeste - taxasStripeTeste - custoDataTeste);
+  const previstoTotalReal = receitaRealAtiva + receitaRealTeste;
 
   rows.sort((a, b) => a.rank - b.rank || +new Date(b.created) - +new Date(a.created));
 
@@ -210,15 +324,6 @@ export default async function AdminPage() {
     { label: "Perfis Google conectados", value: String(perfis ?? 0) },
     { label: "A cobrar (não fecharam)", value: String(semFechar) },
   ];
-
-  const corCategoria = (c: string) =>
-    c.startsWith("Assinante")
-      ? "text-brand-2"
-      : c.startsWith("Liberado")
-        ? "text-sky-500"
-        : c.startsWith("Em teste") || c.startsWith("Assinou")
-          ? "text-accent"
-          : "text-red-500";
 
   // Donut (SVG estático) — conversão.
   const donutSegs = [
@@ -363,35 +468,27 @@ export default async function AdminPage() {
           </div>
         </div>
 
-        {/* Fluxo do mês (cópia do layout de referência) */}
+        {/* Fluxo do mês — dinheiro real (após Stripe + créditos Data) */}
         <div className="mt-4 rounded-3xl border border-border bg-white p-6 card-soft">
           <p className="text-sm font-semibold">Fluxo do mês</p>
-          <p className="mb-5 text-xs text-muted">Receita ativa, potencial em teste e previsto do período.</p>
-          <div className="grid gap-6 sm:grid-cols-3">
+          <p className="mb-5 text-xs text-muted">Receita, custos e o que realmente sobra na sua conta.</p>
+          <div className="grid gap-x-6 gap-y-5 sm:grid-cols-3">
             {[
-              { label: "Receita ativa", value: mrr, color: "#059669", hint: `${ativos} assinante(s)` },
-              { label: "Potencial em teste", value: potencialTeste, color: "#d97706", hint: `${assinouTeste} em teste pago` },
-              { label: "Previsto total", value: previstoTotal, color: "#0ea5e9", hint: "se os testes fecharem" },
-            ].map((col) => {
-              const frac = previstoTotal > 0 ? Math.max(0.06, col.value / previstoTotal) : 0.06;
-              const segs = Math.max(1, Math.round(frac * 10));
-              return (
-                <div key={col.label}>
-                  <p className="text-xs uppercase tracking-wide text-muted">{col.label}</p>
-                  <p className="mt-1 font-display text-2xl font-extrabold tracking-tight">{brl(col.value)}</p>
-                  <div className="mt-2 flex gap-1">
-                    {Array.from({ length: 10 }).map((_, i) => (
-                      <span
-                        key={i}
-                        className="h-1.5 flex-1 rounded-full"
-                        style={{ background: i < segs ? col.color : "var(--surface-2)" }}
-                      />
-                    ))}
-                  </div>
-                  <p className="mt-1.5 text-xs text-muted">{col.hint}</p>
-                </div>
-              );
-            })}
+              { label: "Receita ativa", value: mrr, color: "#059669", hint: `${ativos} assinante(s) · bruto` },
+              { label: "Valor real da receita", value: receitaRealAtiva, color: "#0ea5e9", hint: "o que cai na conta (após Stripe + Data)" },
+              { label: "Potencial em teste", value: potencialTeste, color: "#d97706", hint: `${emTeste + assinouTeste} em teste · pelo plano escolhido` },
+              { label: "Taxas Stripe", value: -taxasStripe, color: "#ef4444", hint: "3,99% + R$ 0,39 por cobrança" },
+              { label: "Créditos Data", value: -custoData, color: "#ef4444", hint: "R$ 5,50 (500 créditos) por agência" },
+              { label: "Previsto total", value: previstoTotalReal, color: "#059669", hint: "real na conta, se os testes fecharem" },
+            ].map((col) => (
+              <div key={col.label}>
+                <p className="text-xs uppercase tracking-wide text-muted">{col.label}</p>
+                <p className="mt-1 font-display text-2xl font-extrabold tracking-tight" style={{ color: col.color }}>
+                  {brl(col.value)}
+                </p>
+                <p className="mt-1.5 text-xs text-muted">{col.hint}</p>
+              </div>
+            ))}
           </div>
         </div>
 
@@ -405,64 +502,12 @@ export default async function AdminPage() {
           ))}
         </div>
 
-        {/* Tabela completa (demais informações) */}
-        <h2 className="mb-3 mt-8 text-base font-semibold">Todas as contas</h2>
-        <div className="overflow-x-auto rounded-3xl border border-border bg-white card-soft">
-          <table className="w-full min-w-[640px] text-sm">
-            <thead className="border-b border-border text-left text-xs text-muted">
-              <tr>
-                <th className="px-4 py-3">E-mail</th>
-                <th className="px-4 py-3">Contato (WhatsApp)</th>
-                <th className="px-4 py-3">Situação</th>
-                <th className="px-4 py-3">Plano</th>
-                <th className="px-4 py-3">Valor/mês</th>
-                <th className="px-4 py-3">Cadastro</th>
-                <th className="px-4 py-3">Ação</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r, i) => (
-                <tr key={i} className="border-b border-border/60">
-                  <td className="px-4 py-3">{r.email}</td>
-                  <td className="px-4 py-3">
-                    {r.phone ? (
-                      <a href={`https://wa.me/${r.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-brand-2 hover:underline">
-                        {r.phone}
-                      </a>
-                    ) : (
-                      <span className="text-muted">—</span>
-                    )}
-                  </td>
-                  <td className={`px-4 py-3 font-medium ${corCategoria(r.categoria)}`}>
-                    {r.categoria}
-                    {r.deletionInDays !== null && (
-                      <span className="mt-0.5 block text-[11px] font-normal text-red-500">
-                        exclui em {r.deletionInDays} dia{r.deletionInDays === 1 ? "" : "s"}
-                      </span>
-                    )}
-                  </td>
-                  <td className="px-4 py-3 text-muted">{r.plano ?? "—"}</td>
-                  <td className="px-4 py-3">{r.valor ? brl(r.valor) : "—"}</td>
-                  <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
-                  <td className="px-4 py-3">
-                    <div className="flex min-w-[240px] max-w-[300px] flex-wrap items-center gap-1.5">
-                      {!r.isAdmin && <AdminTierSelect userId={r.userId} tier={r.tier} />}
-                      {!r.isAdmin && <AdminFoundingButton userId={r.userId} />}
-                      {!r.isAdmin && <AdminAffiliateButton userId={r.userId} email={r.email} />}
-                      <AdminGrantButton userId={r.userId} granted={r.manual} />
-                      {!r.isAdmin && <AdminDeleteButton userId={r.userId} email={r.email} />}
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={7} className="px-4 py-6 text-center text-muted">Nenhuma conta ainda.</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        {/* Contas separadas por situação */}
+        <h2 className="mb-1 mt-8 text-base font-semibold">Todas as contas</h2>
+        <p className="text-xs text-muted">Separadas por situação — clientes ativos, em teste e testes expirados.</p>
+        <AccountsTable title="Clientes ativos" accent="text-brand-2" rows={rows.filter((r) => r.grupo === "ativos")} />
+        <AccountsTable title="Clientes em teste" accent="text-accent" rows={rows.filter((r) => r.grupo === "teste")} />
+        <AccountsTable title="Testes expirados" accent="text-red-500" rows={rows.filter((r) => r.grupo === "expirados")} />
         <p className="mt-3 text-xs text-muted">
           As pessoas em vermelho (teste expirado / cancelou / pagamento falhou) são as de contato prioritário para fechar a mensalidade.
           Contas de teste expirado são <strong>excluídas automaticamente {GRACE_DAYS} dias</strong> após o fim do teste (o contato fica salvo abaixo).
