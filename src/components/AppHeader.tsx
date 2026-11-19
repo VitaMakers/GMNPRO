@@ -37,6 +37,34 @@ export default function AppHeader({
   const [trial, setTrial] = useState<{ daysLeft: number } | null>(trialProp ?? null);
   const [isAdmin, setIsAdmin] = useState(isAdminProp ?? false);
   const [isAgency, setIsAgency] = useState(isAgencyProp ?? false);
+  const [isAffiliate, setIsAffiliate] = useState(false);
+
+  // Afiliado: mostra a aba "Indicação" só para quem tem um código liberado.
+  // A RLS garante que cada pessoa só enxerga o próprio registro.
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const sb = createClient();
+        const {
+          data: { user },
+        } = await sb.auth.getUser();
+        if (!user) return;
+        const { data } = await sb
+          .from("affiliates")
+          .select("code")
+          .eq("user_id", user.id)
+          .eq("active", true)
+          .maybeSingle();
+        if (alive && data) setIsAffiliate(true);
+      } catch {
+        /* sem afiliado: aba oculta */
+      }
+    })();
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (seeded) return; // já veio pronto do servidor
@@ -161,6 +189,16 @@ export default function AppHeader({
                 </Link>
               </>
             )}
+            {isAffiliate && (
+              <Link
+                href="/afiliado"
+                className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                  pathname === "/afiliado" ? "bg-brand/10 text-brand-2" : "text-muted"
+                }`}
+              >
+                Indicação
+              </Link>
+            )}
             {isAdmin && (
               <Link
                 href="/admin"
@@ -175,7 +213,7 @@ export default function AppHeader({
         </div>
       </header>
 
-      <AppSidebar isAdmin={isAdmin} isAgency={isAgency} />
+      <AppSidebar isAdmin={isAdmin} isAgency={isAgency} isAffiliate={isAffiliate} />
       <OnboardingTour />
     </>
   );
