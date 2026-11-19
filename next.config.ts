@@ -14,6 +14,11 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  poweredByHeader: false,
+  compiler: {
+    // Remove console.* em produção (mantém error/warn), deixando o bundle menor.
+    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ["error", "warn"] } : false,
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders }];
   },
