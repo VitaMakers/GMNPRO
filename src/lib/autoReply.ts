@@ -11,6 +11,7 @@ import { getValidAccessToken } from "./google/token";
 import { listReviewsFull, postReviewReply } from "./google/reviews";
 import { generateReply, type Provider } from "./ai";
 import { decryptSecret } from "./crypto";
+import { blockedUserIds } from "./subscriptionAccess";
 
 const THROTTLE_MS = 10 * 60 * 1000; // no máximo 1x a cada 10 min por perfil
 const MAX_PROFILES = 25;            // perfis por execução
@@ -49,7 +50,11 @@ export async function runAutoReplies(
   const settings = (list as SettingRow[]) ?? [];
   let replied = 0;
 
+  // Trava: não responde avaliações de quem testou e não assinou (ou cancelou).
+  const blocked = await blockedUserIds(admin, settings.map((s) => s.user_id));
+
   for (const s of settings) {
+    if (blocked.has(s.user_id)) continue;
     // "Linha de corte": só respondemos avaliações criadas DEPOIS deste momento.
     // Assim, avaliações antigas (anteriores a ligar a resposta automática) nunca
     // são respondidas. Se o perfil ainda não tem linha de corte, estabelece agora

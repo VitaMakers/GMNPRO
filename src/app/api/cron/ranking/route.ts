@@ -6,6 +6,7 @@ import { gridCredits } from "@/lib/geogrid";
 import { executeRanking } from "@/lib/rankingRun";
 import { monthUsage } from "@/lib/rankingUsage";
 import { entitlementsFor } from "@/lib/entitlements";
+import { blockedUserIds } from "@/lib/subscriptionAccess";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -32,7 +33,9 @@ export async function GET(request: Request) {
 
   let ran = 0, skipped = 0, failed = 0;
   const tokens = new Map<string, string>();
+  const blocked = await blockedUserIds(admin, (due ?? []).map((d: { user_id: string }) => d.user_id));
   for (const sch of due ?? []) {
+    if (blocked.has(sch.user_id)) { skipped++; continue; }
     try {
       // Verifica plano + créditos direto na assinatura (sem getAccess).
       const { data: sub } = await admin.from("subscriptions").select("tier, credits, status, manual_access").eq("user_id", sch.user_id).maybeSingle();

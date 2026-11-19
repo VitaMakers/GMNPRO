@@ -4,6 +4,7 @@ import { getValidAccessToken } from "@/lib/google/token";
 import { runProfileAudit } from "@/lib/google/audit";
 import { buildSnapshot } from "@/lib/snapshot";
 import { emailConfigured, sendEmail } from "@/lib/email";
+import { blockedUserIds } from "@/lib/subscriptionAccess";
 
 const esc = (v: string) => v.replace(/[<>&]/g, (c) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;" }[c] ?? c));
 
@@ -46,7 +47,9 @@ export async function GET(request: Request) {
 
   const tokens = new Map<string, string>();
   let ok = 0, fail = 0;
+  const blocked = await blockedUserIds(admin, queue.map((l) => l.user_id as string));
   for (const l of queue) {
+    if (blocked.has(l.user_id)) continue;
     try {
       let token = tokens.get(l.user_id);
       if (!token) { token = await getValidAccessToken(admin, l.user_id); tokens.set(l.user_id, token); }
