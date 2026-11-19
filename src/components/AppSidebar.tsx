@@ -83,6 +83,15 @@ function ISuporte({ className }: IconProps) {
     </svg>
   );
 }
+function IIndicacao({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <rect x="3" y="8" width="18" height="5" rx="1.5" />
+      <path d="M12 8v13M5 13v6a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 19v-6" />
+      <path d="M12 8S10.5 3.5 8 3.5 5 6 5 6s2 2 7 2Zm0 0s1.5-4.5 4-4.5S19 6 19 6s-2 2-7 2Z" />
+    </svg>
+  );
+}
 function IAdmin({ className }: IconProps) {
   return (
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
@@ -102,8 +111,17 @@ const ITEMS = [
   { href: "/suporte", label: "Suporte", Icon: ISuporte },
 ];
 
-export default function AppSidebar({ isAdmin, isAgency = false }: { isAdmin: boolean; isAgency?: boolean }) {
+export default function AppSidebar({
+  isAdmin,
+  isAgency = false,
+  isAffiliate = false,
+}: {
+  isAdmin: boolean;
+  isAgency?: boolean;
+  isAffiliate?: boolean;
+}) {
   const pathname = usePathname();
+
   const items = [
     ...ITEMS,
     ...(isAgency
@@ -113,6 +131,7 @@ export default function AppSidebar({ isAdmin, isAgency = false }: { isAdmin: boo
           { href: "/equipe", label: "Equipe", Icon: IEquipe },
         ]
       : []),
+    ...(isAffiliate ? [{ href: "/afiliado", label: "Indicação", Icon: IIndicacao }] : []),
     ...(isAdmin ? [{ href: "/admin", label: "Admin", Icon: IAdmin }] : []),
   ];
 
