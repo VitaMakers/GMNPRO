@@ -1,5 +1,5 @@
 import { createAdminClient } from "@/lib/supabase/server";
-import { BONUS_EVERY, COMMISSION_PCT } from "@/lib/affiliate";
+import { COMMISSION_PCT } from "@/lib/affiliate";
 
 function brl(cents: number): string {
   return (cents / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
@@ -63,6 +63,17 @@ export default async function AdminAffiliates() {
     created_at: string;
   }[]) ?? [];
 
+  // Comissões recorrentes (extrato): soma por afiliado e por indicado.
+  const { data: commData } = await admin
+    .from("affiliate_commissions")
+    .select("affiliate_user_id, referred_user_id, commission_cents");
+  const commByAff = new Map<string, number>();
+  const commByReferred = new Map<string, number>();
+  for (const c of (commData as { affiliate_user_id: string; referred_user_id: string; commission_cents: number | null }[] | null) ?? []) {
+    commByAff.set(c.affiliate_user_id, (commByAff.get(c.affiliate_user_id) ?? 0) + (c.commission_cents ?? 0));
+    commByReferred.set(c.referred_user_id, (commByReferred.get(c.referred_user_id) ?? 0) + (c.commission_cents ?? 0));
+  }
+
   // Assinatura (situação/teste) e e-mail de cada indicado.
   const referredIds = [...new Set(refs.map((r) => r.referred_user_id))];
   const subByUser = new Map<string, { status: string | null; trial_ends_at: string | null; manual_access?: boolean | null }>();
@@ -88,7 +99,7 @@ export default async function AdminAffiliates() {
     affList.map(async (a) => {
       const meus = refs.filter((r) => r.affiliate_user_id === a.user_id);
       const paid = meus.filter((r) => r.status === "paid");
-      const commission = paid.reduce((s, r) => s + (r.commission_cents ?? 0), 0);
+      const commission = commByAff.get(a.user_id) ?? 0;
       const [clicks, clickRows] = await Promise.all([
         admin.from("affiliate_clicks").select("*", { count: "exact", head: true }).eq("code", a.code),
         admin.from("affiliate_clicks").select("visitor").eq("code", a.code).limit(5000),
@@ -102,7 +113,6 @@ export default async function AdminAffiliates() {
         signups: meus.length,
         paid: paid.length,
         commission,
-        bonuses: Math.floor(paid.length / BONUS_EVERY),
       };
     }),
   );
@@ -111,7 +121,7 @@ export default async function AdminAffiliates() {
     <section>
       <h2 className="mb-1 mt-8 text-base font-semibold">Afiliados{resumo.length > 0 ? ` (${resumo.length})` : ""}</h2>
       <p className="mb-3 text-xs text-muted">
-        Comissão de {Math.round(COMMISSION_PCT * 100)}% do 1º pagamento REAL (conta só depois do teste) + bônus a cada {BONUS_EVERY} pagantes.
+        Comissão recorrente de {Math.round(COMMISSION_PCT * 100)}% sobre CADA mensalidade paga do indicado (enquanto ele for cliente).
         Para transformar uma conta em afiliado, use o botão <strong>“Afiliado”</strong> na tabela de contas acima.
       </p>
 
@@ -132,7 +142,6 @@ export default async function AdminAffiliates() {
                   <th className="px-4 py-3 font-medium">Cadastros</th>
                   <th className="px-4 py-3 font-medium">Pagantes</th>
                   <th className="px-4 py-3 font-medium">Comissão</th>
-                  <th className="px-4 py-3 font-medium">Bônus</th>
                 </tr>
               </thead>
               <tbody>
@@ -145,7 +154,6 @@ export default async function AdminAffiliates() {
                     <td className="px-4 py-3">{r.signups}</td>
                     <td className="px-4 py-3 font-medium">{r.paid}</td>
                     <td className="px-4 py-3 font-semibold text-brand-2">{brl(r.commission)}</td>
-                    <td className="px-4 py-3">{r.bonuses}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,7 +189,7 @@ export default async function AdminAffiliates() {
                           <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${toneClass[sit.tone]}`}>{sit.label}</span>
                         </td>
                         <td className="px-4 py-3 text-muted">{new Date(r.created_at).toLocaleDateString("pt-BR")}</td>
-                        <td className="px-4 py-3 font-medium">{r.commission_cents ? brl(r.commission_cents) : "—"}</td>
+                        <td className="px-4 py-3 font-medium">{(commByReferred.get(r.referred_user_id) ?? 0) > 0 ? brl(commByReferred.get(r.referred_user_id) ?? 0) : "—"}</td>
                       </tr>
                     );
                   })
