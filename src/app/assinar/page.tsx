@@ -59,7 +59,11 @@ export default async function AssinarPage() {
           </div>
         )}
 
-        <AssinarPlans trial={access.trial || !!access.needsPlan} currentTier={access.tier} />
+        <AssinarPlans
+          trial={access.trial || !!access.needsPlan}
+          currentTier={access.tier}
+          initialPhone={String(user.user_metadata?.phone ?? user.user_metadata?.whatsapp ?? "")}
+        />
         {access.allowed && <ManageSubscriptionButton />}
       </main>
     </div>

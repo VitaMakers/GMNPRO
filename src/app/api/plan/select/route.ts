@@ -19,7 +19,7 @@ export async function POST(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
-  const { tier } = (await request.json().catch(() => ({}))) as { tier?: Tier };
+  const { tier, phone } = (await request.json().catch(() => ({}))) as { tier?: Tier; phone?: string };
   if (!tier || !ENTITLEMENTS[tier]) {
     return NextResponse.json({ error: "plano_invalido" }, { status: 400 });
   }
@@ -53,7 +53,10 @@ export async function POST(request: Request) {
 
   // 3) Marca "escolheu plano" nos metadados do usuário (fonte do portão de
   //    acesso — não depende de migração).
-  await supabase.auth.updateUser({ data: { plan_chosen: true, plan_tier: tier } });
+  const cleanPhone = (phone ?? "").trim();
+  await supabase.auth.updateUser({
+    data: { plan_chosen: true, plan_tier: tier, ...(cleanPhone ? { phone: cleanPhone } : {}) },
+  });
 
   // 4) Atribuição de afiliado: se a pessoa veio por um link /r/<codigo>, vincula
   //    (uma vez só). Não bloqueia a escolha do plano se falhar.

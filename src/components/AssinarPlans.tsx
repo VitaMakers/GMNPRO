@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import type { Tier, Cycle } from "@/lib/entitlements";
+import { createClient } from "@/lib/supabase/client";
 
 type Busy = string;
 
@@ -16,18 +17,41 @@ function Check() {
 export default function AssinarPlans({
   trial = false,
   currentTier = "essencial",
+  initialPhone = "",
 }: {
   trial?: boolean;
   currentTier?: string;
+  initialPhone?: string;
 }) {
   const [cycle, setCycle] = useState<Cycle>("mensal");
   const [busy, setBusy] = useState<Busy>("");
   const [error, setError] = useState("");
+  const [phone, setPhone] = useState(initialPhone);
+
+  // Exige e salva o WhatsApp antes de liberar o plano — garante o contato
+  // da pessoa (preenche a coluna "Contato" no admin), inclusive quem entrou
+  // pelo Google (que não informa WhatsApp no login).
+  function ensurePhone(): boolean {
+    if (phone.replace(/\D/g, "").length < 10) {
+      setError("Informe seu WhatsApp (com DDD) para continuar.");
+      return false;
+    }
+    return true;
+  }
+  async function savePhone() {
+    try {
+      await createClient().auth.updateUser({ data: { phone: phone.trim() } });
+    } catch {
+      /* não bloqueia o fluxo se o save falhar */
+    }
+  }
 
   async function checkout(tier: Tier) {
+    if (!ensurePhone()) return;
     setBusy(`pay:${tier}`);
     setError("");
     try {
+      await savePhone();
       const res = await fetch("/api/stripe/checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -43,13 +67,15 @@ export default function AssinarPlans({
   }
 
   async function activateTrial(tier: Tier) {
+    if (!ensurePhone()) return;
     setBusy(`trial:${tier}`);
     setError("");
     try {
+      await savePhone();
       const res = await fetch("/api/plan/select", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tier }),
+        body: JSON.stringify({ tier, phone: phone.trim() }),
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Falha ao ativar o plano.");
@@ -113,6 +139,21 @@ export default function AssinarPlans({
           os recursos agora, sem cartão</strong>. A cobrança só começa quando você assinar.
         </p>
       )}
+
+      {/* WhatsApp obrigatório — garante o contato da pessoa */}
+      <div className="mx-auto w-full max-w-md rounded-2xl border border-border bg-white p-4 card-soft">
+        <label className="block">
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-muted">Seu WhatsApp (com DDD)</span>
+          <input
+            type="tel"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+            placeholder="Ex.: 15 99663-4333"
+            className="mt-1.5 w-full border-0 border-b border-border bg-transparent pb-2 text-sm text-foreground outline-none transition placeholder:text-muted focus:border-brand"
+          />
+        </label>
+        <p className="mt-1.5 text-[11px] text-muted">Precisamos para falar com você sobre a sua conta.</p>
+      </div>
 
       {/* Alternador de ciclo */}
       <div className="flex justify-center">
