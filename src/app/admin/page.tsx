@@ -2,12 +2,8 @@ import { redirect } from "next/navigation";
 import AppHeader from "@/components/AppHeader";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ADMIN_EMAILS } from "@/lib/stripe";
-import AdminGrantButton from "@/components/AdminGrantButton";
-import AdminTierSelect from "@/components/AdminTierSelect";
-import AdminFoundingButton from "@/components/AdminFoundingButton";
-import AdminAffiliateButton from "@/components/AdminAffiliateButton";
 import AdminAffiliates from "@/components/AdminAffiliates";
-import AdminDeleteButton from "@/components/AdminDeleteButton";
+import AdminAccountsTabs from "@/components/AdminAccountsTabs";
 import MetricChart from "@/components/MetricChart";
 import { GRACE_DAYS } from "@/lib/access";
 
@@ -50,15 +46,6 @@ function grupoDe(categoria: string): Grupo {
   return "expirados";
 }
 
-const corCategoria = (c: string) =>
-  c.startsWith("Assinante")
-    ? "text-brand-2"
-    : c.startsWith("Liberado")
-      ? "text-sky-500"
-      : c.startsWith("Em teste") || c.startsWith("Assinou")
-        ? "text-accent"
-        : "text-red-500";
-
 type Row = {
   userId: string;
   email: string;
@@ -75,74 +62,6 @@ type Row = {
   isAdmin: boolean;
   grupo: Grupo;
 };
-
-/** Tabela de contas (reutilizada por grupo: ativos, em teste, expirados). */
-function AccountsTable({ title, accent, rows }: { title: string; accent: string; rows: Row[] }) {
-  return (
-    <>
-      <h3 className={`mb-2 mt-6 flex items-center gap-2 text-sm font-semibold ${accent}`}>
-        {title}
-        <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">{rows.length}</span>
-      </h3>
-      <div className="overflow-x-auto rounded-3xl border border-border bg-white card-soft">
-        <table className="w-full min-w-[640px] text-sm">
-          <thead className="border-b border-border text-left text-xs text-muted">
-            <tr>
-              <th className="px-4 py-3">E-mail</th>
-              <th className="px-4 py-3">Contato (WhatsApp)</th>
-              <th className="px-4 py-3">Situação</th>
-              <th className="px-4 py-3">Plano</th>
-              <th className="px-4 py-3">Valor/mês</th>
-              <th className="px-4 py-3">Cadastro</th>
-              <th className="px-4 py-3">Ação</th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r, i) => (
-              <tr key={i} className="border-b border-border/60">
-                <td className="px-4 py-3">{r.email}</td>
-                <td className="px-4 py-3">
-                  {r.phone ? (
-                    <a href={`https://wa.me/${r.phone.replace(/\D/g, "")}`} target="_blank" rel="noopener noreferrer" className="text-brand-2 hover:underline">
-                      {r.phone}
-                    </a>
-                  ) : (
-                    <span className="text-muted">—</span>
-                  )}
-                </td>
-                <td className={`px-4 py-3 font-medium ${corCategoria(r.categoria)}`}>
-                  {r.categoria}
-                  {r.deletionInDays !== null && (
-                    <span className="mt-0.5 block text-[11px] font-normal text-red-500">
-                      exclui em {r.deletionInDays} dia{r.deletionInDays === 1 ? "" : "s"}
-                    </span>
-                  )}
-                </td>
-                <td className="px-4 py-3 text-muted">{r.plano ?? "—"}</td>
-                <td className="px-4 py-3">{r.valor ? brl(r.valor) : "—"}</td>
-                <td className="px-4 py-3 text-muted">{dt(r.created)}</td>
-                <td className="px-4 py-3">
-                  <div className="flex min-w-[240px] max-w-[300px] flex-wrap items-center gap-1.5">
-                    {!r.isAdmin && <AdminTierSelect userId={r.userId} tier={r.tier} />}
-                    {!r.isAdmin && <AdminFoundingButton userId={r.userId} />}
-                    {!r.isAdmin && <AdminAffiliateButton userId={r.userId} email={r.email} />}
-                    <AdminGrantButton userId={r.userId} granted={r.manual} />
-                    {!r.isAdmin && <AdminDeleteButton userId={r.userId} email={r.email} />}
-                  </div>
-                </td>
-              </tr>
-            ))}
-            {rows.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-4 py-6 text-center text-muted">Nenhuma conta aqui.</td>
-              </tr>
-            )}
-          </tbody>
-        </table>
-      </div>
-    </>
-  );
-}
 
 interface SubRow {
   user_id: string;
@@ -502,12 +421,14 @@ export default async function AdminPage() {
           ))}
         </div>
 
-        {/* Contas separadas por situação */}
+        {/* Contas — abas por situação (clique para trocar) */}
         <h2 className="mb-1 mt-8 text-base font-semibold">Todas as contas</h2>
-        <p className="text-xs text-muted">Separadas por situação — clientes ativos, em teste e testes expirados.</p>
-        <AccountsTable title="Clientes ativos" accent="text-brand-2" rows={rows.filter((r) => r.grupo === "ativos")} />
-        <AccountsTable title="Clientes em teste" accent="text-accent" rows={rows.filter((r) => r.grupo === "teste")} />
-        <AccountsTable title="Testes expirados" accent="text-red-500" rows={rows.filter((r) => r.grupo === "expirados")} />
+        <p className="mb-3 text-xs text-muted">Clique num botão para ver cada grupo.</p>
+        <AdminAccountsTabs
+          ativos={rows.filter((r) => r.grupo === "ativos")}
+          teste={rows.filter((r) => r.grupo === "teste")}
+          expirados={rows.filter((r) => r.grupo === "expirados")}
+        />
         <p className="mt-3 text-xs text-muted">
           As pessoas em vermelho (teste expirado / cancelou / pagamento falhou) são as de contato prioritário para fechar a mensalidade.
           Contas de teste expirado são <strong>excluídas automaticamente {GRACE_DAYS} dias</strong> após o fim do teste (o contato fica salvo abaixo).
