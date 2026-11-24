@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import QRCode from "qrcode";
 import MetricChart from "@/components/MetricChart";
+import ProfileStrengthCard from "@/components/ProfileStrengthCard";
 import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 
 interface Kpi { current: number; previous: number; change: number | null }
@@ -129,6 +130,9 @@ export default function DesempenhoDashboard({
           </button>
         </div>
       </div>
+
+      {/* Força do perfil (anel) — igual ao app do Google, com dado real da Análise Completa */}
+      {location && <ProfileStrengthCard location={location} />}
 
       {loading && <p className="text-sm text-muted">Carregando dados do Google…</p>}
       {error && <p className="rounded-xl border border-red-400/40 bg-red-400/10 p-3 text-sm text-red-500">{error}</p>}
