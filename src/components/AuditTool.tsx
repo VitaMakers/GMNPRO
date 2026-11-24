@@ -22,6 +22,9 @@ export default function AuditTool() {
   const [report, setReport] = useState<AuditReport | null>(null);
   const [fromExtension, setFromExtension] = useState(false);
   const [scanId, setScanId] = useState<string | null>(null);
+  const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
+  const [locating, setLocating] = useState(false);
+  const [suggesting, setSuggesting] = useState(false);
 
   // Resultado vindo da extensão do Chrome (?scan=<id>).
   useEffect(() => {
@@ -34,6 +37,57 @@ export default function AuditTool() {
       .catch(() => undefined);
     window.history.replaceState({}, "", "/auditoria");
   }, []);
+
+  // Sugestões em TEMPO REAL enquanto digita (igual ao GBP Check): busca
+  // estabelecimentos por nome OU rua/bairro, priorizando o que está perto.
+  useEffect(() => {
+    if (report) return; // com análise aberta não sugere
+    const term = query.trim();
+    if (term.length < 3) {
+      setCandidates([]);
+      setSuggesting(false);
+      return;
+    }
+    const ctrl = new AbortController();
+    setSuggesting(true);
+    const t = setTimeout(async () => {
+      try {
+        let url = `/api/places/suggest?q=${encodeURIComponent(term)}`;
+        if (geo) url += `&lat=${geo.lat}&lng=${geo.lng}`;
+        const res = await fetch(url, { signal: ctrl.signal });
+        const d = await res.json();
+        if (Array.isArray(d.results)) setCandidates(d.results);
+      } catch {
+        /* abortado ou falha de rede: ignora */
+      } finally {
+        setSuggesting(false);
+      }
+    }, 300);
+    return () => {
+      clearTimeout(t);
+      ctrl.abort();
+    };
+  }, [query, geo, report]);
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      setError("Seu navegador não permite usar a localização. Você pode digitar a cidade ou rua na busca.");
+      return;
+    }
+    setLocating(true);
+    setError("");
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        setGeo({ lat: pos.coords.latitude, lng: pos.coords.longitude });
+        setLocating(false);
+      },
+      () => {
+        setError("Não consegui pegar sua localização. Dá pra buscar digitando a cidade/rua junto com o nome.");
+        setLocating(false);
+      },
+      { enableHighAccuracy: false, timeout: 8000, maximumAge: 300000 },
+    );
+  }
 
   async function handleSearch() {
     setError("");
@@ -107,25 +161,38 @@ export default function AuditTool() {
 
       {!report && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5">
-          <label className="mb-2 block text-sm font-medium">Nome da empresa</label>
+          <label className="mb-2 block text-sm font-medium">Buscar empresa, rua ou bairro</label>
           <div className="flex flex-col gap-3 sm:flex-row">
-            <input
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="Ex.: Clínica Sorriso Londrina"
-              className="flex-1 rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
-            />
+            <div className="relative flex-1">
+              <input
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+                placeholder="Ex.: Buffet na Av. São Paulo, Sorocaba"
+                className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 pr-9 text-sm outline-none focus:border-brand"
+              />
+              {suggesting && (
+                <span className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin rounded-full border-2 border-brand/30 border-t-brand" />
+              )}
+            </div>
             <button
-              onClick={handleSearch}
-              disabled={loading || !query.trim()}
-              className="rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white transition hover:opacity-90 disabled:opacity-50"
+              onClick={useMyLocation}
+              disabled={locating}
+              title="Priorizar empresas perto de você"
+              className={`inline-flex items-center justify-center gap-1.5 rounded-lg border px-3 py-2 text-sm font-medium transition disabled:opacity-60 ${
+                geo ? "border-brand bg-brand/10 text-brand-2" : "border-border text-muted hover:bg-surface-2"
+              }`}
             >
-              {loading ? "Buscando…" : "Analisar"}
+              <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M12 21s-7-5.5-7-11a7 7 0 0114 0c0 5.5-7 11-7 11z" />
+                <circle cx="12" cy="10" r="2.5" />
+              </svg>
+              {locating ? "Localizando…" : geo ? "Perto de você ✓" : "Perto de mim"}
             </button>
           </div>
           <p className="mt-2 text-xs text-muted">
-            Use o nome com a cidade se houver nomes parecidos.
+            Os resultados aparecem <strong>na hora</strong> enquanto você digita. Toque em{" "}
+            <strong>Perto de mim</strong> para priorizar as empresas da sua região — ou digite a cidade/rua junto.
           </p>
         </div>
       )}
@@ -144,7 +211,9 @@ export default function AuditTool() {
 
       {candidates.length > 0 && (
         <div className="space-y-2">
-          <p className="text-sm text-muted">Escolha o local certo:</p>
+          <p className="text-sm text-muted">
+            Toque na empresa para começar a análise{geo ? " · priorizando perto de você" : ""}:
+          </p>
           {candidates.map((c) => (
             <button
               key={c.placeId}
