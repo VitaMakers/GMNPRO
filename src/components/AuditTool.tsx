@@ -25,6 +25,12 @@ export default function AuditTool() {
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
+  // "Ver todas": lista completa (Text Search), paginada.
+  const [fullMode, setFullMode] = useState(false);
+  const [fullResults, setFullResults] = useState<Candidate[]>([]);
+  const [nextToken, setNextToken] = useState<string | null>(null);
+  const [loadingAll, setLoadingAll] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
 
   // Resultado vindo da extensão do Chrome (?scan=<id>).
   useEffect(() => {
@@ -119,10 +125,44 @@ export default function AuditTool() {
     }
   }
 
+  // "Ver todas" / "Carregar mais": lista completa via Text Search (paginada).
+  async function searchAll(token?: string) {
+    const term = query.trim();
+    if (!term) return;
+    if (token) setLoadingMore(true);
+    else setLoadingAll(true);
+    setError("");
+    try {
+      let url = `/api/places/search-all?q=${encodeURIComponent(term)}`;
+      if (geo) url += `&lat=${geo.lat}&lng=${geo.lng}`;
+      if (token) url += `&pageToken=${encodeURIComponent(token)}`;
+      const res = await fetch(url);
+      const d = await res.json();
+      const rs: Candidate[] = Array.isArray(d.results) ? d.results : [];
+      setFullResults((prev) => {
+        const merged = token ? [...prev, ...rs] : rs;
+        // Remove repetidos entre páginas (mesmo placeId).
+        const seen = new Set<string>();
+        return merged.filter((c) => (seen.has(c.placeId) ? false : seen.add(c.placeId)));
+      });
+      setNextToken(d.nextPageToken ?? null);
+      setFullMode(true);
+      if (!token && rs.length === 0) setError("Nenhuma empresa encontrada para essa busca. Tente um termo mais amplo.");
+    } catch {
+      setError("Falha de conexão. Tente de novo.");
+    } finally {
+      setLoadingAll(false);
+      setLoadingMore(false);
+    }
+  }
+
   async function runAudit(placeId: string) {
     setError("");
     setLoading(true);
     setCandidates([]);
+    setFullResults([]);
+    setFullMode(false);
+    setNextToken(null);
     try {
       const res = await fetch(`/api/audit?placeId=${encodeURIComponent(placeId)}`);
       const data = await res.json();
@@ -166,7 +206,13 @@ export default function AuditTool() {
             <div className="relative flex-1">
               <input
                 value={query}
-                onChange={(e) => setQuery(e.target.value)}
+                onChange={(e) => {
+                  setQuery(e.target.value);
+                  // Voltou a digitar: sai do modo "ver todas" e volta ao ao vivo.
+                  setFullMode(false);
+                  setFullResults([]);
+                  setNextToken(null);
+                }}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="Ex.: Buffet na Av. São Paulo, Sorocaba"
                 className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 pr-9 text-sm outline-none focus:border-brand"
@@ -209,12 +255,14 @@ export default function AuditTool() {
 
       {error && <p className="text-sm text-red-400">{error}</p>}
 
-      {candidates.length > 0 && (
+      {!report && (fullMode ? fullResults.length > 0 : candidates.length > 0) && (
         <div className="space-y-2">
           <p className="text-sm text-muted">
-            Toque na empresa para começar a análise{geo ? " · priorizando perto de você" : ""}:
+            {fullMode
+              ? `Todas as empresas encontradas (${fullResults.length})${geo ? " · perto de você" : ""} — toque para analisar:`
+              : `Toque na empresa para começar a análise${geo ? " · priorizando perto de você" : ""}:`}
           </p>
-          {candidates.map((c) => (
+          {(fullMode ? fullResults : candidates).map((c) => (
             <button
               key={c.placeId}
               onClick={() => runAudit(c.placeId)}
@@ -224,6 +272,28 @@ export default function AuditTool() {
               <span className="text-xs text-muted">{c.address}</span>
             </button>
           ))}
+
+          {/* Autocomplete traz só ~5: botão para ver TODAS (rua/avenida/segmento). */}
+          {!fullMode && (
+            <button
+              onClick={() => searchAll()}
+              disabled={loadingAll}
+              className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-brand/40 bg-brand/5 px-3 py-2.5 text-sm font-semibold text-brand-2 transition hover:bg-brand/10 disabled:opacity-60"
+            >
+              {loadingAll ? "Carregando…" : "Ver todas as empresas desta busca →"}
+            </button>
+          )}
+
+          {/* Paginação do Text Search. */}
+          {fullMode && nextToken && (
+            <button
+              onClick={() => searchAll(nextToken)}
+              disabled={loadingMore}
+              className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-2.5 text-sm font-semibold text-foreground transition hover:bg-surface-2 disabled:opacity-60"
+            >
+              {loadingMore ? "Carregando…" : "Carregar mais empresas"}
+            </button>
+          )}
         </div>
       )}
 
