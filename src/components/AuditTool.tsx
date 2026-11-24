@@ -25,10 +25,11 @@ export default function AuditTool() {
   const [geo, setGeo] = useState<{ lat: number; lng: number } | null>(null);
   const [locating, setLocating] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
-  // "Ver todas": lista completa (Text Search), paginada.
+  // "Ver todas": lista completa. Continuação por página (texto) ou por raio (perto).
+  type Cont = { type: "text"; token: string } | { type: "nearby"; clat: number; clng: number; radius: number };
   const [fullMode, setFullMode] = useState(false);
   const [fullResults, setFullResults] = useState<Candidate[]>([]);
-  const [nextToken, setNextToken] = useState<string | null>(null);
+  const [cont, setCont] = useState<Cont | null>(null);
   const [loadingAll, setLoadingAll] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
 
@@ -126,28 +127,34 @@ export default function AuditTool() {
   }
 
   // "Ver todas" / "Carregar mais": lista completa via Text Search (paginada).
-  async function searchAll(token?: string) {
+  async function searchAll(more?: Cont | null) {
     const term = query.trim();
     if (!term) return;
-    if (token) setLoadingMore(true);
+    if (more) setLoadingMore(true);
     else setLoadingAll(true);
     setError("");
     try {
       let url = `/api/places/search-all?q=${encodeURIComponent(term)}`;
       if (geo) url += `&lat=${geo.lat}&lng=${geo.lng}`;
-      if (token) url += `&pageToken=${encodeURIComponent(token)}`;
+      if (more?.type === "text") url += `&pageToken=${encodeURIComponent(more.token)}`;
+      if (more?.type === "nearby") url += `&mode=nearby&clat=${more.clat}&clng=${more.clng}&radius=${more.radius}`;
       const res = await fetch(url);
       const d = await res.json();
       const rs: Candidate[] = Array.isArray(d.results) ? d.results : [];
       setFullResults((prev) => {
-        const merged = token ? [...prev, ...rs] : rs;
+        const merged = more ? [...prev, ...rs] : rs;
         // Remove repetidos entre páginas (mesmo placeId).
         const seen = new Set<string>();
         return merged.filter((c) => (seen.has(c.placeId) ? false : seen.add(c.placeId)));
       });
-      setNextToken(d.nextPageToken ?? null);
+      // Próxima leva: por página (texto) ou ampliando o raio (perto).
+      let next: Cont | null = null;
+      if (d.mode === "text" && d.nextPageToken) next = { type: "text", token: d.nextPageToken };
+      else if (d.mode === "nearby" && d.nextRadius && d.center) next = { type: "nearby", clat: d.center.lat, clng: d.center.lng, radius: d.nextRadius };
+      setCont(next);
       setFullMode(true);
-      if (!token && rs.length === 0) setError("Nenhuma empresa encontrada para essa busca. Tente um termo mais amplo.");
+      if (!more && rs.length === 0)
+        setError('Não encontrei empresas para essa busca. Tente o segmento + cidade (ex.: "restaurante Sorocaba").');
     } catch {
       setError("Falha de conexão. Tente de novo.");
     } finally {
@@ -162,7 +169,7 @@ export default function AuditTool() {
     setCandidates([]);
     setFullResults([]);
     setFullMode(false);
-    setNextToken(null);
+    setCont(null);
     try {
       const res = await fetch(`/api/audit?placeId=${encodeURIComponent(placeId)}`);
       const data = await res.json();
@@ -211,7 +218,7 @@ export default function AuditTool() {
                   // Voltou a digitar: sai do modo "ver todas" e volta ao ao vivo.
                   setFullMode(false);
                   setFullResults([]);
-                  setNextToken(null);
+                  setCont(null);
                 }}
                 onKeyDown={(e) => e.key === "Enter" && handleSearch()}
                 placeholder="Ex.: Buffet na Av. São Paulo, Sorocaba"
@@ -284,10 +291,10 @@ export default function AuditTool() {
             </button>
           )}
 
-          {/* Paginação do Text Search. */}
-          {fullMode && nextToken && (
+          {/* Continuação: próxima página (texto) ou raio maior (perto). */}
+          {fullMode && cont && (
             <button
-              onClick={() => searchAll(nextToken)}
+              onClick={() => searchAll(cont)}
               disabled={loadingMore}
               className="mt-1 flex w-full items-center justify-center gap-1.5 rounded-lg border border-border bg-white px-3 py-2.5 text-sm font-semibold text-foreground transition hover:bg-surface-2 disabled:opacity-60"
             >
