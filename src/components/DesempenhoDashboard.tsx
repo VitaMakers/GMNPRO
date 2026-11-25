@@ -500,7 +500,7 @@ function AbaPublico({ report }: { report: Report }) {
   );
 }
 
-interface Dist { total: number; average: number; sampled: number; counts: { stars: number; count: number }[] }
+interface Dist { total: number; average: number; sampled: number; counts: { stars: number; count: number }[]; urgent?: number }
 
 function AbaAvaliacoes({ report, location }: { report: Report; location: string }) {
   const r = report.reviews;
@@ -515,7 +515,7 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
       return;
     }
     try {
-      const cached = sessionStorage.getItem(`gmn_revdist_${location}`);
+      const cached = sessionStorage.getItem(`gmn_revdist_v2_${location}`);
       if (cached) {
         setDist(JSON.parse(cached));
         setLoadingDist(false);
@@ -532,7 +532,7 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
         if (!ok || !d?.ok) return;
         setDist(d);
         try {
-          sessionStorage.setItem(`gmn_revdist_${location}`, JSON.stringify(d));
+          sessionStorage.setItem(`gmn_revdist_v2_${location}`, JSON.stringify(d));
         } catch {
           /* ignora */
         }
@@ -637,6 +637,9 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
           className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
         >
           🔴 Avaliações negativas urgentes
+          {dist?.urgent ? (
+            <span className="ml-0.5 rounded-full bg-white/25 px-2 py-0.5 text-xs font-bold">{dist.urgent}</span>
+          ) : null}
         </Link>
       </div>
 

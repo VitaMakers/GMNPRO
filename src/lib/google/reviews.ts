@@ -106,6 +106,7 @@ export interface ReviewDistribution {
   average: number;
   sampled: number;
   counts: { stars: number; count: number }[]; // 5..1
+  urgent: number; // negativas (1–3★) COM texto e sem resposta
 }
 
 /** Distribuição por estrela (5★/4★/…): pagina as avaliações e conta por nota.
@@ -119,6 +120,7 @@ export async function fetchReviewDistribution(
   let total = 0;
   let average = 0;
   let sampled = 0;
+  let urgent = 0;
   let pageToken: string | undefined;
 
   for (let i = 0; i < maxPages; i++) {
@@ -129,7 +131,7 @@ export async function fetchReviewDistribution(
     const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
     if (!res.ok) break;
     const data = (await res.json()) as {
-      reviews?: RawReview[];
+      reviews?: (RawReview & { reviewReply?: { comment?: string } })[];
       averageRating?: number;
       totalReviewCount?: number;
       nextPageToken?: string;
@@ -142,6 +144,8 @@ export async function fetchReviewDistribution(
         counts[s]++;
         sampled++;
       }
+      // Urgente: nota baixa, com texto e ainda sem resposta do dono.
+      if (s >= 1 && s <= 3 && (r.comment ?? "").trim().length > 0 && !r.reviewReply?.comment) urgent++;
     }
     pageToken = data.nextPageToken;
     if (!pageToken) break;
@@ -152,6 +156,7 @@ export async function fetchReviewDistribution(
     average,
     sampled,
     counts: [5, 4, 3, 2, 1].map((stars) => ({ stars, count: counts[stars] })),
+    urgent,
   };
 }
 
