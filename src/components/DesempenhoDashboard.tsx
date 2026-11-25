@@ -223,7 +223,7 @@ export default function DesempenhoDashboard({
           </div>
 
           {/* Desempenho em abas (Visão geral · Engajamento · Avaliações · Tendências · Público-alvo) */}
-          <DesempenhoAbas report={report} />
+          <DesempenhoAbas report={report} location={location} />
 
           {/* Avaliações (bloco atual, mantido — pedir avaliações com link/QR) */}
           {report.reviews && <ReviewsPanel r={report.reviews} link={report.reviewLink} />}
@@ -345,7 +345,7 @@ function ResumoMetric({ value, label, change }: { value: number; label: string; 
 // ================= Seção de abas (como o app do Google) =================
 type AbaKey = "visao" | "engaj" | "aval" | "tend" | "pub";
 
-function DesempenhoAbas({ report }: { report: Report }) {
+function DesempenhoAbas({ report, location }: { report: Report; location: string }) {
   const [tab, setTab] = useState<AbaKey>("visao");
   const tabs: [AbaKey, string][] = [
     ["visao", "Visão geral"],
@@ -370,7 +370,7 @@ function DesempenhoAbas({ report }: { report: Report }) {
       </div>
       {tab === "visao" && <AbaVisao report={report} />}
       {tab === "engaj" && <AbaEngajamento report={report} />}
-      {tab === "aval" && <AbaAvaliacoes report={report} />}
+      {tab === "aval" && <AbaAvaliacoes report={report} location={location} />}
       {tab === "tend" && <AbaTendencias report={report} />}
       {tab === "pub" && <AbaPublico report={report} />}
     </div>
@@ -500,22 +500,104 @@ function AbaPublico({ report }: { report: Report }) {
   );
 }
 
-function AbaAvaliacoes({ report }: { report: Report }) {
+interface Dist { total: number; average: number; sampled: number; counts: { stars: number; count: number }[] }
+
+function AbaAvaliacoes({ report, location }: { report: Report; location: string }) {
   const r = report.reviews;
+  const [dist, setDist] = useState<Dist | null>(null);
+  const [loadingDist, setLoadingDist] = useState(true);
+
+  useEffect(() => {
+    if (!location) {
+      setLoadingDist(false);
+      return;
+    }
+    try {
+      const cached = sessionStorage.getItem(`gmn_revdist_${location}`);
+      if (cached) {
+        setDist(JSON.parse(cached));
+        setLoadingDist(false);
+        return;
+      }
+    } catch {
+      /* ignora */
+    }
+    let ok = true;
+    setLoadingDist(true);
+    fetch(`/api/google/review-breakdown?location=${encodeURIComponent(location)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (!ok || !d?.ok) return;
+        setDist(d);
+        try {
+          sessionStorage.setItem(`gmn_revdist_${location}`, JSON.stringify(d));
+        } catch {
+          /* ignora */
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (ok) setLoadingDist(false);
+      });
+    return () => {
+      ok = false;
+    };
+  }, [location]);
+
   if (!r) return <p className="text-sm text-muted">Sem avaliações no período.</p>;
+
+  const sampled = dist?.sampled ?? 0;
+
   return (
     <div>
-      <div className="flex items-baseline gap-3">
+      <p className="text-sm font-semibold">Avaliações de clientes</p>
+      <p className="text-xs text-muted">Todo o período · Avaliação no Google</p>
+      <div className="mt-2 flex items-baseline gap-3">
         <span className="font-display text-4xl font-extrabold">{r.average ? r.average.toFixed(1) : "—"}</span>
-        <span className="text-xl text-amber-500">★</span>
+        <span className="text-xl text-amber-500">★★★★★</span>
         <span className="text-sm text-muted">{r.total.toLocaleString("pt-BR")} avaliações</span>
       </div>
+
+      {/* Distribuição por estrela (barras amarelas, como o app do Google) */}
+      <div className="mt-4">
+        {loadingDist && <p className="text-sm text-muted">Calculando a distribuição por estrela…</p>}
+        {!loadingDist && dist && sampled > 0 && (
+          <div className="space-y-1.5">
+            {dist.counts.map((c) => {
+              const pct = Math.round((c.count / sampled) * 100);
+              return (
+                <div key={c.stars} className="flex items-center gap-3">
+                  <span className="w-3 text-right text-sm text-muted">{c.stars}</span>
+                  <div className="h-2.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+                    <div className="h-full rounded-full bg-amber-400" style={{ width: `${pct}%` }} />
+                  </div>
+                  <span className="w-10 text-right text-xs text-muted">{pct}%</span>
+                </div>
+              );
+            })}
+            {dist.total > sampled && (
+              <p className="pt-1 text-[11px] text-muted">Baseado em {sampled.toLocaleString("pt-BR")} avaliações lidas.</p>
+            )}
+          </div>
+        )}
+        {!loadingDist && (!dist || sampled === 0) && (
+          <p className="text-sm text-muted">Não foi possível carregar a distribuição agora.</p>
+        )}
+      </div>
+
       <ul className="mt-4">
         <AbaRow label="Novas nesta semana" value={String(r.newThisWeek)} />
         <AbaRow label="Sem avaliação nova há" value={r.daysSinceLast == null ? "—" : `${r.daysSinceLast} dia${r.daysSinceLast === 1 ? "" : "s"}`} />
       </ul>
+
+      {report.reviewLink && (
+        <a href={report.reviewLink} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex text-sm font-semibold text-brand-2 hover:underline">
+          Acessar as avaliações →
+        </a>
+      )}
+
       <div className="mt-4 rounded-2xl border border-dashed border-brand-2/50 bg-brand/5 p-3 text-xs text-muted">
-        🤖 <strong className="text-brand-2">Em breve:</strong> distribuição por estrela (5★/4★…) e resumo com IA do que os clientes elogiam e reclamam.
+        🤖 <strong className="text-brand-2">Em breve:</strong> resumo com IA do que os clientes elogiam e reclamam.
       </div>
     </div>
   );
