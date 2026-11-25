@@ -43,6 +43,8 @@ export async function GET(request: Request) {
       address: prof.address ?? "",
       photoUrl: prof.photoUrl ?? null,
       verified: !!prof.verified,
+      // Ficha completa da empresa (para o relatório).
+      profile: data.profile ?? null,
       analyzed_at: data.analyzed_at ?? null,
     });
   } catch {
