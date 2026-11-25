@@ -126,22 +126,31 @@ export interface ReviewInsights {
 
 /** Resumo com IA das avaliações: o que os clientes mais elogiam e reclamam. */
 export async function summarizeReviews(
-  reviews: { rating: number; comment: string }[],
+  reviews: { rating: number; comment: string; createTime?: string }[],
   provider: Provider = systemProvider(),
 ): Promise<ReviewInsights> {
-  const sample = reviews.filter((r) => r.comment && r.comment.trim().length > 0).slice(0, 120);
+  const sample = reviews.filter((r) => r.comment && r.comment.trim().length > 0).slice(0, 250);
   if (sample.length === 0) return { praises: [], complaints: [], summary: "" };
+  const yearOf = (iso?: string) => (iso && /^\d{4}/.test(iso) ? iso.slice(0, 4) : "s/ data");
 
   const system =
     "Você é um analista de reputação de negócios. Resuma avaliações de clientes de um perfil do Google. " +
     "Responda SOMENTE com um JSON válido em português do Brasil, sem nenhum texto fora do JSON.";
   const user =
-    `Analise estas ${sample.length} avaliações (nota de 1 a 5 e comentário) e devolva um JSON com:\n` +
-    `- "praises": 3 a 5 pontos que os clientes mais ELOGIAM (frases bem curtas)\n` +
-    `- "complaints": até 4 pontos que os clientes mais RECLAMAM (frases bem curtas; lista vazia se não houver)\n` +
-    `- "summary": um parágrafo curto (2 a 3 frases) com a percepção geral.\n\n` +
+    `Analise estas ${sample.length} avaliações. Cada linha traz a nota (1 a 5), o ANO e o comentário.\n\n` +
+    `REGRA OBRIGATÓRIA: só inclua um ELOGIO ou uma RECLAMAÇÃO se o MESMO tema aparecer em PELO MENOS 3 ` +
+    `avaliações DO MESMO ANO. Se o tema aparecer em menos de 3 avaliações no mesmo ano, é um caso ISOLADO ` +
+    `e NÃO deve ser incluído. Agrupe variações do mesmo tema como um só (ex.: "muito salgado", "excesso de sal" e ` +
+    `"pratos salgados" contam como o mesmo tema). Prefira frases curtas e específicas (ex.: "Alguns pratos ` +
+    `excessivamente salgados").\n\n` +
+    `Devolva um JSON com:\n` +
+    `- "praises": temas mais ELOGIADOS que passam na regra das 3 por ano (lista vazia se nenhum passar)\n` +
+    `- "complaints": temas mais RECLAMADOS que passam na regra das 3 por ano (lista vazia se nenhum passar)\n` +
+    `- "summary": um parágrafo curto (2 a 3 frases) com a percepção geral, mencionando apenas padrões recorrentes.\n\n` +
     `Avaliações:\n` +
-    sample.map((r, i) => `${i + 1}. [${r.rating}★] ${(r.comment || "").replace(/\s+/g, " ").slice(0, 400)}`).join("\n");
+    sample
+      .map((r, i) => `${i + 1}. [${r.rating}★] (${yearOf(r.createTime)}) ${(r.comment || "").replace(/\s+/g, " ").slice(0, 400)}`)
+      .join("\n");
 
   const raw = await complete(provider, system, user);
   const m = raw.match(/\{[\s\S]*\}/);

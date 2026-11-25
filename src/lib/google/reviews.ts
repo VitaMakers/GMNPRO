@@ -155,6 +155,33 @@ export async function fetchReviewDistribution(
   };
 }
 
+/** Avaliações com texto (nota, comentário e data) para o resumo com IA —
+ *  pagina algumas páginas para dar base ao critério de "tema recorrente". */
+export async function fetchReviewTexts(
+  accessToken: string,
+  accountLocation: string,
+  maxPages = 4,
+): Promise<{ rating: number; comment: string; createTime: string }[]> {
+  const out: { rating: number; comment: string; createTime: string }[] = [];
+  let pageToken: string | undefined;
+  for (let i = 0; i < maxPages; i++) {
+    const u = new URL(`${LEGACY_V4}/${accountLocation}/reviews`);
+    u.searchParams.set("pageSize", "50");
+    u.searchParams.set("orderBy", "updateTime desc");
+    if (pageToken) u.searchParams.set("pageToken", pageToken);
+    const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) break;
+    const data = (await res.json()) as { reviews?: RawReview[]; nextPageToken?: string };
+    for (const r of data.reviews ?? []) {
+      const c = (r.comment ?? "").trim();
+      if (c) out.push({ rating: STAR[r.starRating ?? ""] ?? 0, comment: c, createTime: r.createTime ?? "" });
+    }
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
+}
+
 /** Publica (ou atualiza) a resposta do dono em uma avaliação. */
 export async function postReviewReply(
   accessToken: string,
