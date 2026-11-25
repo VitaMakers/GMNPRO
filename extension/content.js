@@ -57,22 +57,48 @@
   async function run(btn) {
     setBtn(btn, isMaps ? "Lendo a ficha e avaliações…" : "Lendo a ficha…", true);
     const data = await scrape();
-    if (!data.name) { setBtn(btn, "Abra a ficha de uma empresa", false); setTimeout(() => setBtn(btn, "Analisar no GMN Profile", false), 3000); return; }
+    if (!data.name) { setBtn(btn, "Abra a ficha de uma empresa", false); setTimeout(() => setBtn(btn, "Pré-análise GMN", false), 3000); return; }
     setBtn(btn, "Enviando…", true);
     chrome.runtime.sendMessage({ type: "gmnpro-analyze", data }, (resp) => {
       setBtn(btn, resp?.ok ? "✓ Pré-análise aberta (nota " + (resp.score ?? "—") + ")" : (resp?.status === 401 ? "Faça login no GMN Profile" : "Erro: " + (resp?.error ?? "falhou")), false);
-      setTimeout(() => setBtn(btn, "Analisar no GMN Profile", false), 4000);
+      setTimeout(() => setBtn(btn, "Pré-análise GMN", false), 4000);
     });
+  }
+
+  function makeBtn() {
+    const btn = document.createElement("button");
+    btn.id = "gmnpro-btn";
+    btn.textContent = "Pré-análise GMN";
+    btn.style.cssText =
+      "display:inline-flex;align-items:center;gap:6px;background:#059669;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
+    btn.addEventListener("click", () => run(btn));
+    return btn;
+  }
+
+  // Âncora: topo do painel de conhecimento do Google (acima das fotos), como o
+  // GBP Check. Em Maps/ sem painel, cai para um botão flutuante no canto.
+  function panelAnchor() {
+    if (isMaps) return null;
+    return document.querySelector('[role="complementary"]') || document.querySelector("#rhs");
   }
 
   function injectButton() {
     if (document.getElementById("gmnpro-btn")) return;
-    const btn = document.createElement("button");
-    btn.id = "gmnpro-btn"; btn.textContent = "Analisar no GMN Profile";
-    btn.style.cssText = "position:fixed;z-index:999999;top:88px;right:24px;background:#059669;color:#fff;border:0;border-radius:10px;padding:10px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 4px 12px rgba(0,0,0,.25)";
-    btn.addEventListener("click", () => run(btn));
-    document.body.appendChild(btn);
+    const panel = panelAnchor();
+    if (panel) {
+      const bar = document.createElement("div");
+      bar.id = "gmnpro-bar";
+      bar.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin:0 0 6px;padding:8px 12px 0;";
+      bar.appendChild(makeBtn());
+      panel.prepend(bar);
+    } else {
+      const btn = makeBtn();
+      btn.style.cssText += ";position:fixed;z-index:999999;top:88px;right:24px";
+      document.body.appendChild(btn);
+    }
   }
   setTimeout(injectButton, 1200);
-  new MutationObserver(() => injectButton()).observe(document.body, { childList: true, subtree: false });
+  // Observa a página toda: o painel do Google é renderizado/atualizado depois,
+  // e às vezes recriado — o guard por id evita duplicar.
+  new MutationObserver(() => injectButton()).observe(document.documentElement, { childList: true, subtree: true });
 })();
