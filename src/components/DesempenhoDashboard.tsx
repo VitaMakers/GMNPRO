@@ -132,7 +132,19 @@ export default function DesempenhoDashboard({
       </div>
 
       {/* Força do perfil (anel) — igual ao app do Google, com dado real da Análise Completa */}
-      {location && <ProfileStrengthCard location={location} title={activeTitle} />}
+      {location && (
+        <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+          <ProfileStrengthCard location={location} title={activeTitle} />
+          {report ? (
+            <DesempenhoResumo report={report} periodLabel={periodLabel} />
+          ) : (
+            <div className="hidden rounded-3xl border border-border bg-white p-6 card-soft lg:block">
+              <p className="font-display text-base font-bold">Desempenho</p>
+              <p className="mt-2 text-sm text-muted">Carregando dados do Google…</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {loading && <p className="text-sm text-muted">Carregando dados do Google…</p>}
       {error && <p className="rounded-xl border border-red-400/40 bg-red-400/10 p-3 text-sm text-red-500">{error}</p>}
@@ -232,6 +244,54 @@ export default function DesempenhoDashboard({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+// Abrevia números grandes como o app do Google: 119000 -> "119 mil".
+function fmtK(n: number): string {
+  if (n >= 1_000_000) return (n / 1_000_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi";
+  if (n >= 1_000) return (n / 1_000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil";
+  return n.toLocaleString("pt-BR");
+}
+
+// Resumo do Desempenho (ao lado da Força do perfil), como o app do Google:
+// Visualizações, Interações e Pesquisas — puxado ao vivo da API oficial.
+function DesempenhoResumo({ report, periodLabel }: { report: Report; periodLabel: string }) {
+  const k = report.kpis;
+  const views = k.impressions.current;
+  const inter = k.website.current + k.calls.current + k.directions.current + k.conversations.current;
+  const pesquisas = (report.keywords ?? []).reduce((s, x) => s + x.value, 0);
+  return (
+    <div className="flex flex-col rounded-3xl border border-border bg-white p-6 card-soft">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="font-display text-base font-bold">Desempenho</p>
+          <p className="text-xs text-muted">{periodLabel}</p>
+        </div>
+        <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand-2">● ao vivo</span>
+      </div>
+      <div className="mt-5 grid flex-1 grid-cols-3 items-end gap-2 text-center">
+        <ResumoMetric value={views} label="Visualizações" change={k.impressions.change} />
+        <ResumoMetric value={inter} label="Interações" />
+        <ResumoMetric value={pesquisas} label="Pesquisas" />
+      </div>
+    </div>
+  );
+}
+
+function ResumoMetric({ value, label, change }: { value: number; label: string; change?: number | null }) {
+  const up = change != null && change > 0;
+  const down = change != null && change < 0;
+  return (
+    <div>
+      <p className="font-display text-2xl font-extrabold leading-none sm:text-3xl">{fmtK(value)}</p>
+      {change != null && (
+        <span className={`mt-1 inline-block rounded-full px-1.5 text-[10px] font-semibold ${up ? "bg-brand/15 text-brand-2" : down ? "bg-red-400/15 text-red-500" : "bg-surface-2 text-muted"}`}>
+          {up ? "▲" : down ? "▼" : "■"} {Math.abs(change)}%
+        </span>
+      )}
+      <p className="mt-1 text-[11px] text-muted">{label}</p>
     </div>
   );
 }
