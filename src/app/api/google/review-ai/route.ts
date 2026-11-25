@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
-import { listReviewsFull } from "@/lib/google/reviews";
+import { fetchReviewTexts } from "@/lib/google/reviews";
 import { summarizeReviews } from "@/lib/ai";
 
 export const dynamic = "force-dynamic";
@@ -24,10 +24,7 @@ export async function GET(request: Request) {
 
   try {
     const token = await getValidAccessToken(supabase, user.id);
-    const reviews = await listReviewsFull(token, location);
-    const texts = reviews
-      .filter((r) => r.comment && r.comment.trim().length > 0)
-      .map((r) => ({ rating: r.rating, comment: r.comment }));
+    const texts = await fetchReviewTexts(token, location);
     if (texts.length === 0) {
       return NextResponse.json({ ok: true, praises: [], complaints: [], summary: "", count: 0 });
     }

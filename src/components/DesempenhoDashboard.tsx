@@ -552,7 +552,7 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
       return;
     }
     try {
-      const cached = sessionStorage.getItem(`gmn_revai_${location}`);
+      const cached = sessionStorage.getItem(`gmn_revai_v2_${location}`);
       if (cached) {
         setAi(JSON.parse(cached));
         setLoadingAi(false);
@@ -570,7 +570,7 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
         const val = { praises: d.praises ?? [], complaints: d.complaints ?? [], summary: d.summary ?? "" };
         setAi(val);
         try {
-          sessionStorage.setItem(`gmn_revai_${location}`, JSON.stringify(val));
+          sessionStorage.setItem(`gmn_revai_v2_${location}`, JSON.stringify(val));
         } catch {
           /* ignora */
         }
