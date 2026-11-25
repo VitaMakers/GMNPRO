@@ -70,7 +70,7 @@
     btn.id = "gmnpro-btn";
     btn.textContent = "Pré-análise GMN";
     btn.style.cssText =
-      "display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
+      "display:inline-flex;align-items:center;gap:6px;background:#22C7B8;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
     btn.addEventListener("click", () => run(btn));
     return btn;
   }
@@ -95,8 +95,17 @@
     if (isMaps) {
       const main = document.querySelector('[role="main"]');
       if (main) {
+        // Preferência: logo DEPOIS da contagem de avaliações ("(36)").
+        const count = main.querySelector('button[aria-label*="avaliaç"],button[aria-label*="resenha"],button[aria-label*="review"]');
         const star = main.querySelector('[role="img"][aria-label*="estrela"],[role="img"][aria-label*="star"]');
         const h1 = main.querySelector("h1");
+        if (count) {
+          const btn = makeBtn();
+          btn.style.marginLeft = "8px";
+          btn.style.verticalAlign = "middle";
+          count.insertAdjacentElement("afterend", btn);
+          return;
+        }
         if (star) {
           let row = star.parentElement;
           if (row && (row.tagName === "A" || row.tagName === "BUTTON")) row = row.parentElement;
