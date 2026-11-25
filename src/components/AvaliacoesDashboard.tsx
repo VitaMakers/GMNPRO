@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 
 type LocationOption = { location_name: string; title: string | null };
@@ -76,6 +76,16 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
       /* ignora */
     }
   }, []);
+
+  // No modo urgentes, carrega as avaliações sozinho (sem precisar clicar).
+  const autoLoaded = useRef(false);
+  useEffect(() => {
+    if (urgentOnly && selected && !autoLoaded.current) {
+      autoLoaded.current = true;
+      loadReviews();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [urgentOnly, selected]);
 
   const loadSettings = useCallback(async () => {
     if (!selected) return;
