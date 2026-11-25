@@ -9,6 +9,7 @@ import BrandLogo from "@/components/BrandLogo";
 import ProfileSwitcher from "@/components/ProfileSwitcher";
 import AppSidebar from "@/components/AppSidebar";
 import OnboardingTour from "@/components/OnboardingTour";
+import { whatsappLink } from "@/lib/support";
 
 const links = [
   { href: "/desempenho", label: "Desempenho" },
@@ -130,6 +131,19 @@ export default function AppHeader({
                   <path d="M9.5 9a2.5 2.5 0 0 1 4.5 1.5c0 1.5-2 1.8-2 3M12 17h.01" />
                 </svg>
               </button>
+              <a
+                href={whatsappLink("Olá! Preciso de ajuda com o GMN Profile.")}
+                target="_blank"
+                rel="noopener noreferrer"
+                title="Falar com o suporte no WhatsApp"
+                aria-label="Falar com o suporte no WhatsApp"
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-emerald-500/40 bg-emerald-500/10 px-3 py-1.5 font-medium text-emerald-600 transition hover:bg-emerald-500/15 sm:px-3.5"
+              >
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="currentColor" aria-hidden="true">
+                  <path d="M12.04 2c-5.46 0-9.9 4.44-9.9 9.9 0 1.75.46 3.45 1.33 4.95L2 22l5.3-1.38a9.9 9.9 0 0 0 4.74 1.2h.01c5.46 0 9.9-4.44 9.9-9.9S17.5 2 12.04 2Zm5.8 14.17c-.25.7-1.44 1.33-1.98 1.38-.53.06-1.03.26-3.47-.72-2.92-1.15-4.78-4.15-4.93-4.34-.14-.2-1.18-1.57-1.18-3s.75-2.13 1.02-2.42c.26-.29.57-.36.76-.36l.55.01c.18 0 .42-.07.65.5.25.6.84 2.08.91 2.23.07.14.12.31.02.5-.1.2-.14.31-.29.48-.14.17-.3.38-.43.5-.14.15-.29.3-.12.59.17.29.74 1.22 1.59 1.98 1.1.97 2.02 1.28 2.31 1.42.29.14.46.12.63-.07.18-.2.73-.85.92-1.14.2-.29.39-.24.66-.14.26.1 1.67.79 1.96.93.29.14.48.22.55.34.07.12.07.7-.18 1.4Z" />
+                </svg>
+                <span className="hidden sm:inline">Suporte</span>
+              </a>
               <Link
                 href="/assinar"
                 className="hidden rounded-full border border-border px-3.5 py-1.5 font-medium text-muted transition hover:bg-surface hover:text-foreground sm:inline-flex"
