@@ -70,32 +70,60 @@
     btn.id = "gmnpro-btn";
     btn.textContent = "Pré-análise GMN";
     btn.style.cssText =
-      "display:inline-flex;align-items:center;gap:6px;background:#22C7B8;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
+      "display:inline-flex;align-items:center;gap:6px;background:#25D366;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
     btn.addEventListener("click", () => run(btn));
     return btn;
   }
 
-  // Âncora: topo do painel de conhecimento do Google (acima das fotos), como o
-  // GBP Check. Em Maps/ sem painel, cai para um botão flutuante no canto.
-  function panelAnchor() {
-    if (isMaps) return null;
-    return document.querySelector('[role="complementary"]') || document.querySelector("#rhs");
-  }
-
   function injectButton() {
     if (document.getElementById("gmnpro-btn")) return;
-    const panel = panelAnchor();
-    if (panel) {
+
+    // 1) Busca do Google: topo do painel de conhecimento (acima das fotos).
+    const kp = !isMaps && (document.querySelector('[role="complementary"]') || document.querySelector("#rhs"));
+    if (kp) {
       const bar = document.createElement("div");
       bar.id = "gmnpro-bar";
       bar.style.cssText = "display:flex;justify-content:flex-end;gap:8px;margin:0 0 6px;padding:8px 12px 0;";
       bar.appendChild(makeBtn());
-      panel.prepend(bar);
-    } else {
-      const btn = makeBtn();
-      btn.style.cssText += ";position:fixed;z-index:999999;top:88px;right:24px";
-      document.body.appendChild(btn);
+      kp.prepend(bar);
+      return;
     }
+
+    // 2) Google Maps: ao lado da avaliação (ou logo abaixo do nome). Só injeta
+    //    quando a ficha de uma empresa está aberta — senão espera (o observer
+    //    tenta de novo), pra não ficar um botão solto no canto do mapa.
+    if (isMaps) {
+      const main = document.querySelector('[role="main"]');
+      if (main) {
+        const star = main.querySelector('[role="img"][aria-label*="estrela"],[role="img"][aria-label*="star"]');
+        const h1 = main.querySelector("h1");
+        if (star) {
+          let row = star.parentElement;
+          if (row && (row.tagName === "A" || row.tagName === "BUTTON")) row = row.parentElement;
+          if (row) {
+            const btn = makeBtn();
+            btn.style.marginLeft = "8px";
+            btn.style.verticalAlign = "middle";
+            row.appendChild(btn);
+            return;
+          }
+        }
+        if (h1 && h1.parentElement) {
+          const bar = document.createElement("div");
+          bar.id = "gmnpro-bar";
+          bar.style.cssText = "margin:8px 0 2px";
+          bar.appendChild(makeBtn());
+          h1.parentElement.insertBefore(bar, h1.nextSibling);
+          return;
+        }
+      }
+      return; // ficha ainda não aberta: aguarda o próximo ciclo do observer
+    }
+
+    // 3) Fallback (busca sem painel): botão flutuante no canto.
+    const btn = makeBtn();
+    btn.style.cssText += ";position:fixed;z-index:999999;top:88px;right:24px";
+    document.body.appendChild(btn);
   }
   setTimeout(injectButton, 1200);
   // Observa a página toda: o painel do Google é renderizado/atualizado depois,
