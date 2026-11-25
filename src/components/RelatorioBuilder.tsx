@@ -6,18 +6,22 @@ import { createClient } from "@/lib/supabase/client";
 type Loc = { location_name: string; title: string | null };
 type Branding = { name?: string; logo_url?: string; color?: string; phone?: string; site?: string } | null;
 
-interface Strength { score: number | null; fraco: number; razoavel: number; bom: number; title?: string }
+interface ChkItem { id: string; category: string; label: string; status: "bom" | "razoavel" | "fraco"; tip: string; detail?: string }
+interface Profile { title?: string; category?: string; address?: string; phone?: string; website?: string; rating?: number; reviewCount?: number; photoCount?: number; postCount?: number; hoursCount?: number; foundingDate?: string | null; photoUrl?: string | null; verified?: boolean }
+interface Strength { score: number | null; fraco: number; razoavel: number; bom: number; title?: string; items?: ChkItem[]; profile?: Profile | null }
 interface Kpi { current: number; change?: number | null; changeYoY?: number | null }
-interface EngMetric { key: string; label: string; value: number }
+interface EngMetric { key: string; label: string; value: number; series?: number[] }
+interface ReviewLatest { author: string; stars: number; comment: string; createTime: string }
 interface Perf {
   range?: { start: string; end: string };
   periodDays?: number;
   kpis?: { impressions: Kpi; interactions: Kpi; website: Kpi; calls: Kpi; directions: Kpi; conversations: Kpi };
-  engagement?: { metrics: EngMetric[] };
+  engagement?: { monthLabels: string[]; all: EngMetric; metrics: EngMetric[] };
   sources?: { label: string; value: number }[];
   keywords?: { keyword: string; value: number; approx: boolean }[];
+  series?: { date: string; value: number }[];
   searches?: { total: number; changeYoY: number | null };
-  reviews?: { average: number; total: number } | null;
+  reviews?: { average: number; total: number; latest?: ReviewLatest[] } | null;
 }
 interface Stars { average: number; total: number; sampled: number; counts: { stars: number; count: number }[] }
 interface AI { summary: string; praises: string[]; complaints: string[] }
@@ -27,8 +31,10 @@ const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "se
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "forca" | "desemp" | "aval" | "ia" | "rank";
-const SECTIONS: { key: SecKey; label: string; subs: { key: string; label: string }[] }[] = [
+type SecKey = "resumoExec" | "capa" | "forca" | "desemp" | "grafico" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "obs" | "plano";
+const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
+  { key: "resumoExec", label: "📝 Resumo executivo (você escreve)", editable: "Escreva uma abertura: o panorama do mês para o cliente…", subs: [] },
+  { key: "capa", label: "🏢 Ficha da empresa", subs: [] },
   { key: "forca", label: "💪 Força do perfil", subs: [
     { key: "anel", label: "Nota (anel %)" },
     { key: "resumo", label: "Resumo (bons / a melhorar / faltando)" },
@@ -41,19 +47,30 @@ const SECTIONS: { key: SecKey; label: string; subs: { key: string; label: string
     { key: "origem", label: "De onde vêm" },
     { key: "termos", label: "Termos de pesquisa" },
   ] },
+  { key: "grafico", label: "📈 Evolução mensal (gráfico)", subs: [
+    { key: "views", label: "Visualizações" },
+    { key: "inter", label: "Interações" },
+  ] },
   { key: "aval", label: "⭐ Avaliações", subs: [
     { key: "nota", label: "Nota + total" },
     { key: "dist", label: "Distribuição por estrela" },
   ] },
+  { key: "reviewsRec", label: "💬 Avaliações recentes", subs: [] },
   { key: "ia", label: "🤖 Resumo com IA", subs: [
     { key: "resumo", label: "Parágrafo-resumo" },
     { key: "elogios", label: "Elogios" },
     { key: "atencao", label: "Pontos de atenção" },
   ] },
+  { key: "checklist", label: "✅ Análise Completa (checklist)", subs: [
+    { key: "completo", label: "Checklist completo" },
+    { key: "melhorar", label: "O que melhorar" },
+  ] },
   { key: "rank", label: "🗺️ Ranking no Maps", subs: [
     { key: "mapa", label: "Mapa (grade)" },
     { key: "metricas", label: "Posição / top 3 / top 10" },
   ] },
+  { key: "obs", label: "🔎 Observações da agência (você escreve)", editable: "O que você observou neste período, análise, insights…", subs: [] },
+  { key: "plano", label: "🚀 Próximos passos (você escreve)", editable: "Um por linha: o que será feito no próximo mês…", subs: [] },
 ];
 // Todas as sub-opções ligadas por padrão.
 const ALL_SUBS: Record<string, boolean> = {};
@@ -84,9 +101,10 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Seções
-  const [sec, setSec] = useState<Record<SecKey, boolean>>({ forca: true, desemp: true, aval: true, ia: true, rank: true });
+  const [sec, setSec] = useState<Record<SecKey, boolean>>(() => Object.fromEntries(SECTIONS.map((s) => [s.key, true])) as Record<SecKey, boolean>);
   const [sub, setSub] = useState<Record<string, boolean>>({ ...ALL_SUBS });
   const [expanded, setExpanded] = useState<SecKey | null>(null);
+  const [txt, setTxt] = useState<Record<string, string>>({});
   const sOn = (s: SecKey, k: string) => sec[s] && (sub[`${s}.${k}`] ?? true);
 
   // Dados
@@ -261,18 +279,21 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
         <div className="rounded-3xl border border-border bg-white p-5 card-soft">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Seções do relatório</p>
           <p className="mb-2 text-[11px] text-muted">Clique na seção para escolher item a item o que aparece.</p>
-          {SECTIONS.map(({ key, label, subs }) => {
+          {SECTIONS.map(({ key, label, subs, editable }) => {
             const open = expanded === key;
+            const hasSubs = subs.length > 0;
             return (
               <div key={key} className="border-b border-border/60 py-2 last:border-0">
                 <div className="flex items-center justify-between gap-3">
-                  <button onClick={() => setExpanded(open ? null : key)} className="flex items-center gap-1.5 text-sm font-medium">
-                    <svg viewBox="0 0 24 24" className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 6l6 6-6 6" /></svg>
+                  <button onClick={() => hasSubs && setExpanded(open ? null : key)} className={`flex items-center gap-1.5 text-sm font-medium ${hasSubs ? "" : "cursor-default"}`}>
+                    {hasSubs ? (
+                      <svg viewBox="0 0 24 24" className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 6l6 6-6 6" /></svg>
+                    ) : <span className="inline-block w-4" />}
                     {label}
                   </button>
                   <input type="checkbox" checked={sec[key]} onChange={() => setSec((s) => ({ ...s, [key]: !s[key] }))} className="h-5 w-5 accent-brand-2" />
                 </div>
-                {open && (
+                {hasSubs && open && (
                   <div className={`mt-2 space-y-1 pl-6 ${sec[key] ? "" : "pointer-events-none opacity-40"}`}>
                     {subs.map((x) => (
                       <label key={x.key} className="flex cursor-pointer items-center justify-between gap-3 text-xs">
@@ -281,6 +302,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                       </label>
                     ))}
                   </div>
+                )}
+                {editable && sec[key] && (
+                  <textarea value={txt[key] ?? ""} onChange={(e) => setTxt((t) => ({ ...t, [key]: e.target.value }))} placeholder={editable} rows={3} className="mt-2 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand" />
                 )}
               </div>
             );
@@ -313,6 +337,34 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
         <div className="space-y-5 p-6">
           {loading && <p className="text-sm text-muted">Carregando dados do Google…</p>}
           {!loading && !anyOn && <p className="text-sm text-muted">Selecione ao menos uma seção.</p>}
+
+          {!loading && sec.resumoExec && txt.resumoExec?.trim() && (
+            <Sec color={color} title="Resumo executivo">
+              <p className="whitespace-pre-wrap text-sm text-muted">{txt.resumoExec}</p>
+            </Sec>
+          )}
+
+          {!loading && sec.capa && (
+            <Sec color={color} title="A empresa">
+              {strength?.profile ? (
+                <div className="flex items-start gap-4">
+                  {strength.profile.photoUrl && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img src={strength.profile.photoUrl} alt="" className="h-16 w-16 shrink-0 rounded-xl object-cover" />
+                  )}
+                  <div className="text-sm leading-relaxed">
+                    <p className="font-semibold text-foreground">{strength.profile.title}{strength.profile.verified ? " ✔" : ""}</p>
+                    {strength.profile.category && <p className="text-muted">{strength.profile.category}</p>}
+                    {strength.profile.address && <p className="text-muted">📍 {strength.profile.address}</p>}
+                    {(strength.profile.phone || strength.profile.website) && (
+                      <p className="text-muted">{[strength.profile.phone && `📞 ${strength.profile.phone}`, strength.profile.website && `🌐 ${strength.profile.website.replace(/^https?:\/\//, "")}`].filter(Boolean).join("  ·  ")}</p>
+                    )}
+                    <p className="text-muted">⭐ {(strength.profile.rating ?? 0).toFixed(1)} ({(strength.profile.reviewCount ?? 0).toLocaleString("pt-BR")}) · 📸 {strength.profile.photoCount ?? 0} fotos · 📝 {strength.profile.postCount ?? 0} posts</p>
+                  </div>
+                </div>
+              ) : <Empty>Rode a Análise Completa para incluir a ficha da empresa.</Empty>}
+            </Sec>
+          )}
 
           {!loading && sec.forca && (
             <Sec color={color} title="Força do perfil">
@@ -381,6 +433,21 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             </Sec>
           )}
 
+          {!loading && sec.grafico && (
+            <Sec color={color} title="Evolução mensal">
+              {perf?.series && perf.series.length > 0 ? (
+                <div className="grid gap-5 sm:grid-cols-2">
+                  {sOn("grafico", "views") && (() => { const m = monthlyFromDaily(perf.series!); return (
+                    <div><p className="mb-1 text-xs font-semibold text-muted">Visualizações</p><Chart labels={m.labels} values={m.values} color={color} /></div>
+                  ); })()}
+                  {sOn("grafico", "inter") && perf.engagement && (
+                    <div><p className="mb-1 text-xs font-semibold text-muted">Interações</p><Chart labels={perf.engagement.monthLabels} values={perf.engagement.all.series ?? []} color={color} /></div>
+                  )}
+                </div>
+              ) : <Empty>Sem série para o gráfico neste período.</Empty>}
+            </Sec>
+          )}
+
           {!loading && sec.aval && (
             <Sec color={color} title="Avaliações">
               {perf?.reviews || stars ? (
@@ -411,6 +478,21 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             </Sec>
           )}
 
+          {!loading && sec.reviewsRec && (
+            <Sec color={color} title="Avaliações recentes">
+              {perf?.reviews?.latest && perf.reviews.latest.length > 0 ? (
+                <div className="space-y-2">
+                  {perf.reviews.latest.slice(0, 4).map((r, i) => (
+                    <div key={i} className="rounded-xl border border-border/60 bg-surface-2 p-3">
+                      <p className="text-xs font-semibold">{r.author} <span className="text-amber-500">{"★".repeat(Math.max(0, Math.min(5, r.stars)))}</span></p>
+                      {r.comment && <p className="mt-0.5 line-clamp-3 text-xs text-muted">{r.comment}</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : <Empty>Sem avaliações recentes com texto.</Empty>}
+            </Sec>
+          )}
+
           {!loading && sec.ia && (
             <Sec color={color} title="Resumo com IA das avaliações">
               {ai && (ai.summary || ai.praises?.length || ai.complaints?.length) ? (
@@ -420,6 +502,36 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                   {sOn("ia", "atencao") && ai.complaints?.length > 0 && <p><span className="font-semibold text-red-500">👎 Atenção: </span><span className="text-muted">{ai.complaints.join(" · ")}</span></p>}
                 </div>
               ) : <Empty>Sem comentários suficientes para o resumo da IA.</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.checklist && (
+            <Sec color={color} title="Análise Completa do perfil">
+              {strength?.items && strength.items.length > 0 ? (
+                <div className="space-y-3">
+                  {sOn("checklist", "completo") && (
+                    <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+                      {strength.items.map((it) => (
+                        <div key={it.id} className="flex items-center gap-2 text-xs">
+                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: it.status === "bom" ? "#22C7B8" : it.status === "razoavel" ? "#f59e0b" : "#f87171" }} />
+                          <span className="flex-1 truncate text-muted">{it.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  {sOn("checklist", "melhorar") && (() => {
+                    const m = strength.items!.filter((it) => it.status !== "bom");
+                    return m.length > 0 ? (
+                      <div>
+                        <p className="mb-1 text-xs font-semibold text-muted">O que melhorar primeiro</p>
+                        <ol className="space-y-1">
+                          {m.slice(0, 6).map((it, i) => (<li key={it.id} className="text-xs text-muted"><strong className="text-foreground">{i + 1}. {it.label}:</strong> {it.tip}</li>))}
+                        </ol>
+                      </div>
+                    ) : <p className="text-xs text-muted">Perfil completo! 🎉</p>;
+                  })()}
+                </div>
+              ) : <Empty>Rode a Análise Completa para incluir o checklist.</Empty>}
             </Sec>
           )}
 
@@ -439,6 +551,22 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
               ) : <Empty>Rode uma Análise de Ranking para este perfil para incluir o mapa.</Empty>}
             </Sec>
           )}
+
+          {!loading && sec.obs && txt.obs?.trim() && (
+            <Sec color={color} title="Observações da agência">
+              <p className="whitespace-pre-wrap text-sm text-muted">{txt.obs}</p>
+            </Sec>
+          )}
+
+          {!loading && sec.plano && txt.plano?.trim() && (
+            <Sec color={color} title="Próximos passos">
+              <ul className="space-y-1">
+                {txt.plano.split("\n").map((l) => l.trim()).filter(Boolean).map((l, i) => (
+                  <li key={i} className="flex gap-2 text-sm text-muted"><span style={{ color }}>✓</span>{l}</li>
+                ))}
+              </ul>
+            </Sec>
+          )}
         </div>
 
         {/* Rodapé com a marca */}
@@ -447,6 +575,28 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
           <span>Gerado por GMN Profile</span>
         </div>
       </div>
+    </div>
+  );
+}
+
+function monthlyFromDaily(series: { date: string; value: number }[]) {
+  const acc = new Map<string, number>();
+  for (const d of series) { const m = d.date.slice(0, 7); acc.set(m, (acc.get(m) ?? 0) + d.value); }
+  const keys = [...acc.keys()].sort();
+  return { labels: keys.map((k) => MES[+k.slice(5, 7) - 1]), values: keys.map((k) => acc.get(k) ?? 0) };
+}
+function Chart({ labels, values, color }: { labels: string[]; values: number[]; color: string }) {
+  const W = 300, H = 110, P = 8;
+  const max = Math.max(1, ...values);
+  const step = values.length > 1 ? (W - 2 * P) / (values.length - 1) : 0;
+  const pts = values.map((v, i) => `${P + i * step},${H - P - (v / max) * (H - 2 * P)}`).join(" ");
+  return (
+    <div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 110 }}>
+        <polyline points={`${P},${H - P} ${pts} ${W - P},${H - P}`} fill={`${color}22`} stroke="none" />
+        <polyline points={pts} fill="none" stroke={color} strokeWidth="2.5" />
+      </svg>
+      <div className="flex justify-between text-[9px] text-muted">{labels.map((l, i) => <span key={i}>{l}</span>)}</div>
     </div>
   );
 }
