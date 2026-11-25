@@ -3,6 +3,8 @@ import { cookies } from "next/headers";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
 import { ENTITLEMENTS, type Tier } from "@/lib/entitlements";
 import { attachReferral } from "@/lib/affiliate";
+import { sendWhatsapp } from "@/lib/whatsapp";
+import { welcomeWhatsappMessage } from "@/lib/welcomeMessages";
 
 export const dynamic = "force-dynamic";
 
@@ -51,14 +53,36 @@ export async function POST(request: Request) {
   //    não existir no banco, para não travar a escolha do plano).
   await supabase.from("subscriptions").update({ tier }).eq("user_id", user.id);
 
-  // 3) Marca "escolheu plano" nos metadados do usuário (fonte do portão de
-  //    acesso — não depende de migração).
+  // 3) Boas-vindas no WhatsApp (do suporte) — uma única vez por pessoa, assim
+  //    que entra no teste. Best-effort: se não houver telefone ou provedor de
+  //    WhatsApp configurado, apenas não envia (não trava a escolha do plano).
+  const meta = (user.user_metadata ?? {}) as Record<string, unknown>;
   const cleanPhone = (phone ?? "").trim();
+  const welcomePhone = cleanPhone || String(meta.phone ?? meta.whatsapp ?? "").trim();
+  let welcomeSent = false;
+  if (!meta.welcome_sent && welcomePhone) {
+    try {
+      const nome = String(meta.full_name ?? meta.name ?? user.email ?? "");
+      const r = await sendWhatsapp({ to: welcomePhone, text: welcomeWhatsappMessage(nome) });
+      welcomeSent = r.sent === true;
+    } catch {
+      /* não bloqueia o fluxo se o envio falhar */
+    }
+  }
+
+  // 4) Marca "escolheu plano" nos metadados do usuário (fonte do portão de
+  //    acesso — não depende de migração). Marca welcome_sent só se enviou de
+  //    fato, para não "queimar" o envio quando o provedor ainda não existe.
   await supabase.auth.updateUser({
-    data: { plan_chosen: true, plan_tier: tier, ...(cleanPhone ? { phone: cleanPhone } : {}) },
+    data: {
+      plan_chosen: true,
+      plan_tier: tier,
+      ...(cleanPhone ? { phone: cleanPhone } : {}),
+      ...(welcomeSent ? { welcome_sent: true, welcome_sent_at: new Date().toISOString() } : {}),
+    },
   });
 
-  // 4) Atribuição de afiliado: se a pessoa veio por um link /r/<codigo>, vincula
+  // 5) Atribuição de afiliado: se a pessoa veio por um link /r/<codigo>, vincula
   //    (uma vez só). Não bloqueia a escolha do plano se falhar.
   try {
     const ref = (await cookies()).get("gmn_ref")?.value;
