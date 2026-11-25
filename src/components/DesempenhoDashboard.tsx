@@ -506,6 +506,8 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
   const r = report.reviews;
   const [dist, setDist] = useState<Dist | null>(null);
   const [loadingDist, setLoadingDist] = useState(true);
+  const [ai, setAi] = useState<{ praises: string[]; complaints: string[]; summary: string } | null>(null);
+  const [loadingAi, setLoadingAi] = useState(true);
 
   useEffect(() => {
     if (!location) {
@@ -538,6 +540,44 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
       .catch(() => {})
       .finally(() => {
         if (ok) setLoadingDist(false);
+      });
+    return () => {
+      ok = false;
+    };
+  }, [location]);
+
+  useEffect(() => {
+    if (!location) {
+      setLoadingAi(false);
+      return;
+    }
+    try {
+      const cached = sessionStorage.getItem(`gmn_revai_${location}`);
+      if (cached) {
+        setAi(JSON.parse(cached));
+        setLoadingAi(false);
+        return;
+      }
+    } catch {
+      /* ignora */
+    }
+    let ok = true;
+    setLoadingAi(true);
+    fetch(`/api/google/review-ai?location=${encodeURIComponent(location)}`)
+      .then((res) => (res.ok ? res.json() : null))
+      .then((d) => {
+        if (!ok || !d?.ok) return;
+        const val = { praises: d.praises ?? [], complaints: d.complaints ?? [], summary: d.summary ?? "" };
+        setAi(val);
+        try {
+          sessionStorage.setItem(`gmn_revai_${location}`, JSON.stringify(val));
+        } catch {
+          /* ignora */
+        }
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (ok) setLoadingAi(false);
       });
     return () => {
       ok = false;
@@ -585,19 +625,44 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
         )}
       </div>
 
-      <ul className="mt-4">
-        <AbaRow label="Novas nesta semana" value={String(r.newThisWeek)} />
-        <AbaRow label="Sem avaliação nova há" value={r.daysSinceLast == null ? "—" : `${r.daysSinceLast} dia${r.daysSinceLast === 1 ? "" : "s"}`} />
-      </ul>
-
       {report.reviewLink && (
-        <a href={report.reviewLink} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex text-sm font-semibold text-brand-2 hover:underline">
+        <a href={report.reviewLink} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex text-sm font-semibold text-brand-2 hover:underline">
           Acessar as avaliações →
         </a>
       )}
 
-      <div className="mt-4 rounded-2xl border border-dashed border-brand-2/50 bg-brand/5 p-3 text-xs text-muted">
-        🤖 <strong className="text-brand-2">Em breve:</strong> resumo com IA do que os clientes elogiam e reclamam.
+      {/* Resumo com IA — o que os clientes elogiam e reclamam */}
+      <div className="mt-4 rounded-2xl border border-brand-2/30 bg-brand/5 p-4">
+        <p className="text-sm font-semibold text-brand-2">🤖 Resumo com IA</p>
+        {loadingAi && <p className="mt-2 text-sm text-muted">Analisando as avaliações…</p>}
+        {!loadingAi && ai && (ai.summary || ai.praises.length > 0 || ai.complaints.length > 0) && (
+          <div className="mt-2 space-y-3">
+            {ai.summary && <p className="text-sm text-foreground/80">{ai.summary}</p>}
+            {ai.praises.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-emerald-600">👍 Mais elogiado</p>
+                <ul className="mt-1 space-y-1">
+                  {ai.praises.map((p, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-muted"><span className="text-emerald-500">•</span>{p}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+            {ai.complaints.length > 0 && (
+              <div>
+                <p className="text-xs font-semibold text-red-500">👎 Pontos de atenção</p>
+                <ul className="mt-1 space-y-1">
+                  {ai.complaints.map((c, i) => (
+                    <li key={i} className="flex gap-2 text-sm text-muted"><span className="text-red-400">•</span>{c}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+        {!loadingAi && (!ai || (!ai.summary && ai.praises.length === 0 && ai.complaints.length === 0)) && (
+          <p className="mt-2 text-sm text-muted">Sem comentários suficientes para resumir ainda.</p>
+        )}
       </div>
     </div>
   );
