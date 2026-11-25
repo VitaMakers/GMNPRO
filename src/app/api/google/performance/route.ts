@@ -72,6 +72,20 @@ export async function GET(request: Request) {
     const metrics = [...IMPRESSION_METRICS, ...ACTION_METRICS];
     const data = await fetchDailyMetrics(accessToken, location, metrics, prevStart, end);
 
+    // Mesmo período do ANO ANTERIOR — para a comparação "ano a ano" (igual ao
+    // app do Google, que compara com o mesmo intervalo do ano passado).
+    const yoyStart = new Date(start);
+    yoyStart.setUTCFullYear(yoyStart.getUTCFullYear() - 1);
+    const yoyEnd = new Date(end);
+    yoyEnd.setUTCFullYear(yoyEnd.getUTCFullYear() - 1);
+    const yoyDays: Date[] = [];
+    for (let d = new Date(yoyStart); d <= yoyEnd; d.setUTCDate(d.getUTCDate() + 1)) yoyDays.push(new Date(d));
+    const yoyData = await fetchDailyMetrics(accessToken, location, metrics, yoyStart, yoyEnd).catch(
+      () => ({}) as typeof data,
+    );
+    const yoySum = (names: readonly string[]) =>
+      names.reduce((s, m) => s + yoyDays.reduce((a, d) => a + (yoyData[m]?.get(dayKey(d)) ?? 0), 0), 0);
+
     // Impressões: soma das 4 fontes por dia.
     const impDay = (d: Date) =>
       IMPRESSION_METRICS.reduce((s, m) => s + (data[m]?.get(dayKey(d)) ?? 0), 0);
@@ -91,12 +105,50 @@ export async function GET(request: Request) {
     const intPrev = ACTION_METRICS.reduce((s, m) => s + sumWindow(data[m], prevDays), 0);
 
     const kpis = {
-      impressions: { current: impCur, previous: impPrev, change: pct(impCur, impPrev) },
-      interactions: { current: intCur, previous: intPrev, change: pct(intCur, intPrev) },
+      impressions: { current: impCur, previous: impPrev, change: pct(impCur, impPrev), changeYoY: pct(impCur, yoySum(IMPRESSION_METRICS)) },
+      interactions: { current: intCur, previous: intPrev, change: pct(intCur, intPrev), changeYoY: pct(intCur, yoySum(ACTION_METRICS)) },
       website: metric("WEBSITE_CLICKS"),
       calls: metric("CALL_CLICKS"),
       directions: metric("BUSINESS_DIRECTION_REQUESTS"),
       conversations: metric("BUSINESS_CONVERSATIONS"),
+    };
+
+    // Engajamento: série MENSAL por métrica (para o gráfico que troca por filtro).
+    const MESES_AB = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
+    const mkey = (d: Date) => `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, "0")}`;
+    const months: string[] = [];
+    {
+      const d = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), 1));
+      while (d <= end) {
+        months.push(mkey(d));
+        d.setUTCMonth(d.getUTCMonth() + 1);
+      }
+    }
+    const monthLabels = months.map((m) => MESES_AB[parseInt(m.slice(5, 7), 10) - 1]);
+    const monthlyFor = (names: readonly string[]) => {
+      const acc = new Map<string, number>();
+      for (const d of curDays) {
+        const v = names.reduce((s, m) => s + (data[m]?.get(dayKey(d)) ?? 0), 0);
+        acc.set(mkey(d), (acc.get(mkey(d)) ?? 0) + v);
+      }
+      return months.map((m) => acc.get(m) ?? 0);
+    };
+    const engMetric = (key: string, label: string, names: readonly string[]) => {
+      const value = names.reduce((s, m) => s + sumWindow(data[m], curDays), 0);
+      return { key, label, value, changeYoY: pct(value, yoySum(names)), series: monthlyFor(names) };
+    };
+    const engagement = {
+      monthLabels,
+      all: engMetric("all", "Todas as interações", ACTION_METRICS),
+      metrics: [
+        engMetric("calls", "Chamadas", ["CALL_CLICKS"]),
+        engMetric("bookings", "Agendamentos", ["BUSINESS_BOOKINGS"]),
+        engMetric("directions", "Orientações", ["BUSINESS_DIRECTION_REQUESTS"]),
+        engMetric("website", "Cliques no website", ["WEBSITE_CLICKS"]),
+        engMetric("menu", "Cardápio", ["BUSINESS_FOOD_MENU_CLICKS"]),
+        engMetric("messages", "Mensagens", ["BUSINESS_CONVERSATIONS"]),
+        engMetric("orders", "Pedidos", ["BUSINESS_FOOD_ORDERS"]),
+      ],
     };
 
     const series = curDays.map((d) => ({ date: dayKey(d), value: impDay(d) }));
@@ -124,6 +176,7 @@ export async function GET(request: Request) {
       periodDays,
       range: { start: dayKey(start), end: dayKey(end) },
       kpis,
+      engagement,
       series,
       sources,
       keywords,
