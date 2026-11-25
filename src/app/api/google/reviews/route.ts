@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
-import { listReviewsFull } from "@/lib/google/reviews";
+import { listReviewsFull, fetchUnansweredReviews } from "@/lib/google/reviews";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 60;
@@ -13,12 +13,17 @@ export async function GET(request: Request) {
   } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
 
-  const location = new URL(request.url).searchParams.get("location");
+  const params = new URL(request.url).searchParams;
+  const location = params.get("location");
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
+  const pendentes = params.get("pendentes") === "1";
 
   try {
     const token = await getValidAccessToken(supabase, user.id);
-    const reviews = await listReviewsFull(token, location);
+    // Pendentes: todas SEM resposta (histórico completo). Senão: recentes.
+    const reviews = pendentes
+      ? await fetchUnansweredReviews(token, location)
+      : await listReviewsFull(token, location);
     return NextResponse.json({ ok: true, reviews });
   } catch (e) {
     return NextResponse.json(

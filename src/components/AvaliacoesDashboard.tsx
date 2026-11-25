@@ -67,25 +67,26 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewsError, setReviewsError] = useState("");
   const [rows, setRows] = useState<Record<string, RowState>>({});
-  // Modo "negativas urgentes" (via ?urgentes=1) — foco em avaliações críticas.
-  const [urgentOnly, setUrgentOnly] = useState(false);
+  // Modo "não respondidas" (via ?pendentes=1) — foca nas avaliações sem resposta.
+  const [cameFromPendentes, setCameFromPendentes] = useState(false);
+  const [loadedUnanswered, setLoadedUnanswered] = useState(false);
   useEffect(() => {
     try {
-      setUrgentOnly(new URLSearchParams(window.location.search).get("urgentes") === "1");
+      setCameFromPendentes(new URLSearchParams(window.location.search).get("pendentes") === "1");
     } catch {
       /* ignora */
     }
   }, []);
 
-  // No modo urgentes, carrega as avaliações sozinho (sem precisar clicar).
+  // Veio pelo botão "não respondidas": carrega sozinho (sem precisar clicar).
   const autoLoaded = useRef(false);
   useEffect(() => {
-    if (urgentOnly && selected && !autoLoaded.current) {
+    if (cameFromPendentes && selected && !autoLoaded.current) {
       autoLoaded.current = true;
-      loadReviews();
+      loadReviews(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [urgentOnly, selected]);
+  }, [cameFromPendentes, selected]);
 
   const loadSettings = useCallback(async () => {
     if (!selected) return;
@@ -155,15 +156,17 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
     }
   }
 
-  async function loadReviews() {
+  async function loadReviews(onlyUnanswered = false) {
     setLoadingReviews(true);
     setReviewsError("");
     setRows({});
     try {
-      const res = await fetch(`/api/google/reviews?location=${encodeURIComponent(selected)}`);
+      const qs = onlyUnanswered ? "&pendentes=1" : "";
+      const res = await fetch(`/api/google/reviews?location=${encodeURIComponent(selected)}${qs}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Falha ao carregar avaliações.");
       setReviews(data.reviews as Review[]);
+      setLoadedUnanswered(onlyUnanswered);
     } catch (e) {
       setReviewsError(e instanceof Error ? e.message : "Erro ao carregar.");
     } finally {
@@ -234,9 +237,6 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
 
   const pending = reviews?.filter((r) => !r.replied) ?? [];
   const answered = reviews?.filter((r) => r.replied) ?? [];
-  // Urgentes = negativas (1–3★) COM texto e ainda sem resposta.
-  const urgentes = pending.filter((r) => r.rating <= 3 && r.comment.trim().length > 0);
-  const pendingShown = urgentOnly ? urgentes : pending;
 
   return (
     <div className="space-y-6">
@@ -399,11 +399,18 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
             {savingSettings ? "Salvando…" : "Salvar configurações"}
           </button>
           <button
-            onClick={loadReviews}
+            onClick={() => loadReviews(false)}
             disabled={loadingReviews}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {loadingReviews ? "Carregando…" : "Carregar avaliações"}
+          </button>
+          <button
+            onClick={() => loadReviews(true)}
+            disabled={loadingReviews}
+            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
+          >
+            {loadingReviews ? "Carregando…" : "Carregar não respondidas"}
           </button>
           {settingsMsg && <span className="text-xs text-brand-2">{settingsMsg}</span>}
         </div>
@@ -419,39 +426,18 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {urgentOnly && (
-        <div className="rounded-2xl border border-red-400/40 bg-red-400/10 p-4">
-          <p className="text-sm font-semibold text-red-600">Avaliações negativas urgentes</p>
-          <p className="mt-1 text-sm text-red-500">
-            Negativas (1–3★) com <strong>comentário</strong> e ainda <strong>sem resposta</strong> — priorize estas.
-          </p>
-          <div className="mt-3 flex flex-wrap items-center gap-3">
-            <button
-              onClick={loadReviews}
-              disabled={loadingReviews}
-              className="rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
-            >
-              {loadingReviews ? "Carregando…" : "Carregar avaliações negativas"}
-            </button>
-            <a href="/avaliacoes" className="text-xs font-semibold text-brand-2 hover:underline">
-              Ver todas as avaliações
-            </a>
-          </div>
-        </div>
-      )}
-
-      {urgentOnly && reviews && urgentes.length === 0 && (
+      {reviews && loadedUnanswered && pending.length === 0 && (
         <div className="rounded-3xl border border-border bg-white card-soft p-5 text-sm text-muted">
-          🎉 Nenhuma avaliação negativa urgente no momento. Tudo em dia!
+          🎉 Nenhuma avaliação sem resposta. Tudo em dia!
         </div>
       )}
 
-      {pendingShown.length > 0 && (
+      {pending.length > 0 && (
         <div className="space-y-4">
-          <h2 className={`font-semibold ${urgentOnly ? "text-red-600" : ""}`}>
-            {urgentOnly ? "Negativas urgentes" : "A responder"} ({pendingShown.length})
+          <h2 className={`font-semibold ${loadedUnanswered ? "text-red-600" : ""}`}>
+            {loadedUnanswered ? "Não respondidas" : "A responder"} ({pending.length})
           </h2>
-          {pendingShown.map((r) => (
+          {pending.map((r) => (
             <ReviewCard
               key={r.name}
               review={r}
@@ -464,7 +450,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {!urgentOnly && answered.length > 0 && (
+      {answered.length > 0 && (
         <div className="space-y-4">
           <h2 className="font-semibold text-muted">Já respondidas ({answered.length})</h2>
           {answered.map((r) => (
