@@ -625,21 +625,12 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
         )}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-2">
+      <div className="mt-4">
         <Link
           href="/avaliacoes"
           className="inline-flex items-center gap-1.5 rounded-full bg-brand-2 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
         >
           Acessar as avaliações
-        </Link>
-        <Link
-          href="/avaliacoes?pendentes=1"
-          className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
-        >
-          Avaliações não respondidas
-          {dist?.unanswered ? (
-            <span className="ml-0.5 rounded-full bg-white/25 px-2 py-0.5 text-xs font-bold">{dist.unanswered}</span>
-          ) : null}
         </Link>
       </div>
 
