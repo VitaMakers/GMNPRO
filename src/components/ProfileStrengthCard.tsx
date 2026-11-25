@@ -39,7 +39,7 @@ export default function ProfileStrengthCard({ location, title: activeTitle = "" 
   const [data, setData] = useState<Strength | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
-  const [open, setOpen] = useState(true); // "Como melhorar" já aberto, pra puxar o olho pro que falta
+  const [open, setOpen] = useState(false); // "Como melhorar" fechado por padrão (abre no clique)
   const [error, setError] = useState("");
 
   const loadSnapshot = useCallback(async () => {
