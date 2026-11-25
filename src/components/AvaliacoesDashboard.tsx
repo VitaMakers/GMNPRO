@@ -67,6 +67,15 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewsError, setReviewsError] = useState("");
   const [rows, setRows] = useState<Record<string, RowState>>({});
+  // Modo "negativas urgentes" (via ?urgentes=1) — foco em avaliações críticas.
+  const [urgentOnly, setUrgentOnly] = useState(false);
+  useEffect(() => {
+    try {
+      setUrgentOnly(new URLSearchParams(window.location.search).get("urgentes") === "1");
+    } catch {
+      /* ignora */
+    }
+  }, []);
 
   const loadSettings = useCallback(async () => {
     if (!selected) return;
@@ -215,6 +224,9 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
 
   const pending = reviews?.filter((r) => !r.replied) ?? [];
   const answered = reviews?.filter((r) => r.replied) ?? [];
+  // Urgentes = negativas (1–3★) COM texto e ainda sem resposta.
+  const urgentes = pending.filter((r) => r.rating <= 3 && r.comment.trim().length > 0);
+  const pendingShown = urgentOnly ? urgentes : pending;
 
   return (
     <div className="space-y-6">
@@ -397,10 +409,31 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {pending.length > 0 && (
+      {urgentOnly && (
+        <div className="rounded-2xl border border-red-400/40 bg-red-400/10 p-4">
+          <p className="text-sm font-semibold text-red-600">🔴 Avaliações negativas urgentes</p>
+          <p className="mt-1 text-sm text-red-500">
+            Avaliações com <strong>comentário escrito</strong> e nota baixa (1–3★) ainda <strong>sem resposta</strong> —
+            priorize responder estas primeiro.
+          </p>
+          <a href="/avaliacoes" className="mt-2 inline-block text-xs font-semibold text-brand-2 hover:underline">
+            ← Ver todas as avaliações
+          </a>
+        </div>
+      )}
+
+      {urgentOnly && reviews && urgentes.length === 0 && (
+        <div className="rounded-3xl border border-border bg-white card-soft p-5 text-sm text-muted">
+          🎉 Nenhuma avaliação negativa urgente no momento. Tudo em dia!
+        </div>
+      )}
+
+      {pendingShown.length > 0 && (
         <div className="space-y-4">
-          <h2 className="font-semibold">A responder ({pending.length})</h2>
-          {pending.map((r) => (
+          <h2 className={`font-semibold ${urgentOnly ? "text-red-600" : ""}`}>
+            {urgentOnly ? "Negativas urgentes" : "A responder"} ({pendingShown.length})
+          </h2>
+          {pendingShown.map((r) => (
             <ReviewCard
               key={r.name}
               review={r}
@@ -413,7 +446,7 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {answered.length > 0 && (
+      {!urgentOnly && answered.length > 0 && (
         <div className="space-y-4">
           <h2 className="font-semibold text-muted">Já respondidas ({answered.length})</h2>
           {answered.map((r) => (
