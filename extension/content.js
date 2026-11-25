@@ -70,7 +70,7 @@
     btn.id = "gmnpro-btn";
     btn.textContent = "Pré-análise GMN";
     btn.style.cssText =
-      "display:inline-flex;align-items:center;gap:6px;background:#059669;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
+      "display:inline-flex;align-items:center;gap:6px;background:#22C7B8;color:#fff;border:0;border-radius:8px;padding:8px 14px;font:700 13px system-ui;cursor:pointer;box-shadow:0 2px 8px rgba(0,0,0,.2);white-space:nowrap";
     btn.addEventListener("click", () => run(btn));
     return btn;
   }
