@@ -101,6 +101,60 @@ export async function listReviewsFull(
   }));
 }
 
+export interface ReviewDistribution {
+  total: number;
+  average: number;
+  sampled: number;
+  counts: { stars: number; count: number }[]; // 5..1
+}
+
+/** Distribuição por estrela (5★/4★/…): pagina as avaliações e conta por nota.
+ *  O Google não devolve o histograma pronto, então somamos página a página. */
+export async function fetchReviewDistribution(
+  accessToken: string,
+  accountLocation: string,
+  maxPages = 60,
+): Promise<ReviewDistribution> {
+  const counts: Record<number, number> = { 1: 0, 2: 0, 3: 0, 4: 0, 5: 0 };
+  let total = 0;
+  let average = 0;
+  let sampled = 0;
+  let pageToken: string | undefined;
+
+  for (let i = 0; i < maxPages; i++) {
+    const u = new URL(`${LEGACY_V4}/${accountLocation}/reviews`);
+    u.searchParams.set("pageSize", "50");
+    u.searchParams.set("orderBy", "updateTime desc");
+    if (pageToken) u.searchParams.set("pageToken", pageToken);
+    const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) break;
+    const data = (await res.json()) as {
+      reviews?: RawReview[];
+      averageRating?: number;
+      totalReviewCount?: number;
+      nextPageToken?: string;
+    };
+    if (typeof data.totalReviewCount === "number") total = data.totalReviewCount;
+    if (typeof data.averageRating === "number") average = data.averageRating;
+    for (const r of data.reviews ?? []) {
+      const s = STAR[r.starRating ?? ""] ?? 0;
+      if (s >= 1 && s <= 5) {
+        counts[s]++;
+        sampled++;
+      }
+    }
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+
+  return {
+    total: total || sampled,
+    average,
+    sampled,
+    counts: [5, 4, 3, 2, 1].map((stars) => ({ stars, count: counts[stars] })),
+  };
+}
+
 /** Publica (ou atualiza) a resposta do dono em uma avaliação. */
 export async function postReviewReply(
   accessToken: string,
