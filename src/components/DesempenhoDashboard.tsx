@@ -38,8 +38,10 @@ interface Report {
 
 export default function DesempenhoDashboard({
   locations,
+  isAgency = false,
 }: {
   locations: { location_name: string; title: string | null }[];
+  isAgency?: boolean;
 }) {
   const active = useActiveProfile();
   const location = active ?? locations[0]?.location_name ?? "";
@@ -129,9 +131,15 @@ export default function DesempenhoDashboard({
               <button onClick={applyCustom} className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white transition hover:opacity-90">Aplicar</button>
             </div>
           )}
-          <button onClick={() => window.print()} className="rounded-full border border-border px-3 py-1.5 text-sm text-muted transition hover:bg-surface">
-            Baixar PDF
-          </button>
+          {isAgency ? (
+            <Link href="/relatorio" className="rounded-full border border-brand-2 bg-brand-2/10 px-3 py-1.5 text-sm font-semibold text-brand-2 transition hover:bg-brand-2/15">
+              Gerar relatório
+            </Link>
+          ) : (
+            <button onClick={() => window.print()} className="rounded-full border border-border px-3 py-1.5 text-sm text-muted transition hover:bg-surface">
+              Baixar PDF
+            </button>
+          )}
         </div>
       </div>
 
