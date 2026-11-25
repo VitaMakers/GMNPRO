@@ -135,14 +135,7 @@ export default function DesempenhoDashboard({
       {location && (
         <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
           <ProfileStrengthCard location={location} title={activeTitle} />
-          {report ? (
-            <DesempenhoResumo report={report} periodLabel={periodLabel} />
-          ) : (
-            <div className="hidden rounded-3xl border border-border bg-white p-6 card-soft lg:block">
-              <p className="font-display text-base font-bold">Desempenho</p>
-              <p className="mt-2 text-sm text-muted">Carregando dados do Google…</p>
-            </div>
-          )}
+          <DesempenhoResumo location={location} />
         </div>
       )}
 
@@ -255,27 +248,61 @@ function fmtK(n: number): string {
   return n.toLocaleString("pt-BR");
 }
 
+const MESES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
+function mesAbrev(iso: string) {
+  return MESES[parseInt(iso.slice(5, 7), 10) - 1] ?? "";
+}
+
 // Resumo do Desempenho (ao lado da Força do perfil), como o app do Google:
-// Visualizações, Interações e Pesquisas — puxado ao vivo da API oficial.
-function DesempenhoResumo({ report, periodLabel }: { report: Report; periodLabel: string }) {
-  const k = report.kpis;
-  const views = k.impressions.current;
-  const inter = k.website.current + k.calls.current + k.directions.current + k.conversations.current;
-  const pesquisas = (report.keywords ?? []).reduce((s, x) => s + x.value, 0);
+// Visualizações, Interações e Pesquisas dos ÚLTIMOS 6 MESES (mesmo período que
+// o app mostra), puxado ao vivo da API oficial e atualizado sozinho.
+function DesempenhoResumo({ location }: { location: string }) {
+  const [rep, setRep] = useState<Report | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!location) {
+      setLoading(false);
+      return;
+    }
+    let ok = true;
+    setLoading(true);
+    const now = new Date();
+    const s = new Date(now.getFullYear(), now.getMonth() - 5, 1); // 6 meses atrás (dia 1)
+    const start = `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, "0")}-01`;
+    const end = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    fetch(`/api/google/performance?location=${encodeURIComponent(location)}&start=${start}&end=${end}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: Report | null) => { if (ok) setRep(d); })
+      .catch(() => {})
+      .finally(() => { if (ok) setLoading(false); });
+    return () => { ok = false; };
+  }, [location]);
+
+  const periodo = rep?.range
+    ? `de ${mesAbrev(rep.range.start)} a ${mesAbrev(rep.range.end)} de ${rep.range.end.slice(0, 4)}`
+    : "últimos 6 meses";
+
   return (
     <div className="flex flex-col rounded-3xl border border-border bg-white p-6 card-soft">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-base font-bold">Desempenho</p>
-          <p className="text-xs text-muted">{periodLabel}</p>
+          <p className="text-xs text-muted">{periodo}</p>
         </div>
         <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand-2">● ao vivo</span>
       </div>
-      <div className="mt-5 grid flex-1 grid-cols-3 items-end gap-2 text-center">
-        <ResumoMetric value={views} label="Visualizações" change={k.impressions.change} />
-        <ResumoMetric value={inter} label="Interações" />
-        <ResumoMetric value={pesquisas} label="Pesquisas" />
-      </div>
+      {loading ? (
+        <p className="mt-6 flex-1 text-sm text-muted">Carregando dados do Google…</p>
+      ) : rep ? (
+        <div className="mt-5 grid flex-1 grid-cols-3 items-end gap-2 text-center">
+          <ResumoMetric value={rep.kpis.impressions.current} label="Visualizações" change={rep.kpis.impressions.change} />
+          <ResumoMetric value={rep.kpis.website.current + rep.kpis.calls.current + rep.kpis.directions.current + rep.kpis.conversations.current} label="Interações" />
+          <ResumoMetric value={(rep.keywords ?? []).reduce((acc, x) => acc + x.value, 0)} label="Pesquisas" />
+        </div>
+      ) : (
+        <p className="mt-6 flex-1 text-sm text-muted">Sem dados no período.</p>
+      )}
     </div>
   );
 }
