@@ -7,7 +7,8 @@ import MetricChart from "@/components/MetricChart";
 import ProfileStrengthCard from "@/components/ProfileStrengthCard";
 import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 
-interface Kpi { current: number; previous: number; change: number | null }
+interface Kpi { current: number; previous: number; change: number | null; changeYoY?: number | null }
+interface EngMetric { key: string; label: string; value: number; changeYoY: number | null; series: number[] }
 interface Review {
   total: number;
   average: number;
@@ -26,6 +27,7 @@ interface Report {
     directions: Kpi;
     conversations: Kpi;
   };
+  engagement?: { monthLabels: string[]; all: EngMetric; metrics: EngMetric[] };
   series: { date: string; value: number }[];
   sources: { label: string; value: number }[];
   keywords: { keyword: string; value: number; approx: boolean }[];
@@ -219,7 +221,10 @@ export default function DesempenhoDashboard({
             )}
           </div>
 
-          {/* Avaliações */}
+          {/* Desempenho em abas (Visão geral · Engajamento · Avaliações · Tendências · Público-alvo) */}
+          <DesempenhoAbas report={report} />
+
+          {/* Avaliações (bloco atual, mantido — pedir avaliações com link/QR) */}
           {report.reviews && <ReviewsPanel r={report.reviews} link={report.reviewLink} />}
 
           {/* Insights */}
@@ -306,7 +311,7 @@ function DesempenhoResumo({ location }: { location: string }) {
       )}
       {rep && (
         <button
-          onClick={() => document.getElementById("desempenho-detalhe")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          onClick={() => document.getElementById("desempenho-abas")?.scrollIntoView({ behavior: "smooth", block: "start" })}
           className="mt-4 self-end text-xs font-semibold text-brand-2 hover:underline"
         >
           Ver mais →
@@ -328,6 +333,183 @@ function ResumoMetric({ value, label, change }: { value: number; label: string; 
         </span>
       )}
       <p className="mt-1 text-[11px] text-muted">{label}</p>
+    </div>
+  );
+}
+
+// ================= Seção de abas (como o app do Google) =================
+type AbaKey = "visao" | "engaj" | "aval" | "tend" | "pub";
+
+function DesempenhoAbas({ report }: { report: Report }) {
+  const [tab, setTab] = useState<AbaKey>("visao");
+  const tabs: [AbaKey, string][] = [
+    ["visao", "Visão geral"],
+    ["engaj", "Engajamento"],
+    ["aval", "Avaliações"],
+    ["tend", "Tendências de pesquisa"],
+    ["pub", "Público-alvo"],
+  ];
+  return (
+    <div id="desempenho-abas" className="scroll-mt-24 rounded-3xl border border-border bg-white p-6 card-soft">
+      <div className="mb-5 flex gap-1 overflow-x-auto border-b border-border">
+        {tabs.map(([k, label]) => (
+          <button
+            key={k}
+            onClick={() => setTab(k)}
+            className={`relative shrink-0 px-3 py-3 text-sm font-semibold transition ${tab === k ? "text-brand-2" : "text-muted hover:text-foreground"}`}
+          >
+            {label}
+            {tab === k && <span className="absolute inset-x-2 -bottom-px h-0.5 rounded bg-brand-2" />}
+          </button>
+        ))}
+      </div>
+      {tab === "visao" && <AbaVisao report={report} />}
+      {tab === "engaj" && <AbaEngajamento report={report} />}
+      {tab === "aval" && <AbaAvaliacoes report={report} />}
+      {tab === "tend" && <AbaTendencias report={report} />}
+      {tab === "pub" && <AbaPublico report={report} />}
+    </div>
+  );
+}
+
+function YoYPill({ v }: { v: number | null | undefined }) {
+  if (v == null) return null;
+  const up = v > 0, down = v < 0;
+  return (
+    <span className={`ml-1 inline-block rounded-full px-2 py-0.5 text-xs font-semibold ${up ? "bg-brand/15 text-brand-2" : down ? "bg-red-400/15 text-red-500" : "bg-surface-2 text-muted"}`}>
+      {up ? "▲" : down ? "▼" : "■"} {Math.abs(v)}% <span className="font-normal">vs. ano anterior</span>
+    </span>
+  );
+}
+
+function AbaRow({ label, value }: { label: string; value: string }) {
+  return (
+    <li className="flex items-center justify-between border-b border-border/60 py-3 last:border-0">
+      <span className="text-sm">{label}</span>
+      <span className="text-sm font-semibold">{value}</span>
+    </li>
+  );
+}
+
+function AbaVisao({ report }: { report: Report }) {
+  const k = report.kpis;
+  const searches = (report.keywords ?? []).reduce((s, x) => s + x.value, 0);
+  return (
+    <ul>
+      <AbaRow label="👁️ Visualizações" value={fmtK(k.impressions.current)} />
+      <AbaRow label="🤝 Interações" value={k.interactions.current.toLocaleString("pt-BR")} />
+      <AbaRow label="🔎 Pesquisas" value={searches.toLocaleString("pt-BR")} />
+      <AbaRow label="⭐ Nota · avaliações" value={report.reviews ? `${report.reviews.average.toFixed(1)} · ${report.reviews.total.toLocaleString("pt-BR")}` : "—"} />
+    </ul>
+  );
+}
+
+function MiniLine({ series, labels }: { series: number[]; labels: string[] }) {
+  const W = 600, H = 160, P = 10;
+  const max = Math.max(1, ...series);
+  const step = series.length > 1 ? (W - 2 * P) / (series.length - 1) : 0;
+  const pts = series.map((v, i) => `${P + i * step},${H - P - (v / max) * (H - 2 * P)}`).join(" ");
+  return (
+    <div className="mt-4">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 160 }}>
+        <polyline points={`${P},${H - P} ${pts} ${W - P},${H - P}`} fill="rgba(34,199,184,.12)" stroke="none" />
+        <polyline points={pts} fill="none" stroke="#22C7B8" strokeWidth="3" />
+      </svg>
+      <div className="flex justify-between text-[11px] text-muted">
+        {labels.map((l, i) => <span key={i}>{l}</span>)}
+      </div>
+    </div>
+  );
+}
+
+function AbaEngajamento({ report }: { report: Report }) {
+  const eng = report.engagement;
+  const [sel, setSel] = useState("all");
+  if (!eng) return <p className="text-sm text-muted">Sem dados de engajamento no período.</p>;
+  const CORE = ["calls", "bookings", "directions", "website", "menu"];
+  const parts = eng.metrics.filter((m) => m.value > 0 || CORE.includes(m.key));
+  const options = [eng.all, ...parts];
+  const cur = options.find((o) => o.key === sel) ?? eng.all;
+  return (
+    <div>
+      <div className="mb-4 flex flex-wrap gap-2">
+        {options.map((o) => {
+          const on = o.key === sel;
+          return (
+            <button
+              key={o.key}
+              onClick={() => setSel(o.key)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-2 text-sm font-semibold transition ${on ? "border-brand-2 bg-brand/10 text-brand-2" : "border-border bg-white text-foreground hover:bg-surface-2"}`}
+            >
+              {on && "✓"} {o.label}
+            </button>
+          );
+        })}
+      </div>
+      <p className="font-display text-4xl font-extrabold leading-none">{cur.value.toLocaleString("pt-BR")}</p>
+      <div className="mt-2"><YoYPill v={cur.changeYoY} /></div>
+      <MiniLine series={cur.series} labels={eng.monthLabels} />
+      <ul className="mt-4 border-t border-border">
+        {options.map((o) => (
+          <li key={o.key}>
+            <button onClick={() => setSel(o.key)} className={`flex w-full items-center justify-between border-b border-border/60 py-3 text-left last:border-0 ${o.key === sel ? "text-brand-2" : ""}`}>
+              <span className="text-sm font-medium">{o.label}</span>
+              <span className="text-sm font-semibold">{o.value.toLocaleString("pt-BR")}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function AbaTendencias({ report }: { report: Report }) {
+  const kws = report.keywords ?? [];
+  const total = kws.reduce((s, x) => s + x.value, 0);
+  return (
+    <div>
+      <p className="text-sm font-semibold">{total.toLocaleString("pt-BR")} pesquisas mostraram seu perfil</p>
+      <ul className="mt-3">
+        {kws.slice(0, 10).map((kw, i) => (
+          <li key={kw.keyword} className="flex items-center justify-between border-b border-border/60 py-2.5 text-sm last:border-0">
+            <span className="truncate"><span className="mr-2 text-muted">{i + 1}.</span>{kw.keyword}</span>
+            <span className="shrink-0 font-medium text-muted">{kw.approx ? "<" : ""}{kw.value.toLocaleString("pt-BR")}</span>
+          </li>
+        ))}
+        {kws.length === 0 && <li className="py-3 text-center text-sm text-muted">Sem termos no período.</li>}
+      </ul>
+    </div>
+  );
+}
+
+function AbaPublico({ report }: { report: Report }) {
+  const k = report.kpis;
+  return (
+    <div>
+      <p className="text-sm font-semibold">{fmtK(k.impressions.current)} pessoas viram seu perfil <YoYPill v={k.impressions.changeYoY} /></p>
+      <p className="mb-2 mt-4 text-sm font-semibold">Dispositivos e plataformas</p>
+      {report.sources?.length > 0 ? <SourcesPanel sources={report.sources} /> : <p className="text-sm text-muted">Sem dados no período.</p>}
+    </div>
+  );
+}
+
+function AbaAvaliacoes({ report }: { report: Report }) {
+  const r = report.reviews;
+  if (!r) return <p className="text-sm text-muted">Sem avaliações no período.</p>;
+  return (
+    <div>
+      <div className="flex items-baseline gap-3">
+        <span className="font-display text-4xl font-extrabold">{r.average ? r.average.toFixed(1) : "—"}</span>
+        <span className="text-xl text-amber-500">★</span>
+        <span className="text-sm text-muted">{r.total.toLocaleString("pt-BR")} avaliações</span>
+      </div>
+      <ul className="mt-4">
+        <AbaRow label="Novas nesta semana" value={String(r.newThisWeek)} />
+        <AbaRow label="Sem avaliação nova há" value={r.daysSinceLast == null ? "—" : `${r.daysSinceLast} dia${r.daysSinceLast === 1 ? "" : "s"}`} />
+      </ul>
+      <div className="mt-4 rounded-2xl border border-dashed border-brand-2/50 bg-brand/5 p-3 text-xs text-muted">
+        🤖 <strong className="text-brand-2">Em breve:</strong> distribuição por estrela (5★/4★…) e resumo com IA do que os clientes elogiam e reclamam.
+      </div>
     </div>
   );
 }
