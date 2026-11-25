@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 
 type LocationOption = { location_name: string; title: string | null };
@@ -67,26 +67,6 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
   const [loadingReviews, setLoadingReviews] = useState(false);
   const [reviewsError, setReviewsError] = useState("");
   const [rows, setRows] = useState<Record<string, RowState>>({});
-  // Modo "não respondidas" (via ?pendentes=1) — foca nas avaliações sem resposta.
-  const [cameFromPendentes, setCameFromPendentes] = useState(false);
-  const [loadedUnanswered, setLoadedUnanswered] = useState(false);
-  useEffect(() => {
-    try {
-      setCameFromPendentes(new URLSearchParams(window.location.search).get("pendentes") === "1");
-    } catch {
-      /* ignora */
-    }
-  }, []);
-
-  // Veio pelo botão "não respondidas": carrega sozinho (sem precisar clicar).
-  const autoLoaded = useRef(false);
-  useEffect(() => {
-    if (cameFromPendentes && selected && !autoLoaded.current) {
-      autoLoaded.current = true;
-      loadReviews(true);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cameFromPendentes, selected]);
 
   const loadSettings = useCallback(async () => {
     if (!selected) return;
@@ -156,17 +136,15 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
     }
   }
 
-  async function loadReviews(onlyUnanswered = false) {
+  async function loadReviews() {
     setLoadingReviews(true);
     setReviewsError("");
     setRows({});
     try {
-      const qs = onlyUnanswered ? "&pendentes=1" : "";
-      const res = await fetch(`/api/google/reviews?location=${encodeURIComponent(selected)}${qs}`);
+      const res = await fetch(`/api/google/reviews?location=${encodeURIComponent(selected)}`);
       const data = await res.json();
       if (!res.ok) throw new Error(data.error ?? "Falha ao carregar avaliações.");
       setReviews(data.reviews as Review[]);
-      setLoadedUnanswered(onlyUnanswered);
     } catch (e) {
       setReviewsError(e instanceof Error ? e.message : "Erro ao carregar.");
     } finally {
@@ -399,18 +377,11 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
             {savingSettings ? "Salvando…" : "Salvar configurações"}
           </button>
           <button
-            onClick={() => loadReviews(false)}
+            onClick={loadReviews}
             disabled={loadingReviews}
             className="rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {loadingReviews ? "Carregando…" : "Carregar avaliações"}
-          </button>
-          <button
-            onClick={() => loadReviews(true)}
-            disabled={loadingReviews}
-            className="rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600 disabled:opacity-60"
-          >
-            {loadingReviews ? "Carregando…" : "Carregar não respondidas"}
           </button>
           {settingsMsg && <span className="text-xs text-brand-2">{settingsMsg}</span>}
         </div>
@@ -426,17 +397,9 @@ export default function AvaliacoesDashboard({ locations }: { locations: Location
         </div>
       )}
 
-      {reviews && loadedUnanswered && pending.length === 0 && (
-        <div className="rounded-3xl border border-border bg-white card-soft p-5 text-sm text-muted">
-          🎉 Nenhuma avaliação sem resposta. Tudo em dia!
-        </div>
-      )}
-
       {pending.length > 0 && (
         <div className="space-y-4">
-          <h2 className={`font-semibold ${loadedUnanswered ? "text-red-600" : ""}`}>
-            {loadedUnanswered ? "Não respondidas" : "A responder"} ({pending.length})
-          </h2>
+          <h2 className="font-semibold">A responder ({pending.length})</h2>
           {pending.map((r) => (
             <ReviewCard
               key={r.name}
