@@ -96,12 +96,14 @@ export async function fetchSearchKeywords(
   accessToken: string,
   accountLocation: string,
   monthsBack: number,
-): Promise<SearchKeyword[]> {
+  offsetMonths = 0,
+): Promise<{ keywords: SearchKeyword[]; total: number }> {
   const loc = locationId(accountLocation);
   const now = new Date();
-  const end = { year: now.getUTCFullYear(), month: now.getUTCMonth() + 1 };
-  // Inclui um mês a mais para garantir meses já finalizados pelo Google.
-  const startDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 1));
+  // Fim da janela — deslocado N meses atrás para a comparação ano a ano.
+  const endDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - offsetMonths, 1));
+  const end = { year: endDate.getUTCFullYear(), month: endDate.getUTCMonth() + 1 };
+  const startDate = new Date(Date.UTC(endDate.getUTCFullYear(), endDate.getUTCMonth() - monthsBack, 1));
   const start = { year: startDate.getUTCFullYear(), month: startDate.getUTCMonth() + 1 };
 
   const q =
@@ -131,8 +133,9 @@ export async function fetchSearchKeywords(
     agg.set(kw, { value: cur.value + v, approx: cur.approx || approx });
   }
 
-  return Array.from(agg.entries())
+  const all = Array.from(agg.entries())
     .map(([keyword, v]) => ({ keyword, value: v.value, approx: v.approx }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 15);
+    .sort((a, b) => b.value - a.value);
+  // keywords = top 15 (para exibir) · total = soma de TODOS (como o Google).
+  return { keywords: all.slice(0, 15), total: all.reduce((s, k) => s + k.value, 0) };
 }
