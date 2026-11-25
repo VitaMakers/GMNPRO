@@ -85,8 +85,14 @@ export async function GET(request: Request) {
       change: pct(sumWindow(data[name], curDays), sumWindow(data[name], prevDays)),
     });
 
+    // Interações: soma de TODAS as ações (como o Google) — inclui site,
+    // ligações, rotas, conversas, reservas, pedidos e cliques no cardápio.
+    const intCur = ACTION_METRICS.reduce((s, m) => s + sumWindow(data[m], curDays), 0);
+    const intPrev = ACTION_METRICS.reduce((s, m) => s + sumWindow(data[m], prevDays), 0);
+
     const kpis = {
       impressions: { current: impCur, previous: impPrev, change: pct(impCur, impPrev) },
+      interactions: { current: intCur, previous: intPrev, change: pct(intCur, intPrev) },
       website: metric("WEBSITE_CLICKS"),
       calls: metric("CALL_CLICKS"),
       directions: metric("BUSINESS_DIRECTION_REQUESTS"),

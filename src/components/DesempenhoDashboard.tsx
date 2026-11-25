@@ -20,6 +20,7 @@ interface Report {
   range: { start: string; end: string };
   kpis: {
     impressions: Kpi;
+    interactions: Kpi;
     website: Kpi;
     calls: Kpi;
     directions: Kpi;
@@ -149,7 +150,7 @@ export default function DesempenhoDashboard({
           </p>
 
           {/* Herói: número grande + card verde */}
-          <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">
+          <div id="desempenho-detalhe" className="grid scroll-mt-24 gap-4 lg:grid-cols-[1.4fr_1fr]">
             <div className="rounded-3xl border border-border bg-white p-6 card-soft">
               <p className="text-xs font-semibold uppercase tracking-wide text-muted">
                 Visualizações do perfil · {periodLabel}
@@ -295,13 +296,21 @@ function DesempenhoResumo({ location }: { location: string }) {
       {loading ? (
         <p className="mt-6 flex-1 text-sm text-muted">Carregando dados do Google…</p>
       ) : rep ? (
-        <div className="mt-5 grid flex-1 grid-cols-3 items-end gap-2 text-center">
-          <ResumoMetric value={rep.kpis.impressions.current} label="Visualizações" change={rep.kpis.impressions.change} />
-          <ResumoMetric value={rep.kpis.website.current + rep.kpis.calls.current + rep.kpis.directions.current + rep.kpis.conversations.current} label="Interações" />
+        <div className="mt-5 grid flex-1 grid-cols-3 items-start gap-2 text-center">
+          <ResumoMetric value={rep.kpis.impressions.current} label="Visualizações" />
+          <ResumoMetric value={rep.kpis.interactions.current} label="Interações" />
           <ResumoMetric value={(rep.keywords ?? []).reduce((acc, x) => acc + x.value, 0)} label="Pesquisas" />
         </div>
       ) : (
         <p className="mt-6 flex-1 text-sm text-muted">Sem dados no período.</p>
+      )}
+      {rep && (
+        <button
+          onClick={() => document.getElementById("desempenho-detalhe")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+          className="mt-4 self-end text-xs font-semibold text-brand-2 hover:underline"
+        >
+          Ver mais →
+        </button>
       )}
     </div>
   );

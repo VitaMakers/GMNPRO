@@ -17,6 +17,11 @@ export const ACTION_METRICS = [
   "CALL_CLICKS",
   "BUSINESS_DIRECTION_REQUESTS",
   "BUSINESS_CONVERSATIONS",
+  // Demais interações que o Google também conta no total de "Interações"
+  // (zeradas para quem não usa o recurso — não dá erro).
+  "BUSINESS_BOOKINGS",
+  "BUSINESS_FOOD_ORDERS",
+  "BUSINESS_FOOD_MENU_CLICKS",
 ] as const;
 
 interface DatedValue {
