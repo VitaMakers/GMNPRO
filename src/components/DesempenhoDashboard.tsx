@@ -31,6 +31,7 @@ interface Report {
   series: { date: string; value: number }[];
   sources: { label: string; value: number }[];
   keywords: { keyword: string; value: number; approx: boolean }[];
+  searches?: { total: number; changeYoY: number | null };
   reviews: Review | null;
   reviewLink: string | null;
 }
@@ -136,7 +137,7 @@ export default function DesempenhoDashboard({
 
       {/* Força do perfil (anel) — igual ao app do Google, com dado real da Análise Completa */}
       {location && (
-        <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr]">
+        <div className="grid gap-4 lg:grid-cols-[1.3fr_1fr] lg:items-start">
           <ProfileStrengthCard location={location} title={activeTitle} />
           <DesempenhoResumo location={location} />
         </div>
@@ -289,8 +290,10 @@ function DesempenhoResumo({ location }: { location: string }) {
     ? `de ${mesAbrev(rep.range.start)} a ${mesAbrev(rep.range.end)} de ${rep.range.end.slice(0, 4)}`
     : "últimos 6 meses";
 
+  const pesquisas = rep?.searches?.total ?? (rep?.keywords ?? []).reduce((acc, x) => acc + x.value, 0);
+
   return (
-    <div className="flex flex-col rounded-3xl border border-border bg-white p-6 card-soft">
+    <div className="rounded-3xl border border-border bg-white p-6 card-soft">
       <div className="flex items-start justify-between">
         <div>
           <p className="font-display text-base font-bold">Desempenho</p>
@@ -299,23 +302,25 @@ function DesempenhoResumo({ location }: { location: string }) {
         <span className="inline-flex items-center gap-1 rounded-full bg-brand/10 px-2 py-0.5 text-[10px] font-semibold text-brand-2">● ao vivo</span>
       </div>
       {loading ? (
-        <p className="mt-6 flex-1 text-sm text-muted">Carregando dados do Google…</p>
+        <p className="mt-6 text-sm text-muted">Carregando dados do Google…</p>
       ) : rep ? (
-        <div className="mt-5 grid flex-1 grid-cols-3 items-start gap-2 text-center">
-          <ResumoMetric value={rep.kpis.impressions.current} label="Visualizações" />
-          <ResumoMetric value={rep.kpis.interactions.current} label="Interações" />
-          <ResumoMetric value={(rep.keywords ?? []).reduce((acc, x) => acc + x.value, 0)} label="Pesquisas" />
-        </div>
+        <>
+          <div className="mt-5 grid grid-cols-3 items-start gap-2 text-center">
+            <ResumoMetric value={rep.kpis.impressions.current} label="Visualizações" change={rep.kpis.impressions.changeYoY} />
+            <ResumoMetric value={rep.kpis.interactions.current} label="Interações" change={rep.kpis.interactions.changeYoY} />
+            <ResumoMetric value={pesquisas} label="Pesquisas" change={rep.searches?.changeYoY} />
+          </div>
+          <div className="mt-4 text-right">
+            <button
+              onClick={() => document.getElementById("desempenho-abas")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              className="text-xs font-semibold text-brand-2 hover:underline"
+            >
+              Ver mais →
+            </button>
+          </div>
+        </>
       ) : (
-        <p className="mt-6 flex-1 text-sm text-muted">Sem dados no período.</p>
-      )}
-      {rep && (
-        <button
-          onClick={() => document.getElementById("desempenho-abas")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-          className="mt-4 self-end text-xs font-semibold text-brand-2 hover:underline"
-        >
-          Ver mais →
-        </button>
+        <p className="mt-6 text-sm text-muted">Sem dados no período.</p>
       )}
     </div>
   );
@@ -393,7 +398,7 @@ function AbaRow({ label, value }: { label: string; value: string }) {
 
 function AbaVisao({ report }: { report: Report }) {
   const k = report.kpis;
-  const searches = (report.keywords ?? []).reduce((s, x) => s + x.value, 0);
+  const searches = report.searches?.total ?? (report.keywords ?? []).reduce((s, x) => s + x.value, 0);
   return (
     <ul>
       <AbaRow label="👁️ Visualizações" value={fmtK(k.impressions.current)} />
@@ -465,10 +470,12 @@ function AbaEngajamento({ report }: { report: Report }) {
 
 function AbaTendencias({ report }: { report: Report }) {
   const kws = report.keywords ?? [];
-  const total = kws.reduce((s, x) => s + x.value, 0);
+  const total = report.searches?.total ?? kws.reduce((s, x) => s + x.value, 0);
   return (
     <div>
-      <p className="text-sm font-semibold">{total.toLocaleString("pt-BR")} pesquisas mostraram seu perfil</p>
+      <p className="text-sm font-semibold">
+        {total.toLocaleString("pt-BR")} pesquisas mostraram seu perfil <YoYPill v={report.searches?.changeYoY} />
+      </p>
       <ul className="mt-3">
         {kws.slice(0, 10).map((kw, i) => (
           <li key={kw.keyword} className="flex items-center justify-between border-b border-border/60 py-2.5 text-sm last:border-0">

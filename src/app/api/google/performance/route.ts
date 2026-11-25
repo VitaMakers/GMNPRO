@@ -165,11 +165,15 @@ export async function GET(request: Request) {
       18,
       (end.getUTCFullYear() - start.getUTCFullYear()) * 12 + (end.getUTCMonth() - start.getUTCMonth()) + 1,
     );
-    const [reviews, keywords, reviewLink] = await Promise.all([
+    const [reviews, kwCur, kwYoY, reviewLink] = await Promise.all([
       fetchReviewStats(accessToken, location).catch(() => null),
-      fetchSearchKeywords(accessToken, location, monthsBack).catch(() => []),
+      fetchSearchKeywords(accessToken, location, monthsBack, 0).catch(() => ({ keywords: [], total: 0 })),
+      fetchSearchKeywords(accessToken, location, monthsBack, 12).catch(() => ({ keywords: [], total: 0 })),
       getReviewLink(accessToken, location).catch(() => null),
     ]);
+    const keywords = kwCur.keywords;
+    // Total REAL de pesquisas (soma de todos os termos) + comparação ano a ano.
+    const searches = { total: kwCur.total, changeYoY: pct(kwCur.total, kwYoY.total) };
 
     return NextResponse.json({
       ok: true,
@@ -180,6 +184,7 @@ export async function GET(request: Request) {
       series,
       sources,
       keywords,
+      searches,
       reviews,
       reviewLink,
     });
