@@ -636,7 +636,7 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
           href="/avaliacoes?urgentes=1"
           className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
         >
-          🔴 Avaliações negativas urgentes
+          Avaliações negativas urgentes
           {dist?.urgent ? (
             <span className="ml-0.5 rounded-full bg-white/25 px-2 py-0.5 text-xs font-bold">{dist.urgent}</span>
           ) : null}
