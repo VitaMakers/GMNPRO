@@ -118,6 +118,45 @@ export async function generateReply(
   return complete(provider, system, user, apiKey?.trim() || undefined);
 }
 
+export interface ReviewInsights {
+  praises: string[];
+  complaints: string[];
+  summary: string;
+}
+
+/** Resumo com IA das avaliações: o que os clientes mais elogiam e reclamam. */
+export async function summarizeReviews(
+  reviews: { rating: number; comment: string }[],
+  provider: Provider = systemProvider(),
+): Promise<ReviewInsights> {
+  const sample = reviews.filter((r) => r.comment && r.comment.trim().length > 0).slice(0, 120);
+  if (sample.length === 0) return { praises: [], complaints: [], summary: "" };
+
+  const system =
+    "Você é um analista de reputação de negócios. Resuma avaliações de clientes de um perfil do Google. " +
+    "Responda SOMENTE com um JSON válido em português do Brasil, sem nenhum texto fora do JSON.";
+  const user =
+    `Analise estas ${sample.length} avaliações (nota de 1 a 5 e comentário) e devolva um JSON com:\n` +
+    `- "praises": 3 a 5 pontos que os clientes mais ELOGIAM (frases bem curtas)\n` +
+    `- "complaints": até 4 pontos que os clientes mais RECLAMAM (frases bem curtas; lista vazia se não houver)\n` +
+    `- "summary": um parágrafo curto (2 a 3 frases) com a percepção geral.\n\n` +
+    `Avaliações:\n` +
+    sample.map((r, i) => `${i + 1}. [${r.rating}★] ${(r.comment || "").replace(/\s+/g, " ").slice(0, 400)}`).join("\n");
+
+  const raw = await complete(provider, system, user);
+  const m = raw.match(/\{[\s\S]*\}/);
+  try {
+    const j = JSON.parse(m ? m[0] : raw) as Partial<ReviewInsights>;
+    return {
+      praises: Array.isArray(j.praises) ? j.praises.slice(0, 6).map(String) : [],
+      complaints: Array.isArray(j.complaints) ? j.complaints.slice(0, 6).map(String) : [],
+      summary: typeof j.summary === "string" ? j.summary : "",
+    };
+  } catch {
+    return { praises: [], complaints: [], summary: raw.slice(0, 400) };
+  }
+}
+
 async function complete(
   provider: Provider,
   system: string,
