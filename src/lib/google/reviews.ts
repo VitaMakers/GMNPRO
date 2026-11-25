@@ -106,7 +106,7 @@ export interface ReviewDistribution {
   average: number;
   sampled: number;
   counts: { stars: number; count: number }[]; // 5..1
-  urgent: number; // negativas (1–3★) COM texto e sem resposta
+  unanswered: number; // avaliações sem resposta do dono (qualquer estrela/texto)
 }
 
 /** Distribuição por estrela (5★/4★/…): pagina as avaliações e conta por nota.
@@ -120,7 +120,7 @@ export async function fetchReviewDistribution(
   let total = 0;
   let average = 0;
   let sampled = 0;
-  let urgent = 0;
+  let unanswered = 0;
   let pageToken: string | undefined;
 
   for (let i = 0; i < maxPages; i++) {
@@ -144,8 +144,8 @@ export async function fetchReviewDistribution(
         counts[s]++;
         sampled++;
       }
-      // Urgente: nota baixa, com texto e ainda sem resposta do dono.
-      if (s >= 1 && s <= 3 && (r.comment ?? "").trim().length > 0 && !r.reviewReply?.comment) urgent++;
+      // Não respondida: sem resposta do dono (qualquer estrela/texto).
+      if (!r.reviewReply?.comment) unanswered++;
     }
     pageToken = data.nextPageToken;
     if (!pageToken) break;
@@ -156,8 +156,55 @@ export async function fetchReviewDistribution(
     average,
     sampled,
     counts: [5, 4, 3, 2, 1].map((stars) => ({ stars, count: counts[stars] })),
-    urgent,
+    unanswered,
   };
+}
+
+/** Avaliações NÃO RESPONDIDAS (sem resposta do dono), de qualquer estrela e com
+ *  ou sem comentário, paginadas em todo o histórico. Mesmo critério do contador
+ *  do botão, para os números baterem. */
+export async function fetchUnansweredReviews(
+  accessToken: string,
+  accountLocation: string,
+  maxPages = 60,
+): Promise<FullReview[]> {
+  const out: FullReview[] = [];
+  let pageToken: string | undefined;
+  for (let i = 0; i < maxPages; i++) {
+    const u = new URL(`${LEGACY_V4}/${accountLocation}/reviews`);
+    u.searchParams.set("pageSize", "50");
+    u.searchParams.set("orderBy", "updateTime desc");
+    if (pageToken) u.searchParams.set("pageToken", pageToken);
+    const res = await fetch(u.toString(), { headers: { Authorization: `Bearer ${accessToken}` } });
+    if (!res.ok) break;
+    const data = (await res.json()) as {
+      reviews?: {
+        name?: string;
+        starRating?: string;
+        comment?: string;
+        createTime?: string;
+        reviewer?: { displayName?: string };
+        reviewReply?: { comment?: string };
+      }[];
+      nextPageToken?: string;
+    };
+    for (const r of data.reviews ?? []) {
+      if (!r.reviewReply?.comment) {
+        out.push({
+          name: r.name ?? "",
+          reviewer: r.reviewer?.displayName ?? "Cliente",
+          rating: STAR[r.starRating ?? ""] ?? 0,
+          comment: (r.comment ?? "").trim(),
+          createTime: r.createTime ?? "",
+          replied: false,
+          replyComment: null,
+        });
+      }
+    }
+    pageToken = data.nextPageToken;
+    if (!pageToken) break;
+  }
+  return out;
 }
 
 /** Avaliações com texto (nota, comentário e data) para o resumo com IA —
