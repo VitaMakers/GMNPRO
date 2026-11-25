@@ -21,6 +21,9 @@ interface Strength {
   bom: number;
   items: Item[];
   title?: string;
+  address?: string;
+  photoUrl?: string | null;
+  verified?: boolean;
   analyzed_at?: string | null;
 }
 
@@ -32,7 +35,7 @@ function faixa(score: number) {
   return score >= 75 ? "Bom" : score >= 50 ? "Razoável" : "Fraco";
 }
 
-export default function ProfileStrengthCard({ location }: { location: string }) {
+export default function ProfileStrengthCard({ location, title: activeTitle = "" }: { location: string; title?: string }) {
   const [data, setData] = useState<Strength | null>(null);
   const [loading, setLoading] = useState(true);
   const [analyzing, setAnalyzing] = useState(false);
@@ -74,6 +77,9 @@ export default function ProfileStrengthCard({ location }: { location: string }) 
         bom: s.bom,
         items: Array.isArray(s.items) ? s.items : [],
         title: s.title,
+        address: s.profile?.address ?? "",
+        photoUrl: s.profile?.photoUrl ?? null,
+        verified: !!s.profile?.verified,
         analyzed_at: s.analyzed_at,
       });
     } catch (e) {
@@ -92,28 +98,32 @@ export default function ProfileStrengthCard({ location }: { location: string }) 
   }
 
   const score = data?.score ?? null;
+  const name = (data?.title || activeTitle || "").trim();
 
   // Ainda não há análise salva: convida a rodar.
   if (score === null) {
     return (
-      <div className="flex flex-col items-start gap-3 rounded-3xl border border-border bg-white p-6 card-soft sm:flex-row sm:items-center sm:justify-between">
-        <div className="flex items-center gap-4">
-          <EmptyRing />
-          <div>
-            <p className="font-display text-base font-bold">Força do perfil</p>
-            <p className="text-sm text-muted">
-              Descubra a pontuação do seu perfil — e o que falta para chegar aos 100%.
-            </p>
+      <div className="rounded-3xl border border-border bg-white card-soft">
+        <ProfileHead name={name} address={data?.address} photoUrl={data?.photoUrl} verified={data?.verified} />
+        <div className="flex flex-col items-start gap-3 p-6 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-center gap-4">
+            <EmptyRing />
+            <div>
+              <p className="font-display text-base font-bold">Força do perfil</p>
+              <p className="text-sm text-muted">
+                Descubra a pontuação do seu perfil — e o que falta para chegar aos 100%.
+              </p>
+            </div>
           </div>
+          <button
+            onClick={analisar}
+            disabled={analyzing}
+            className="shrink-0 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+          >
+            {analyzing ? "Analisando…" : "Analisar agora"}
+          </button>
+          {error && <p className="w-full text-xs text-red-500">{error}</p>}
         </div>
-        <button
-          onClick={analisar}
-          disabled={analyzing}
-          className="shrink-0 rounded-xl bg-brand px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
-        >
-          {analyzing ? "Analisando…" : "Analisar agora"}
-        </button>
-        {error && <p className="w-full text-xs text-red-500">{error}</p>}
       </div>
     );
   }
@@ -126,6 +136,9 @@ export default function ProfileStrengthCard({ location }: { location: string }) 
 
   return (
     <div className="rounded-3xl border border-border bg-white card-soft">
+      {/* Cabeçalho: logo + nome + endereço (como o app do Google) */}
+      <ProfileHead name={name} address={data?.address} photoUrl={data?.photoUrl} verified={data?.verified} />
+
       <div className="flex flex-col items-center gap-5 p-6 sm:flex-row sm:items-center">
         <Ring score={score} color={color} />
 
@@ -209,6 +222,34 @@ export default function ProfileStrengthCard({ location }: { location: string }) 
           </ul>
         </div>
       )}
+    </div>
+  );
+}
+
+function ProfileHead({ name, address, photoUrl, verified }: { name: string; address?: string; photoUrl?: string | null; verified?: boolean }) {
+  if (!name && !address && !photoUrl) return null;
+  return (
+    <div className="flex items-center gap-3 border-b border-border/60 p-5">
+      <span className="grid h-11 w-11 shrink-0 place-items-center overflow-hidden rounded-xl bg-surface-2 text-sm font-bold text-brand-2">
+        {photoUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={photoUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          (name || "?").slice(0, 2).toUpperCase()
+        )}
+      </span>
+      <div className="min-w-0">
+        <div className="flex items-center gap-1.5">
+          <p className="truncate font-display text-base font-bold leading-tight">{name || "Seu perfil"}</p>
+          {verified && (
+            <svg viewBox="0 0 24 24" className="h-4 w-4 shrink-0 text-brand-2" fill="currentColor" aria-label="Verificado">
+              <path d="M12 2l2.4 1.8 3 .2.9 2.9 2.4 1.8-.9 2.9.9 2.9-2.4 1.8-.9 2.9-3 .2L12 22l-2.4-1.8-3-.2-.9-2.9L3.3 15l.9-2.9L3.3 9.2l2.4-1.8.9-2.9 3-.2L12 2z" />
+              <path d="M10.3 14.6l-2-2 1.1-1.1 1 1 3-3 1.1 1.1-4.1 4z" fill="#fff" />
+            </svg>
+          )}
+        </div>
+        {address && <p className="truncate text-xs text-muted">{address}</p>}
+      </div>
     </div>
   );
 }

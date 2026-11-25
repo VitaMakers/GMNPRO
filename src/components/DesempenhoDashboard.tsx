@@ -132,7 +132,7 @@ export default function DesempenhoDashboard({
       </div>
 
       {/* Força do perfil (anel) — igual ao app do Google, com dado real da Análise Completa */}
-      {location && <ProfileStrengthCard location={location} />}
+      {location && <ProfileStrengthCard location={location} title={activeTitle} />}
 
       {loading && <p className="text-sm text-muted">Carregando dados do Google…</p>}
       {error && <p className="rounded-xl border border-red-400/40 bg-red-400/10 p-3 text-sm text-red-500">{error}</p>}

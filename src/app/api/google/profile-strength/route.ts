@@ -25,20 +25,24 @@ export async function GET(request: Request) {
   try {
     const { data } = await supabase
       .from("audit_snapshots")
-      .select("title, score, fraco, razoavel, bom, items, analyzed_at")
+      .select("title, score, fraco, razoavel, bom, items, analyzed_at, profile")
       .eq("user_id", user.id)
       .eq("location_name", location)
       .maybeSingle();
 
     if (!data) return NextResponse.json({ score: null });
 
+    const prof = (data.profile ?? {}) as { photoUrl?: string | null; address?: string; title?: string; verified?: boolean };
     return NextResponse.json({
       score: data.score ?? null,
       fraco: data.fraco ?? 0,
       razoavel: data.razoavel ?? 0,
       bom: data.bom ?? 0,
       items: Array.isArray(data.items) ? data.items : [],
-      title: data.title ?? "",
+      title: data.title ?? prof.title ?? "",
+      address: prof.address ?? "",
+      photoUrl: prof.photoUrl ?? null,
+      verified: !!prof.verified,
       analyzed_at: data.analyzed_at ?? null,
     });
   } catch {
