@@ -625,11 +625,20 @@ function AbaAvaliacoes({ report, location }: { report: Report; location: string 
         )}
       </div>
 
-      {report.reviewLink && (
-        <a href={report.reviewLink} target="_blank" rel="noopener noreferrer" className="mt-4 inline-flex text-sm font-semibold text-brand-2 hover:underline">
-          Acessar as avaliações →
-        </a>
-      )}
+      <div className="mt-4 flex flex-wrap gap-2">
+        <Link
+          href="/avaliacoes"
+          className="inline-flex items-center gap-1.5 rounded-full bg-brand-2 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+        >
+          Acessar as avaliações
+        </Link>
+        <Link
+          href="/avaliacoes?urgentes=1"
+          className="inline-flex items-center gap-1.5 rounded-full bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
+        >
+          🔴 Avaliações negativas urgentes
+        </Link>
+      </div>
 
       {/* Resumo com IA — o que os clientes elogiam e reclamam */}
       <div className="mt-4 rounded-2xl border border-brand-2/30 bg-brand/5 p-4">
