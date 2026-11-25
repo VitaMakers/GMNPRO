@@ -36,7 +36,7 @@ export default async function DesempenhoPage() {
             Conecte o Google e sincronize seus locais (em Agendamentos) para ver o desempenho.
           </div>
         ) : (
-          <DesempenhoDashboard locations={locations} />
+          <DesempenhoDashboard locations={locations} isAgency={access.entitlements.isAgency} />
         )}
       </main>
     </div>
