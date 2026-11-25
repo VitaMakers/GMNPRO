@@ -28,13 +28,36 @@ const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
 type SecKey = "forca" | "desemp" | "aval" | "ia" | "rank";
-const SECTIONS: { key: SecKey; label: string }[] = [
-  { key: "forca", label: "💪 Força do perfil" },
-  { key: "desemp", label: "📊 Desempenho (visualizações, interações, pesquisas)" },
-  { key: "aval", label: "⭐ Avaliações (nota + estrelas)" },
-  { key: "ia", label: "🤖 Resumo com IA" },
-  { key: "rank", label: "🗺️ Ranking no Maps (geo-grid)" },
+const SECTIONS: { key: SecKey; label: string; subs: { key: string; label: string }[] }[] = [
+  { key: "forca", label: "💪 Força do perfil", subs: [
+    { key: "anel", label: "Nota (anel %)" },
+    { key: "resumo", label: "Resumo (bons / a melhorar / faltando)" },
+  ] },
+  { key: "desemp", label: "📊 Desempenho", subs: [
+    { key: "views", label: "Visualizações" },
+    { key: "inter", label: "Interações" },
+    { key: "pesq", label: "Pesquisas" },
+    { key: "acoes", label: "Ações dos clientes" },
+    { key: "origem", label: "De onde vêm" },
+    { key: "termos", label: "Termos de pesquisa" },
+  ] },
+  { key: "aval", label: "⭐ Avaliações", subs: [
+    { key: "nota", label: "Nota + total" },
+    { key: "dist", label: "Distribuição por estrela" },
+  ] },
+  { key: "ia", label: "🤖 Resumo com IA", subs: [
+    { key: "resumo", label: "Parágrafo-resumo" },
+    { key: "elogios", label: "Elogios" },
+    { key: "atencao", label: "Pontos de atenção" },
+  ] },
+  { key: "rank", label: "🗺️ Ranking no Maps", subs: [
+    { key: "mapa", label: "Mapa (grade)" },
+    { key: "metricas", label: "Posição / top 3 / top 10" },
+  ] },
 ];
+// Todas as sub-opções ligadas por padrão.
+const ALL_SUBS: Record<string, boolean> = {};
+SECTIONS.forEach((s) => s.subs.forEach((x) => { ALL_SUBS[`${s.key}.${x.key}`] = true; }));
 
 export default function RelatorioBuilder({ locations, initialBranding }: { locations: Loc[]; initialBranding: Branding }) {
   const [loc, setLoc] = useState(locations[0]?.location_name ?? "");
@@ -62,6 +85,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
 
   // Seções
   const [sec, setSec] = useState<Record<SecKey, boolean>>({ forca: true, desemp: true, aval: true, ia: true, rank: true });
+  const [sub, setSub] = useState<Record<string, boolean>>({ ...ALL_SUBS });
+  const [expanded, setExpanded] = useState<SecKey | null>(null);
+  const sOn = (s: SecKey, k: string) => sec[s] && (sub[`${s}.${k}`] ?? true);
 
   // Dados
   const [strength, setStrength] = useState<Strength | null>(null);
@@ -234,12 +260,31 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
 
         <div className="rounded-3xl border border-border bg-white p-5 card-soft">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-muted">Seções do relatório</p>
-          {SECTIONS.map(({ key, label }) => (
-            <label key={key} className="flex cursor-pointer items-center justify-between gap-3 border-b border-border/60 py-2.5 last:border-0">
-              <span className="text-sm">{label}</span>
-              <input type="checkbox" checked={sec[key]} onChange={() => setSec((s) => ({ ...s, [key]: !s[key] }))} className="h-5 w-5 accent-brand-2" />
-            </label>
-          ))}
+          <p className="mb-2 text-[11px] text-muted">Clique na seção para escolher item a item o que aparece.</p>
+          {SECTIONS.map(({ key, label, subs }) => {
+            const open = expanded === key;
+            return (
+              <div key={key} className="border-b border-border/60 py-2 last:border-0">
+                <div className="flex items-center justify-between gap-3">
+                  <button onClick={() => setExpanded(open ? null : key)} className="flex items-center gap-1.5 text-sm font-medium">
+                    <svg viewBox="0 0 24 24" className={`h-4 w-4 text-muted transition-transform ${open ? "rotate-90" : ""}`} fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M9 6l6 6-6 6" /></svg>
+                    {label}
+                  </button>
+                  <input type="checkbox" checked={sec[key]} onChange={() => setSec((s) => ({ ...s, [key]: !s[key] }))} className="h-5 w-5 accent-brand-2" />
+                </div>
+                {open && (
+                  <div className={`mt-2 space-y-1 pl-6 ${sec[key] ? "" : "pointer-events-none opacity-40"}`}>
+                    {subs.map((x) => (
+                      <label key={x.key} className="flex cursor-pointer items-center justify-between gap-3 text-xs">
+                        <span className="text-muted">{x.label}</span>
+                        <input type="checkbox" checked={sub[`${key}.${x.key}`] ?? true} onChange={() => setSub((s) => ({ ...s, [`${key}.${x.key}`]: !(s[`${key}.${x.key}`] ?? true) }))} className="h-4 w-4 accent-brand-2" />
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
           <div className="mt-4">
             <button onClick={() => window.print()} className="w-full rounded-lg bg-brand-2 px-4 py-2.5 text-sm font-semibold text-white transition hover:opacity-90">
               Baixar PDF
@@ -273,8 +318,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             <Sec color={color} title="Força do perfil">
               {strength?.score != null ? (
                 <div className="flex items-center gap-4">
-                  <Ring score={strength.score} color={color} />
-                  <p className="text-sm text-muted"><strong className="text-foreground">{strength.bom}</strong> bons · <strong className="text-foreground">{strength.razoavel}</strong> a melhorar · <strong className="text-foreground">{strength.fraco}</strong> faltando</p>
+                  {sOn("forca", "anel") && <Ring score={strength.score} color={color} />}
+                  {sOn("forca", "resumo") && <p className="text-sm text-muted"><strong className="text-foreground">{strength.bom}</strong> bons · <strong className="text-foreground">{strength.razoavel}</strong> a melhorar · <strong className="text-foreground">{strength.fraco}</strong> faltando</p>}
                 </div>
               ) : <Empty>Rode a Análise Completa deste perfil para incluir a nota.</Empty>}
             </Sec>
@@ -285,12 +330,12 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
               {perf?.kpis ? (
                 <div className="space-y-4">
                   <div className="flex flex-wrap gap-8">
-                    <Kpi3 v={fmtK(perf.kpis.impressions.current)} l="Visualizações" c={perf.kpis.impressions.changeYoY} />
-                    <Kpi3 v={perf.kpis.interactions.current.toLocaleString("pt-BR")} l="Interações" c={perf.kpis.interactions.changeYoY} />
-                    <Kpi3 v={fmtK(perf.searches?.total ?? 0)} l="Pesquisas" c={perf.searches?.changeYoY} />
+                    {sOn("desemp", "views") && <Kpi3 v={fmtK(perf.kpis.impressions.current)} l="Visualizações" c={perf.kpis.impressions.changeYoY} />}
+                    {sOn("desemp", "inter") && <Kpi3 v={perf.kpis.interactions.current.toLocaleString("pt-BR")} l="Interações" c={perf.kpis.interactions.changeYoY} />}
+                    {sOn("desemp", "pesq") && <Kpi3 v={fmtK(perf.searches?.total ?? 0)} l="Pesquisas" c={perf.searches?.changeYoY} />}
                   </div>
 
-                  {perf.engagement?.metrics && perf.engagement.metrics.some((m) => m.value > 0) && (
+                  {sOn("desemp", "acoes") && perf.engagement?.metrics && perf.engagement.metrics.some((m) => m.value > 0) && (
                     <div>
                       <p className="mb-1 text-xs font-semibold text-muted">Ações dos clientes</p>
                       <div className="grid grid-cols-2 gap-x-6 text-sm sm:grid-cols-3">
@@ -305,7 +350,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                   )}
 
                   <div className="grid gap-5 sm:grid-cols-2">
-                    {perf.sources && perf.sources.length > 0 && (
+                    {sOn("desemp", "origem") && perf.sources && perf.sources.length > 0 && (
                       <div>
                         <p className="mb-1 text-xs font-semibold text-muted">De onde vêm</p>
                         {(() => {
@@ -319,7 +364,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                         })()}
                       </div>
                     )}
-                    {perf.keywords && perf.keywords.length > 0 && (
+                    {sOn("desemp", "termos") && perf.keywords && perf.keywords.length > 0 && (
                       <div>
                         <p className="mb-1 text-xs font-semibold text-muted">Termos de pesquisa mais fortes</p>
                         {perf.keywords.slice(0, 5).map((k, i) => (
@@ -340,12 +385,14 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             <Sec color={color} title="Avaliações">
               {perf?.reviews || stars ? (
                 <div>
-                  <div className="flex items-baseline gap-3">
-                    <span className="font-display text-3xl font-extrabold">{(stars?.average ?? perf?.reviews?.average ?? 0).toFixed(1)}</span>
-                    <span className="text-lg text-amber-500">★★★★★</span>
-                    <span className="text-sm text-muted">{(stars?.total ?? perf?.reviews?.total ?? 0).toLocaleString("pt-BR")} avaliações</span>
-                  </div>
-                  {stars && stars.sampled > 0 && (
+                  {sOn("aval", "nota") && (
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-display text-3xl font-extrabold">{(stars?.average ?? perf?.reviews?.average ?? 0).toFixed(1)}</span>
+                      <span className="text-lg text-amber-500">★★★★★</span>
+                      <span className="text-sm text-muted">{(stars?.total ?? perf?.reviews?.total ?? 0).toLocaleString("pt-BR")} avaliações</span>
+                    </div>
+                  )}
+                  {sOn("aval", "dist") && stars && stars.sampled > 0 && (
                     <div className="mt-3 max-w-sm space-y-1">
                       {stars.counts.map((c) => {
                         const pct = Math.round((c.count / stars.sampled) * 100);
@@ -368,9 +415,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             <Sec color={color} title="Resumo com IA das avaliações">
               {ai && (ai.summary || ai.praises?.length || ai.complaints?.length) ? (
                 <div className="space-y-2 text-sm">
-                  {ai.summary && <p className="text-muted">{ai.summary}</p>}
-                  {ai.praises?.length > 0 && <p><span className="font-semibold text-emerald-600">👍 Elogios: </span><span className="text-muted">{ai.praises.join(" · ")}</span></p>}
-                  {ai.complaints?.length > 0 && <p><span className="font-semibold text-red-500">👎 Atenção: </span><span className="text-muted">{ai.complaints.join(" · ")}</span></p>}
+                  {sOn("ia", "resumo") && ai.summary && <p className="text-muted">{ai.summary}</p>}
+                  {sOn("ia", "elogios") && ai.praises?.length > 0 && <p><span className="font-semibold text-emerald-600">👍 Elogios: </span><span className="text-muted">{ai.praises.join(" · ")}</span></p>}
+                  {sOn("ia", "atencao") && ai.complaints?.length > 0 && <p><span className="font-semibold text-red-500">👎 Atenção: </span><span className="text-muted">{ai.complaints.join(" · ")}</span></p>}
                 </div>
               ) : <Empty>Sem comentários suficientes para o resumo da IA.</Empty>}
             </Sec>
@@ -380,12 +427,14 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             <Sec color={color} title="Ranking no Google Maps (geo-grid)">
               {rank ? (
                 <div className="flex flex-wrap items-center gap-6">
-                  <GeoGrid run={rank} />
-                  <div className="text-sm">
-                    <p className="text-muted">Busca: <strong className="text-foreground">{rank.keyword}</strong> · grade {rank.grid_size}×{rank.grid_size}</p>
-                    <p className="mt-1 text-muted">Posição média: <strong className="text-foreground">{rank.avg_rank ?? "—"}</strong></p>
-                    <p className="text-muted">No top 3: <strong className="text-foreground">{rank.top3_pct ?? 0}%</strong> · no top 10: <strong className="text-foreground">{rank.top10_pct ?? 0}%</strong></p>
-                  </div>
+                  {sOn("rank", "mapa") && <GeoGrid run={rank} />}
+                  {sOn("rank", "metricas") && (
+                    <div className="text-sm">
+                      <p className="text-muted">Busca: <strong className="text-foreground">{rank.keyword}</strong> · grade {rank.grid_size}×{rank.grid_size}</p>
+                      <p className="mt-1 text-muted">Posição média: <strong className="text-foreground">{rank.avg_rank ?? "—"}</strong></p>
+                      <p className="text-muted">No top 3: <strong className="text-foreground">{rank.top3_pct ?? 0}%</strong> · no top 10: <strong className="text-foreground">{rank.top10_pct ?? 0}%</strong></p>
+                    </div>
+                  )}
                 </div>
               ) : <Empty>Rode uma Análise de Ranking para este perfil para incluir o mapa.</Empty>}
             </Sec>
