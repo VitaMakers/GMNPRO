@@ -30,12 +30,14 @@ interface RankRun { keyword: string; grid_size: number; avg_rank: number | null;
 interface MediaItem { thumbnailUrl: string | null; createTime: string | null; isVideo: boolean; views: number }
 interface MediaData { total: number; photoCount: number; videoCount: number; totalViews: number; items: MediaItem[] }
 interface PostItem { summary: string; createTime: string | null; topicType: string | null; searchUrl: string | null; thumbnailUrl: string | null; ctaType: string | null }
+interface Keyword { term: string; count: number; positive: number; negative: number; sentiment: "positivo" | "negativo" | "neutro" }
+interface QA { text: string; authorName: string | null; createTime: string | null; totalAnswers: number; topAnswer: string | null }
 
 const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
+type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "palavras" | "clientes" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
 const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
   { key: "resumoExec", label: "📝 Resumo executivo (você escreve)", editable: "Escreva uma abertura: o panorama do mês para o cliente…", subs: [] },
   { key: "capa", label: "🏢 Ficha da empresa", subs: [] },
@@ -69,6 +71,8 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
     { key: "elogios", label: "Elogios" },
     { key: "atencao", label: "Pontos de atenção" },
   ] },
+  { key: "palavras", label: "🔑 Palavras-chave nas avaliações", subs: [] },
+  { key: "clientes", label: "👥 Clientes (perguntas e respostas)", subs: [] },
   { key: "checklist", label: "✅ Análise Completa (checklist)", subs: [
     { key: "completo", label: "Checklist completo" },
     { key: "melhorar", label: "O que melhorar" },
@@ -127,6 +131,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const [media, setMedia] = useState<MediaData | null>(null);
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [services, setServices] = useState<string[]>([]);
+  const [keywords, setKeywords] = useState<Keyword[]>([]);
+  const [qa, setQa] = useState<QA[]>([]);
   const [loading, setLoading] = useState(true);
   // Compartilhar / enviar
   const [shareCode, setShareCode] = useState("");
@@ -160,7 +166,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
       pfQs = `&period=${period}`; // 30 / 60 / 90 dias
     }
     const q = encodeURIComponent(loc);
-    const [st, pf, sc, ia2, rk, hs, md, ps, sv] = await Promise.all([
+    const [st, pf, sc, ia2, rk, hs, md, ps, sv, kw, qq] = await Promise.all([
       fetch(`/api/google/profile-strength?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/performance?location=${q}${pfQs}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/review-breakdown?location=${q}`).then((r) => r.json()).catch(() => null),
@@ -170,6 +176,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
       fetch(`/api/google/list-media?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/list-posts?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/list-services?location=${q}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/google/review-keywords?location=${q}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/google/questions?location=${q}`).then((r) => r.json()).catch(() => null),
     ]);
     setStrength(st && st.score !== undefined ? st : null);
     setPerf(pf && pf.ok ? pf : null);
@@ -180,6 +188,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
     setMedia(md && md.ok ? md : null);
     setPosts(ps && ps.ok && Array.isArray(ps.items) ? ps.items : []);
     setServices(sv && sv.ok && Array.isArray(sv.items) ? sv.items : []);
+    setKeywords(kw && kw.ok && Array.isArray(kw.keywords) ? kw.keywords : []);
+    setQa(qq && qq.ok && Array.isArray(qq.items) ? qq.items : []);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc, period, cStart, cEnd]);
@@ -733,6 +743,43 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                   {sOn("ia", "atencao") && ai.complaints?.length > 0 && <p><span className="font-semibold text-red-500">👎 Atenção: </span><span className="text-muted">{ai.complaints.join(" · ")}</span></p>}
                 </div>
               ) : <Empty>Sem comentários suficientes para o resumo da IA.</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.palavras && (
+            <Sec color={color} title="Palavras-chave nas avaliações">
+              {keywords.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {keywords.map((k) => {
+                    const c = k.sentiment === "positivo" ? "#059669" : k.sentiment === "negativo" ? "#dc2626" : "#6b7280";
+                    return (
+                      <span key={k.term} className="inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs" style={{ borderColor: `${c}55`, color: c, background: `${c}11` }}>
+                        {k.term}<strong className="opacity-70">{k.count}</strong>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : <Empty>Poucas avaliações com texto para destacar termos (mínimo 3 menções iguais).</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.clientes && (
+            <Sec color={color} title="Clientes — perguntas e respostas">
+              {qa.length > 0 ? (
+                <div className="space-y-3">
+                  {qa.slice(0, 8).map((q, i) => (
+                    <div key={i} className="border-t border-border pt-3 first:border-0 first:pt-0">
+                      <p className="text-sm font-medium text-foreground">❓ {q.text}</p>
+                      {q.topAnswer ? (
+                        <p className="mt-1 text-sm text-muted">💬 {q.topAnswer}</p>
+                      ) : (
+                        <p className="mt-1 text-xs text-red-500">Sem resposta ainda</p>
+                      )}
+                      {q.totalAnswers > 1 && <p className="mt-0.5 text-[11px] text-muted">{q.totalAnswers} respostas</p>}
+                    </div>
+                  ))}
+                </div>
+              ) : <Empty>Nenhuma pergunta de cliente encontrada neste perfil (ou Q&A indisponível).</Empty>}
             </Sec>
           )}
 
