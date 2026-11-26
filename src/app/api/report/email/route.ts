@@ -36,7 +36,9 @@ export async function POST(request: Request) {
   const row = { token, user_id: user.id, location_name: b.location, snapshot, branding: branding ?? null };
   const ins = await supabase.from("shared_reports").insert({ ...row, config });
   // Coluna `config` ainda não migrada (0032): grava no formato antigo.
-  if (ins.error && config) await supabase.from("shared_reports").insert(row);
+  let insErr = ins.error;
+  if (insErr && config) insErr = (await supabase.from("shared_reports").insert(row)).error;
+  if (insErr) return NextResponse.json({ error: "link", detail: "Não foi possível criar o link do relatório. Nada foi enviado." }, { status: 500 });
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
   const url = `${base}${reportPath(token, (snap as { title?: string }).title)}`;
 

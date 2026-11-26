@@ -45,13 +45,22 @@ export async function runAutoReplies(
     )
     .eq("auto_reply", true)
     .or(`auto_reply_last_run.is.null,auto_reply_last_run.lt.${cutoff}`)
-    .limit(MAX_PROFILES);
+    .limit(400);
 
-  const settings = (list as SettingRow[]) ?? [];
+  const candidates = (list as SettingRow[]) ?? [];
   let replied = 0;
 
   // Trava: não responde avaliações de quem testou e não assinou (ou cancelou).
-  const blocked = await blockedUserIds(admin, settings.map((s) => s.user_id));
+  const blocked = await blockedUserIds(admin, candidates.map((s) => s.user_id));
+  // Tira os bloqueados ANTES de limitar e sorteia a ordem: assim contas
+  // bloqueadas ou perfis com erro não ocupam sempre as mesmas vagas e deixam
+  // os demais sem atendimento.
+  const settings = candidates.filter((s) => !blocked.has(s.user_id));
+  for (let i = settings.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [settings[i], settings[j]] = [settings[j], settings[i]];
+  }
+  settings.length = Math.min(settings.length, MAX_PROFILES);
 
   for (const s of settings) {
     if (blocked.has(s.user_id)) continue;
@@ -160,11 +169,11 @@ export async function runAutoReplies(
       const hitCap = count >= MAX_PER_PROFILE && novas.length > count;
       let nextBoundary = hitCap && lastDoneMs ? new Date(lastDoneMs + 1).toISOString() : nowIso;
       // Houve falha: recua a linha de corte até a avaliação que falhou, para
-      // tentar de novo na próxima rodada. Limite de 48h para não insistir para
+      // tentar de novo na próxima rodada. Limite de 12h para não insistir para
       // sempre numa avaliação que nunca vai passar. (As já respondidas não
       // repetem: são filtradas por `replied`.)
       if (firstFailedMs != null) {
-        const retryFrom = Math.max(firstFailedMs, Date.now() - 48 * 3_600_000);
+        const retryFrom = Math.max(firstFailedMs, Date.now() - 12 * 3_600_000);
         if (retryFrom < new Date(nextBoundary).getTime()) nextBoundary = new Date(retryFrom).toISOString();
       }
       await admin

@@ -206,6 +206,8 @@ export async function GET(request: Request) {
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return NextResponse.json({ error: "nao_autenticado", message: "Entre na sua conta para analisar." }, { status: 401 });
+    const access = await getAccess(supabase, user.id, user.email);
+    if (!access.allowed) return NextResponse.json({ error: "sem_acesso", message: "Seu acesso expirou. Assine para continuar." }, { status: 403 });
 
     // Fase 1: buscar candidatos pelo nome — Google Places; se ele recusar
     // (sem faturamento, cota, chave) ou não houver chave, DataForSEO.
@@ -241,7 +243,6 @@ export async function GET(request: Request) {
     }
 
     // Fase 2: auditar o lugar escolhido — conta no limite mensal de pré-análises.
-    const access = await getAccess(supabase, user.id, user.email);
     const pa = await preAnaliseStatus(supabase, user.id, access);
     if (!pa.allowed) {
       return NextResponse.json({ error: "limite", message: `Você atingiu o limite de ${pa.limit} pré-análises neste mês.` }, { status: 429 });

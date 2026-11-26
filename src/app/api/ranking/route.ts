@@ -7,7 +7,7 @@ import { dataForSeoConfigured } from "@/lib/dataforseo";
 import { gridCredits, GRID_SIZES } from "@/lib/geogrid";
 import { executeRanking } from "@/lib/rankingRun";
 import { monthUsage } from "@/lib/rankingUsage";
-import { getCredits, spendCredits } from "@/lib/credits";
+import { getCredits, spendCredits, refundCredits } from "@/lib/credits";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -90,15 +90,21 @@ export async function POST(request: Request) {
     );
   }
 
+  // Cobra ANTES de rodar (débito atômico) e estorna se a análise falhar.
+  if (!(await spendCredits(supabase, user.id, need))) {
+    return NextResponse.json(
+      { error: "sem_creditos", detail: `Esta grade usa ${need} créditos e seu saldo não é suficiente.`, credits },
+      { status: 402 },
+    );
+  }
   try {
     const token = await getValidAccessToken(supabase, user.id);
     const run = await executeRanking(supabase, user.id, token, { location, keyword, grid, spacingKm });
-
-    await spendCredits(supabase, user.id, need);
     const remaining = Math.max(0, credits - need);
 
     return NextResponse.json({ ok: true, run, credits: remaining, title: run.title });
   } catch (e) {
+    await refundCredits(supabase, user.id, need);
     const msg = e instanceof Error ? e.message : "erro ao analisar";
     if (msg === "sem_coordenadas") {
       return NextResponse.json({ error: "sem_coordenadas", detail: "O Google não retornou coordenadas para este perfil." }, { status: 422 });
