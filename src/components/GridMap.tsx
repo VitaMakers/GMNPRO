@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { loadLeaflet } from "@/components/LocationsMap";
+import { loadLeaflet, loadHeat } from "@/components/LocationsMap";
 
 export type GridMapPoint = {
   lat: number;
@@ -26,31 +26,54 @@ export default function GridMap({
   points,
   center,
   title,
+  mode = "pins",
 }: {
   points: GridMapPoint[];
   center: { lat: number; lng: number };
   title?: string;
+  mode?: "pins" | "heat";
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
+  const heatRef = useRef<any>(null);
   const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
-    loadLeaflet()
-      .then((L: any) => {
-        if (cancelled || !ref.current) return;
-        if (!mapRef.current) {
-          mapRef.current = L.map(ref.current, { scrollWheelZoom: false, attributionControl: false });
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(mapRef.current);
-          L.control.attribution({ prefix: false }).addAttribution("© OpenStreetMap").addTo(mapRef.current);
-        }
-        const map = mapRef.current;
-        map.eachLayer((layer: any) => {
-          if (layer instanceof L.Marker) map.removeLayer(layer);
-        });
+    const setup = async (L: any) => {
+      if (cancelled || !ref.current) return;
+      if (!mapRef.current) {
+        mapRef.current = L.map(ref.current, { scrollWheelZoom: false, attributionControl: false });
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(mapRef.current);
+        L.control.attribution({ prefix: false }).addAttribution("© OpenStreetMap").addTo(mapRef.current);
+      }
+      const map = mapRef.current;
+      // Limpa marcadores e camada de calor anteriores (troca de modo / de dados).
+      map.eachLayer((layer: any) => {
+        if (layer instanceof L.Marker) map.removeLayer(layer);
+      });
+      if (heatRef.current) { map.removeLayer(heatRef.current); heatRef.current = null; }
 
-        const bounds: [number, number][] = [];
+      const bounds: [number, number][] = [];
+
+      if (mode === "heat") {
+        await loadHeat();
+        if (cancelled) return;
+        // Intensidade: posição melhor = mais quente. Fora do top 20 ≈ 0.
+        const heatPts = points.map((p) => {
+          const intensity = p.rank == null ? 0.05 : Math.max(0.05, (21 - Math.min(p.rank, 20)) / 20);
+          return [p.lat, p.lng, intensity] as [number, number, number];
+        });
+        heatRef.current = (L as any).heatLayer(heatPts, {
+          radius: 42,
+          blur: 30,
+          maxZoom: 17,
+          minOpacity: 0.35,
+          // Verde = boa posição, vermelho = ruim (igual aos pinos).
+          gradient: { 0.0: "#dc2626", 0.4: "#f59e0b", 0.7: "#d97706", 1.0: "#059669" },
+        }).addTo(map);
+        for (const p of points) bounds.push([p.lat, p.lng]);
+      } else {
         for (const p of points) {
           const color = rankColor(p.rank);
           const label = p.rank == null ? "20+" : String(p.rank);
@@ -76,6 +99,7 @@ export default function GridMap({
           );
           bounds.push([p.lat, p.lng]);
         }
+      }
         // Pino da empresa no centro.
         const pin = L.divIcon({
           className: "",
@@ -91,12 +115,14 @@ export default function GridMap({
         if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
         else map.setView([center.lat, center.lng], 14);
         setTimeout(() => map.invalidateSize(), 100);
-      })
+    };
+    loadLeaflet()
+      .then(setup)
       .catch(() => !cancelled && setFailed(true));
     return () => {
       cancelled = true;
     };
-  }, [points, center, title]);
+  }, [points, center, title, mode]);
 
   useEffect(() => () => { mapRef.current?.remove(); mapRef.current = null; }, []);
 

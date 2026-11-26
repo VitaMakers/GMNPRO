@@ -56,6 +56,7 @@ export default function RankingTool({
   const [history, setHistory] = useState<Run[]>([]);
   const [schedFreq, setSchedFreq] = useState<string | null>(null);
   const [schedBusy, setSchedBusy] = useState(false);
+  const [mapMode, setMapMode] = useState<"pins" | "heat">("pins");
 
   useEffect(() => {
     if (locations[0]) initActiveProfile(locations[0].location_name);
@@ -259,16 +260,39 @@ export default function RankingTool({
               Mapa de ranqueamento{run ? ` · "${run.keyword}"` : ""}
             </p>
             <div className="flex items-center gap-3 text-[11px] text-muted">
-              <Legend c={rankColor(1)} t="1–3" />
-              <Legend c={rankColor(5)} t="4–10" />
-              <Legend c={rankColor(15)} t="11–20" />
-              <Legend c={rankColor(null)} t="20+" />
+              {run && (
+                <div className="flex overflow-hidden rounded-lg border border-border">
+                  {(["pins", "heat"] as const).map((mo) => (
+                    <button
+                      key={mo}
+                      type="button"
+                      onClick={() => setMapMode(mo)}
+                      className={`px-2.5 py-1 text-[11px] font-medium transition ${mapMode === mo ? "bg-brand text-white" : "hover:bg-surface-2"}`}
+                    >
+                      {mo === "pins" ? "Pinos" : "Calor"}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {mapMode === "pins" ? (
+                <>
+                  <Legend c={rankColor(1)} t="1–3" />
+                  <Legend c={rankColor(5)} t="4–10" />
+                  <Legend c={rankColor(15)} t="11–20" />
+                  <Legend c={rankColor(null)} t="20+" />
+                </>
+              ) : (
+                <span className="flex items-center gap-1">
+                  <span className="h-2.5 w-8 rounded-full" style={{ background: "linear-gradient(90deg,#dc2626,#f59e0b,#059669)" }} />
+                  pior → melhor
+                </span>
+              )}
             </div>
           </div>
 
           {run && center ? (
             <>
-              <GridMap points={run.points} center={center} title={selectedTitle} />
+              <GridMap points={run.points} center={center} title={selectedTitle} mode={mapMode} />
               <MetricsPanel points={run.points} gridSize={run.grid_size} top10={run.top10_pct ?? 0} />
 
               {/* Concorrentes: quem mais aparece no top dos pontos */}
