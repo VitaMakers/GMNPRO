@@ -19,6 +19,8 @@ export default function AuditTool() {
   const [notConfigured, setNotConfigured] = useState(false);
   const [error, setError] = useState("");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
+  // Sugestões automáticas indisponíveis: orienta a usar o botão Buscar.
+  const [manualSearch, setManualSearch] = useState(false);
   const [report, setReport] = useState<AuditReport | null>(null);
   const [fromExtension, setFromExtension] = useState(false);
   const [scanId, setScanId] = useState<string | null>(null);
@@ -64,6 +66,7 @@ export default function AuditTool() {
         const res = await fetch(url, { signal: ctrl.signal });
         const d = await res.json();
         if (Array.isArray(d.results)) setCandidates(d.results);
+        setManualSearch(!!d.manual);
       } catch {
         /* abortado ou falha de rede: ignora */
       } finally {
@@ -251,6 +254,11 @@ export default function AuditTool() {
               {locating ? "Localizando…" : geo ? "Perto de você ✓" : "Perto de mim"}
             </button>
           </div>
+          {manualSearch && (
+            <p className="mt-2 text-xs font-medium text-accent">
+              As sugestões automáticas estão indisponíveis agora. Digite o nome com a cidade e clique em Buscar.
+            </p>
+          )}
           <p className="mt-2 text-xs text-muted">
             Os resultados aparecem <strong>na hora</strong> enquanto você digita. Toque em{" "}
             <strong>Perto de mim</strong> para priorizar as empresas da sua região — ou digite a cidade/rua junto.

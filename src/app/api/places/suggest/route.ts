@@ -53,7 +53,9 @@ export async function GET(request: Request) {
       },
       body: JSON.stringify(body),
     });
-    if (!res.ok) return NextResponse.json({ results: [] });
+    // Google recusou (sem faturamento, cota, chave): avisa a tela para orientar a
+    // pessoa a usar o botão Buscar, que tem alternativa pelo DataForSEO.
+    if (!res.ok) return NextResponse.json({ results: [], manual: true });
     const data = (await res.json()) as {
       suggestions?: {
         placePrediction?: {
