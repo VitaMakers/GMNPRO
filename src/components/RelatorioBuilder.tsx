@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { rankingMetrics, RANKING_GLOSSARY } from "@/lib/rankingMetrics";
+import { rankingMetrics, RANKING_GLOSSARY, competitorTable } from "@/lib/rankingMetrics";
 
 type Loc = { location_name: string; title: string | null };
 type Branding = { name?: string; logo_url?: string; color?: string; phone?: string; site?: string } | null;
@@ -26,13 +26,13 @@ interface Perf {
 }
 interface Stars { average: number; total: number; sampled: number; counts: { stars: number; count: number }[] }
 interface AI { summary: string; praises: string[]; complaints: string[] }
-interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; points?: { rank: number | null }[] }
+interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; points?: { rank: number | null; top?: { title: string; rank: number; rating?: number | null; reviews?: number | null; me?: boolean; placeId?: string | null }[] }[] }
 
 const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "obs" | "plano";
+type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
 const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
   { key: "resumoExec", label: "📝 Resumo executivo (você escreve)", editable: "Escreva uma abertura: o panorama do mês para o cliente…", subs: [] },
   { key: "capa", label: "🏢 Ficha da empresa", subs: [] },
@@ -72,6 +72,7 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
     { key: "metricas", label: "Métricas ARP / ATRP / SoLV" },
     { key: "glossario", label: "Glossário das métricas" },
   ] },
+  { key: "concorrentes", label: "🏁 Comparação de concorrentes", subs: [] },
   { key: "obs", label: "🔎 Observações da agência (você escreve)", editable: "O que você observou neste período, análise, insights…", subs: [] },
   { key: "plano", label: "🚀 Próximos passos (você escreve)", editable: "Um por linha: o que será feito no próximo mês…", subs: [] },
 ];
@@ -594,6 +595,47 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                   })()}
                 </div>
               ) : <Empty>Rode uma Análise de Ranking para este perfil para incluir o mapa.</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.concorrentes && (
+            <Sec color={color} title="Comparação de concorrentes">
+              {(() => {
+                const rows = rank ? competitorTable(rank.points) : [];
+                if (!rank || rows.length === 0) return <Empty>Rode uma Análise de Ranking para comparar você com os concorrentes da região.</Empty>;
+                const me = rows.find((r) => r.isMe);
+                const rivals = rows.filter((r) => r !== me).slice(0, 6);
+                const ordered = [me, ...rivals].filter(Boolean) as typeof rows;
+                return (
+                  <div>
+                    <p className="mb-2 text-xs text-muted">Busca: <strong className="text-foreground">{rank.keyword}</strong> · SoLV = % de pontos no top 3 · ARP = posição média</p>
+                    <table className="w-full text-left text-xs">
+                      <thead>
+                        <tr className="text-[10px] uppercase tracking-wide text-muted">
+                          <th className="pb-1 font-medium">Negócio</th>
+                          <th className="pb-1 text-center font-medium">SoLV</th>
+                          <th className="pb-1 text-center font-medium">ARP</th>
+                          <th className="pb-1 text-center font-medium">Cobertura</th>
+                          <th className="pb-1 text-center font-medium">Nota</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {ordered.map((r) => (
+                          <tr key={r.key} className="border-t border-border/50">
+                            <td className="py-1.5 pr-2" style={r === me ? { color, fontWeight: 600 } : undefined}>
+                              <span className="block max-w-[200px] truncate" title={r.title}>{r.title}{r === me ? " (cliente)" : ""}</span>
+                            </td>
+                            <td className="py-1.5 text-center" style={r === me ? { color, fontWeight: 600 } : undefined}>{r.solv}%</td>
+                            <td className="py-1.5 text-center">{r.arp != null ? r.arp.toLocaleString("pt-BR") : "—"}</td>
+                            <td className="py-1.5 text-center">{r.coverage}%</td>
+                            <td className="py-1.5 text-center text-muted">{r.rating != null ? `${r.rating}★` : "—"}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                );
+              })()}
             </Sec>
           )}
 
