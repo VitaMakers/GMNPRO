@@ -294,16 +294,22 @@ export default function RankingTool({
                 )}
                 {otherMsg && <p className="mt-2 text-xs text-red-500">{otherMsg}</p>}
                 {otherResults.length > 0 && (
-                  <ul className="mt-2 divide-y divide-border/60 rounded-xl border border-border">
-                    {otherResults.map((c) => (
-                      <li key={c.placeId}>
-                        <button type="button" onClick={() => { setOther({ placeId: c.placeId, title: c.name, address: c.address }); setOtherResults([]); }} className="block w-full px-3 py-2 text-left transition hover:bg-surface-2">
-                          <span className="block text-sm font-medium">{c.name}</span>
-                          <span className="block text-xs text-muted">{c.address}</span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <>
+                    <p className="mt-3 text-xs font-semibold text-foreground">Clique na empresa que você quer analisar:</p>
+                    <ul className="mt-1 divide-y divide-border/60 rounded-xl border border-border">
+                      {otherResults.map((c) => (
+                        <li key={c.placeId}>
+                          <button type="button" onClick={() => { setOther({ placeId: c.placeId, title: c.name, address: c.address }); setOtherResults([]); }} className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2">
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-sm font-medium">{c.name}</span>
+                              <span className="block truncate text-xs text-muted">{c.address}</span>
+                            </span>
+                            <span className="shrink-0 rounded-lg bg-brand px-3 py-1.5 text-xs font-semibold text-white">Selecionar</span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
                 )}
               </>
             )}
