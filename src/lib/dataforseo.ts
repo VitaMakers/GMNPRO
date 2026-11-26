@@ -237,11 +237,18 @@ export const PROSPECT_DEPTH = 100;
  * Taubaté"), em todo o Brasil. Só dados públicos da ficha: nome, endereço,
  * telefone, site, nota e nº de avaliações. E-mail não existe no Google Maps.
  */
-export async function mapsProspects(query: string, depth = PROSPECT_DEPTH): Promise<Prospect[]> {
+export async function mapsProspects(query: string, depth = PROSPECT_DEPTH, at?: { lat: number; lng: number; zoom?: number }): Promise<Prospect[]> {
   const res = await fetch(`${BASE}/serp/google/maps/live/advanced`, {
     method: "POST",
     headers: { Authorization: authHeader(), "Content-Type": "application/json" },
-    body: JSON.stringify([{ keyword: query, location_code: 2076, language_code: "pt", depth }]),
+    // O Maps só devolve empresas quando a busca parte de um ponto: com as
+    // coordenadas da cidade (zoom de cidade). Sem ponto, cai no país inteiro
+    // (costuma voltar vazio).
+    body: JSON.stringify([
+      at
+        ? { keyword: query, location_coordinate: `${at.lat.toFixed(6)},${at.lng.toFixed(6)},${at.zoom ?? 12}z`, language_code: "pt", depth }
+        : { keyword: query, location_code: 2076, language_code: "pt", depth },
+    ]),
   });
   if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
   type Raw = MapsItem & { phone?: string; url?: string; category?: string; is_claimed?: boolean };
@@ -251,7 +258,10 @@ export async function mapsProspects(query: string, depth = PROSPECT_DEPTH): Prom
   if (!task) throw new Error("DataForSEO erro");
   if (task.status_code && task.status_code >= 40000) {
     // "No Search Results": não é erro — só não achou nada.
-    if (/no search result|no result/i.test(task.status_message ?? "")) return [];
+    if (/no search result|no result/i.test(task.status_message ?? "")) {
+      console.log(`[prospeccao] sem resultados para "${query}" (${at ? `${at.lat},${at.lng}` : "sem ponto"}): ${task.status_message}`);
+      return [];
+    }
     throw new Error(task.status_message ?? "DataForSEO erro");
   }
   const seen = new Set<string>();

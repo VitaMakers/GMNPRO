@@ -3,6 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getAccess } from "@/lib/access";
 import { dataForSeoConfigured, mapsProspects, PROSPECT_CREDITS } from "@/lib/dataforseo";
 import { getCredits, spendCredits } from "@/lib/credits";
+import { geocodeCityBR } from "@/lib/geocodeCity";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 120;
@@ -44,7 +45,15 @@ export async function POST(request: Request) {
   }
 
   try {
-    const items = await mapsProspects(`${term} em ${city}`);
+    // Localiza a cidade antes: o Google Maps precisa de um ponto de partida.
+    const point = await geocodeCityBR(city);
+    if (!point) {
+      return NextResponse.json(
+        { error: "cidade_nao_encontrada", detail: `Não encontrei a cidade "${city}". Confira o nome ou inclua o estado (ex.: Taubaté SP). Nenhum crédito foi cobrado.`, credits },
+        { status: 422 },
+      );
+    }
+    const items = await mapsProspects(`${term} em ${city}`, undefined, point);
     // Sem resultado não cobra.
     if (items.length === 0) return NextResponse.json({ ok: true, items: [], credits, charged: 0 });
     const charged = (await spendCredits(supabase, user.id, PROSPECT_CREDITS)) ? PROSPECT_CREDITS : 0;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { geocodeCityBR } from "@/lib/geocodeCity";
 import { businessInfo, dataForSeoConfigured, mapsProspects, type BusinessInfo } from "@/lib/dataforseo";
 import { getAccess } from "@/lib/access";
 import { preAnaliseStatus, countPreAnalise } from "@/lib/preanalise";
@@ -220,7 +221,20 @@ export async function GET(request: Request) {
           console.error("[pre-analise] busca no Google Places falhou; usando DataForSEO:", e instanceof Error ? e.message : e);
         }
       }
-      const found = await mapsProspects(q, 20);
+      // O Maps precisa de um ponto: usa a localização enviada pela tela ou
+      // tenta reconhecer a cidade nas últimas palavras ("... Sorocaba").
+      let at: { lat: number; lng: number } | undefined;
+      const glat = Number(searchParams.get("lat")), glng = Number(searchParams.get("lng"));
+      if (searchParams.get("lat") && Number.isFinite(glat) && Number.isFinite(glng)) at = { lat: glat, lng: glng };
+      if (!at) {
+        const words = q.split(/\s+/);
+        for (const n of [3, 2, 1]) {
+          if (words.length <= n) continue;
+          const hit = await geocodeCityBR(words.slice(-n).join(" "));
+          if (hit) { at = hit; break; }
+        }
+      }
+      const found = await mapsProspects(q, 20, at);
       return NextResponse.json({
         results: found.filter((f) => f.placeId).map((f) => ({ placeId: f.placeId as string, name: f.name, address: f.address ?? "" })),
       });
