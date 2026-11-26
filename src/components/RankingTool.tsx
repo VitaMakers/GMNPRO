@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
+import { useActiveProfile, initActiveProfile, setActiveProfile } from "@/lib/profileStore";
 import { GRID_SIZES, gridCredits } from "@/lib/geogrid";
 import { rankingMetrics, RANKING_GLOSSARY, competitorTable } from "@/lib/rankingMetrics";
 import { rankColor } from "@/components/GridMap";
@@ -51,6 +51,8 @@ export default function RankingTool({
   const [otherResults, setOtherResults] = useState<{ placeId: string; name: string; address: string }[]>([]);
   const [otherBusy, setOtherBusy] = useState(false);
   const [otherMsg, setOtherMsg] = useState("");
+  // Filtro (lupa) da lista de perfis próprios.
+  const [mineFilter, setMineFilter] = useState("");
   const ownSelected = active ?? locations[0]?.location_name ?? "";
   const selected = otherMode ? (other ? `place:${other.placeId}` : "") : ownSelected;
   const selectedTitle = otherMode
@@ -204,16 +206,59 @@ export default function RankingTool({
 
       {/* De quem é a análise: meus perfis ou qualquer empresa */}
       <div className="rounded-2xl border border-border bg-white p-4 card-soft">
-        <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold">1. Qual empresa?</span>
-          <div className="flex overflow-hidden rounded-lg border border-border">
-            <button type="button" onClick={() => setOtherMode(false)} className={`px-3 py-1.5 text-xs font-medium transition ${!otherMode ? "bg-brand text-white" : "hover:bg-surface-2"}`}>Meus perfis</button>
-            <button type="button" onClick={() => setOtherMode(true)} className={`px-3 py-1.5 text-xs font-medium transition ${otherMode ? "bg-brand text-white" : "hover:bg-surface-2"}`}>Outra empresa</button>
-          </div>
-          <span className="text-xs text-muted">
-            {otherMode ? "Busque pelo NOME da empresa, mesmo sem você ser administrador." : "Perfil selecionado no topo da tela."}
-          </span>
+        <p className="mb-3 text-sm font-semibold">1. Qual empresa você quer analisar?</p>
+        {/* Duas abas: perfis que a pessoa administra × qualquer outra empresa */}
+        <div className="grid grid-cols-2 gap-2">
+          <button type="button" onClick={() => setOtherMode(false)}
+            className={`rounded-xl border px-4 py-3 text-left transition ${!otherMode ? "border-brand bg-brand/10" : "border-border hover:bg-surface-2"}`}>
+            <span className={`block text-sm font-semibold ${!otherMode ? "text-brand-2" : ""}`}>Meus perfis</span>
+            <span className="block text-xs text-muted">Perfis que você administra</span>
+          </button>
+          <button type="button" onClick={() => setOtherMode(true)}
+            className={`rounded-xl border px-4 py-3 text-left transition ${otherMode ? "border-brand bg-brand/10" : "border-border hover:bg-surface-2"}`}>
+            <span className={`block text-sm font-semibold ${otherMode ? "text-brand-2" : ""}`}>Não sou administrador</span>
+            <span className="block text-xs text-muted">Qualquer empresa do Google Maps</span>
+          </button>
         </div>
+
+        {!otherMode && (
+          <div className="mt-3">
+            {locations.length === 0 ? (
+              <p className="text-sm text-muted">Você ainda não tem perfis conectados. Use a aba &ldquo;Não sou administrador&rdquo; ou conecte o Google em Agendamentos.</p>
+            ) : (
+              <>
+                <div className="relative">
+                  <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+                  <input
+                    value={mineFilter}
+                    onChange={(e) => setMineFilter(e.target.value)}
+                    placeholder={`Buscar entre os seus ${locations.length} perfis pelo nome`}
+                    className="w-full rounded-xl border border-border bg-surface-2 py-2.5 pl-9 pr-3 text-sm outline-none focus:border-brand"
+                  />
+                </div>
+                <ul className="mt-2 max-h-56 divide-y divide-border/60 overflow-y-auto rounded-xl border border-border">
+                  {locations
+                    .filter((l) => (l.title ?? "").toLowerCase().includes(mineFilter.trim().toLowerCase()))
+                    .map((l) => {
+                      const on = l.location_name === ownSelected;
+                      return (
+                        <li key={l.location_name}>
+                          <button type="button" onClick={() => setActiveProfile(l.location_name)}
+                            className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left text-sm transition ${on ? "bg-brand/10 font-semibold text-brand-2" : "hover:bg-surface-2"}`}>
+                            <span className="truncate">{l.title ?? "Perfil sem nome"}</span>
+                            {on && <span className="shrink-0 text-xs">selecionado</span>}
+                          </button>
+                        </li>
+                      );
+                    })}
+                  {locations.filter((l) => (l.title ?? "").toLowerCase().includes(mineFilter.trim().toLowerCase())).length === 0 && (
+                    <li className="px-3 py-2 text-sm text-muted">Nenhum perfil com esse nome.</li>
+                  )}
+                </ul>
+              </>
+            )}
+          </div>
+        )}
 
         {otherMode && (
           <div className="mt-3">
