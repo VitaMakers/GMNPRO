@@ -82,6 +82,9 @@ export default function RankingTool({
     }
   }, []);
 
+  // "perto de mim", "próximo", "em <cidade>" sozinhos indicam uma busca, não um nome de empresa.
+  const looksLikeKeyword = /\b(perto de mim|pr[oó]ximo a mim|pr[oó]ximo de mim|perto daqui|aberto agora|melhor(es)? )/i.test(otherQuery);
+
   async function searchOther() {
     const term = otherQuery.trim();
     if (term.length < 3) return;
@@ -202,13 +205,13 @@ export default function RankingTool({
       {/* De quem é a análise: meus perfis ou qualquer empresa */}
       <div className="rounded-2xl border border-border bg-white p-4 card-soft">
         <div className="flex flex-wrap items-center gap-3">
-          <span className="text-sm font-semibold">Analisar:</span>
+          <span className="text-sm font-semibold">1. Qual empresa?</span>
           <div className="flex overflow-hidden rounded-lg border border-border">
             <button type="button" onClick={() => setOtherMode(false)} className={`px-3 py-1.5 text-xs font-medium transition ${!otherMode ? "bg-brand text-white" : "hover:bg-surface-2"}`}>Meus perfis</button>
             <button type="button" onClick={() => setOtherMode(true)} className={`px-3 py-1.5 text-xs font-medium transition ${otherMode ? "bg-brand text-white" : "hover:bg-surface-2"}`}>Outra empresa</button>
           </div>
           <span className="text-xs text-muted">
-            {otherMode ? "Qualquer empresa do Google Maps, mesmo sem você ser administrador." : "Perfil selecionado no topo da tela."}
+            {otherMode ? "Busque pelo NOME da empresa, mesmo sem você ser administrador." : "Perfil selecionado no topo da tela."}
           </span>
         </div>
 
@@ -229,13 +232,21 @@ export default function RankingTool({
                     value={otherQuery}
                     onChange={(e) => setOtherQuery(e.target.value)}
                     onKeyDown={(e) => { if (e.key === "Enter") searchOther(); }}
-                    placeholder="Nome da empresa + cidade (ex.: Guincho Silva Taubaté)"
+                    placeholder="Nome da empresa + cidade (ex.: Restaurante do Zé Taubaté)"
                     className="min-w-[240px] flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand"
                   />
                   <button type="button" onClick={searchOther} disabled={otherBusy || otherQuery.trim().length < 3} className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
                     {otherBusy ? "Buscando…" : "Buscar empresa"}
                   </button>
                 </div>
+                <p className="mt-2 text-xs text-muted">
+                  Aqui vai o <strong>nome da empresa</strong>. A busca que você quer medir (ex.: &ldquo;restaurante perto de mim&rdquo;) vai no passo 2, em Palavra-chave.
+                </p>
+                {looksLikeKeyword && (
+                  <p className="mt-1 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
+                    Isso parece uma palavra-chave, não o nome de uma empresa. Digite o nome da empresa aqui e use &ldquo;{otherQuery.trim()}&rdquo; no campo Palavra-chave.
+                  </p>
+                )}
                 {otherMsg && <p className="mt-2 text-xs text-red-500">{otherMsg}</p>}
                 {otherResults.length > 0 && (
                   <ul className="mt-2 divide-y divide-border/60 rounded-xl border border-border">
@@ -277,15 +288,15 @@ export default function RankingTool({
       <div className="grid gap-4 lg:grid-cols-[1fr_1.6fr]">
         {/* Controles */}
         <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-          <p className="text-sm font-semibold">Nova análise</p>
-          <p className="mb-4 text-xs text-muted">Palavra-chave, tamanho da grade e distância entre pontos.</p>
+          <p className="text-sm font-semibold">2. Qual busca medir?</p>
+          <p className="mb-4 text-xs text-muted">A palavra-chave é o que o cliente digita no Google. Depois escolha o tamanho da grade e a distância entre os pontos.</p>
 
           <label className="block">
             <span className="mb-1 block text-xs text-muted">Palavra-chave</span>
             <input
               value={keyword}
               onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Ex.: segurança para eventos"
+              placeholder="Ex.: restaurante perto de mim"
               className="w-full rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand"
             />
           </label>
@@ -337,7 +348,9 @@ export default function RankingTool({
           </button>
           {!canRun && !running && (
             <p className="mt-2 text-center text-xs text-muted">
-              {keyword.trim().length === 0
+              {!selected
+                ? "Escolha a empresa no passo 1."
+                : keyword.trim().length === 0
                 ? "Digite uma palavra-chave."
                 : credits < need
                   ? `Esta grade usa ${need} créditos; você tem ${credits}.`
