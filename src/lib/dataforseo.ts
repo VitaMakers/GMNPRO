@@ -45,6 +45,7 @@ export interface TopItem {
   rating: number | null;
   reviews: number | null;
   me: boolean;
+  placeId: string | null;
 }
 
 export interface MapsTarget {
@@ -106,12 +107,15 @@ export async function mapsRankAt(
   }
   const items = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search");
   const hit = items.find((i) => matches(i, target));
-  const top = items.slice(0, 5).map((i) => ({
+  // Guardamos o top 10 de cada ponto (com place_id) para montar a
+  // comparação de concorrentes ao longo da grade (ARP/SoLV por rival).
+  const top = items.slice(0, 10).map((i) => ({
     title: i.title ?? "",
     rank: i.rank_group ?? 0,
     rating: i.rating?.value ?? null,
     reviews: i.rating?.votes_count ?? null,
     me: matches(i, target),
+    placeId: i.place_id ?? null,
   }));
   return { rank: hit?.rank_group ?? null, top };
 }

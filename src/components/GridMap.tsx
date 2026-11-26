@@ -7,7 +7,7 @@ export type GridMapPoint = {
   lat: number;
   lng: number;
   rank: number | null;
-  top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean }[];
+  top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean; placeId?: string | null }[];
 };
 
 function esc(s: string) {
@@ -85,6 +85,7 @@ export default function GridMap({
           });
           const mk = L.marker([p.lat, p.lng], { icon }).addTo(map);
           const rows = (p.top ?? [])
+            .slice(0, 5)
             .map(
               (t) =>
                 `<div style="display:flex;gap:6px;align-items:center;padding:2px 0;${t.me ? "font-weight:700;color:#059669" : ""}">

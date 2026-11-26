@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 import { GRID_SIZES, gridCredits } from "@/lib/geogrid";
-import { rankingMetrics, RANKING_GLOSSARY } from "@/lib/rankingMetrics";
+import { rankingMetrics, RANKING_GLOSSARY, competitorTable } from "@/lib/rankingMetrics";
 import { rankColor } from "@/components/GridMap";
 
 const GridMap = dynamic(() => import("@/components/GridMap"), { ssr: false });
@@ -20,7 +20,7 @@ type Run = {
   center_lat: number;
   center_lng: number;
   points: { lat: number; lng: number; rank: number | null; row?: number; col?: number;
-    top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean }[] }[];
+    top?: { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean; placeId?: string | null }[] }[];
   avg_rank: number | null;
   top3_pct: number | null;
   top10_pct: number | null;
@@ -364,42 +364,60 @@ export default function RankingTool({
   );
 }
 
-type TopItem = { title: string; rank: number; rating: number | null; reviews: number | null; me: boolean };
-
 function Competitors({ run, myTitle }: { run: Run; myTitle: string }) {
-  // Agrega todos os concorrentes que aparecem no top de cada ponto.
-  const agg = new Map<string, { title: string; count: number; best: number; sum: number; rating: number | null; reviews: number | null }>();
-  let myCount = 0;
+  // Comparação você × concorrentes com as mesmas métricas (SoLV, ARP,
+  // cobertura) calculadas ao longo da grade inteira.
+  const rows = competitorTable(run.points);
   const myName = myTitle.toLowerCase();
-  for (const p of run.points) {
-    for (const t of (p.top ?? []) as TopItem[]) {
-      if (t.me || t.title.toLowerCase() === myName) { myCount++; continue; }
-      const k = t.title;
-      const cur = agg.get(k) ?? { title: t.title, count: 0, best: 99, sum: 0, rating: t.rating, reviews: t.reviews };
-      cur.count++; cur.sum += t.rank; cur.best = Math.min(cur.best, t.rank);
-      agg.set(k, cur);
-    }
-  }
-  const rivals = [...agg.values()].sort((a, b) => b.count - a.count || a.sum / a.count - b.sum / b.count).slice(0, 5);
-  if (rivals.length === 0) return null;
-  const maxCount = Math.max(myCount, ...rivals.map((r) => r.count), 1);
-  const Bar = ({ label, count, best, mine, rating, reviews }: { label: string; count: number; best: number; mine?: boolean; rating?: number | null; reviews?: number | null }) => (
-    <div className="flex items-center gap-2">
-      <span className={`w-40 shrink-0 truncate text-xs ${mine ? "font-bold text-brand-2" : ""}`} title={label}>{label}</span>
-      <div className="h-5 flex-1 overflow-hidden rounded-full bg-surface-2">
-        <div className="h-full rounded-full" style={{ width: `${(count / maxCount) * 100}%`, background: mine ? "#059669" : "#9ca3af" }} />
-      </div>
-      <span className="w-28 shrink-0 text-right text-[11px] text-muted">{count} pontos · top {best}{rating ? ` · ${rating}★` : ""}</span>
-    </div>
-  );
+  // Garante que a linha "você" exista e esteja marcada, mesmo que o
+  // match por place_id não tenha pegado o me.
+  const me = rows.find((r) => r.isMe || r.title.toLowerCase() === myName);
+  const rivals = rows.filter((r) => r !== me).slice(0, 8);
+  if (rows.length === 0) return null;
+  const ordered = [me, ...rivals].filter(Boolean) as typeof rows;
+  const maxSolv = Math.max(...ordered.map((r) => r.solv), 1);
   return (
     <div className="mt-4 rounded-2xl border border-border bg-surface-2/50 p-4">
-      <p className="mb-3 text-sm font-semibold">Você × concorrentes (nesta palavra-chave)</p>
-      <div className="space-y-2">
-        <Bar label={`${myTitle} (você)`} count={myCount} best={run.avg_rank != null ? Math.round(run.avg_rank) : 20} mine rating={run.points[0]?.top?.find((t) => t.me)?.rating} />
-        {rivals.map((r) => <Bar key={r.title} label={r.title} count={r.count} best={r.best} rating={r.rating} reviews={r.reviews} />)}
+      <p className="mb-1 text-sm font-semibold">Comparação de localizações — você × concorrentes</p>
+      <p className="mb-3 text-[11px] text-muted">
+        Mesmas métricas para cada negócio ao longo da grade nesta palavra-chave. SoLV = % de pontos no top 3.
+      </p>
+      <div className="overflow-x-auto">
+        <table className="w-full min-w-[460px] text-left text-xs">
+          <thead>
+            <tr className="text-[10px] uppercase tracking-wide text-muted">
+              <th className="pb-1 font-medium">Negócio</th>
+              <th className="pb-1 text-center font-medium">SoLV</th>
+              <th className="pb-1 text-center font-medium">ARP</th>
+              <th className="pb-1 text-center font-medium">Cobertura</th>
+              <th className="pb-1 text-center font-medium">Melhor</th>
+              <th className="pb-1 text-center font-medium">Nota</th>
+            </tr>
+          </thead>
+          <tbody>
+            {ordered.map((r) => (
+              <tr key={r.key} className={`border-t border-border/50 ${r.isMe || r === me ? "font-semibold" : ""}`}>
+                <td className="py-1.5 pr-2">
+                  <div className="flex items-center gap-1.5">
+                    <span className="h-6 w-14 shrink-0 overflow-hidden rounded-full bg-surface-2">
+                      <span className="block h-full rounded-full" style={{ width: `${(r.solv / maxSolv) * 100}%`, background: r === me ? "#059669" : "#9ca3af" }} />
+                    </span>
+                    <span className="max-w-[160px] truncate" title={r.title}>{r.title}{r === me ? " (você)" : ""}</span>
+                  </div>
+                </td>
+                <td className="py-1.5 text-center" style={r === me ? { color: "#059669" } : undefined}>{r.solv}%</td>
+                <td className="py-1.5 text-center">{r.arp != null ? r.arp.toLocaleString("pt-BR") : "—"}</td>
+                <td className="py-1.5 text-center">{r.coverage}%</td>
+                <td className="py-1.5 text-center">{r.best || "—"}</td>
+                <td className="py-1.5 text-center text-muted">{r.rating != null ? `${r.rating}★` : "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
-      <p className="mt-2 text-[11px] text-muted">Quantos pontos da grade cada um aparece no topo. Quem aparece em mais pontos domina a região.</p>
+      <p className="mt-2 text-[10px] text-muted">
+        Baseado no top 10 de cada ponto. Rivais que nunca entram no top 10 não aparecem. Rodadas antigas (antes desta atualização) podem mostrar menos concorrentes.
+      </p>
     </div>
   );
 }

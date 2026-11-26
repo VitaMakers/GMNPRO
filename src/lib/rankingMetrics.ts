@@ -46,6 +46,87 @@ export function rankingMetrics(points: P[] | undefined | null): RankingMetrics {
   return { arp, atrp, solv, foundPct, found: found.length, total };
 }
 
+// ────────────────────────────────────────────────────────────────────────
+// Comparação de concorrentes ao longo da grade
+// ────────────────────────────────────────────────────────────────────────
+
+interface TopEntry {
+  title: string;
+  rank: number;
+  rating?: number | null;
+  reviews?: number | null;
+  me?: boolean;
+  placeId?: string | null;
+}
+interface PointWithTop {
+  rank: number | null;
+  top?: TopEntry[];
+}
+
+export interface CompetitorRow {
+  key: string;
+  title: string;
+  isMe: boolean;
+  appearances: number; // pontos em que aparece no top capturado
+  coverage: number; // % dos pontos da grade em que aparece
+  arp: number | null; // posição média onde aparece
+  solv: number; // % dos pontos da grade em que está no top 3
+  best: number; // melhor posição vista
+  rating: number | null;
+  reviews: number | null;
+}
+
+function keyNorm(s: string): string {
+  return s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "").replace(/[^a-z0-9]+/g, " ").trim();
+}
+
+/**
+ * Agrega os concorrentes que aparecem no top de cada ponto e calcula, para
+ * cada um, as mesmas métricas do perfil (ARP, SoLV, cobertura) ao longo da
+ * grade inteira. Inclui o próprio perfil (isMe) para comparação direta.
+ * Ordenado por SoLV desc. Só reflete negócios capturados no top de cada
+ * ponto (hoje top 10) — rivais que nunca entram no top não aparecem.
+ */
+export function competitorTable(points: PointWithTop[] | undefined | null): CompetitorRow[] {
+  const pts = Array.isArray(points) ? points : [];
+  const total = pts.length || 1;
+  const agg = new Map<
+    string,
+    { title: string; isMe: boolean; appearances: number; sum: number; best: number; top3: number; rating: number | null; reviews: number | null }
+  >();
+  for (const p of pts) {
+    // Um negócio pode aparecer em vários pontos; no mesmo ponto, uma vez.
+    const seen = new Set<string>();
+    for (const t of p.top ?? []) {
+      const k = (t.placeId && t.placeId.trim()) || keyNorm(t.title);
+      if (!k || seen.has(k)) continue;
+      seen.add(k);
+      const cur = agg.get(k) ?? { title: t.title, isMe: !!t.me, appearances: 0, sum: 0, best: 99, top3: 0, rating: t.rating ?? null, reviews: t.reviews ?? null };
+      cur.appearances++;
+      cur.sum += t.rank;
+      cur.best = Math.min(cur.best, t.rank);
+      if (t.rank <= 3) cur.top3++;
+      if (t.me) cur.isMe = true;
+      if ((t.reviews ?? 0) > (cur.reviews ?? 0)) { cur.reviews = t.reviews ?? cur.reviews; cur.rating = t.rating ?? cur.rating; }
+      if (!cur.title && t.title) cur.title = t.title;
+      agg.set(k, cur);
+    }
+  }
+  const rows: CompetitorRow[] = [...agg.entries()].map(([key, v]) => ({
+    key,
+    title: v.title,
+    isMe: v.isMe,
+    appearances: v.appearances,
+    coverage: Math.round((v.appearances / total) * 100),
+    arp: v.appearances ? Math.round((v.sum / v.appearances) * 10) / 10 : null,
+    solv: Math.round((v.top3 / total) * 100),
+    best: v.best === 99 ? 0 : v.best,
+    rating: v.rating,
+    reviews: v.reviews,
+  }));
+  return rows.sort((a, b) => b.solv - a.solv || b.appearances - a.appearances || (a.arp ?? 99) - (b.arp ?? 99));
+}
+
 /** Textos do glossário, reusados na página de ranking e no relatório. */
 export const RANKING_GLOSSARY: { sigla: string; nome: string; desc: string }[] = [
   {
