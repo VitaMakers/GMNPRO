@@ -3,7 +3,7 @@ import { createAdminClient } from "@/lib/supabase/server";
 import { getValidAccessToken } from "@/lib/google/token";
 import { dataForSeoConfigured } from "@/lib/dataforseo";
 import { gridCredits } from "@/lib/geogrid";
-import { executeRanking } from "@/lib/rankingRun";
+import { executeRanking, isPlaceLocation } from "@/lib/rankingRun";
 import { monthUsage } from "@/lib/rankingUsage";
 import { entitlementsFor } from "@/lib/entitlements";
 import { blockedUserIds } from "@/lib/subscriptionAccess";
@@ -52,8 +52,11 @@ export async function GET(request: Request) {
         await admin.from("ranking_schedules").update({ next_run_at: new Date(Date.now() + 86400000).toISOString() }).eq("id", sch.id);
         continue;
       }
-      let token = tokens.get(sch.user_id);
-      if (!token) { token = await getValidAccessToken(admin, sch.user_id); tokens.set(sch.user_id, token); }
+      let token: string | null = null;
+      if (!isPlaceLocation(sch.location_name)) {
+        token = tokens.get(sch.user_id) ?? null;
+        if (!token) { token = await getValidAccessToken(admin, sch.user_id); tokens.set(sch.user_id, token); }
+      }
       await executeRanking(admin, sch.user_id, token, { location: sch.location_name, keyword: sch.keyword, grid: sch.grid_size, spacingKm: Number(sch.spacing_km) });
       await admin.from("subscriptions").update({ credits: (sub?.credits ?? 0) - need }).eq("user_id", sch.user_id);
       const next = new Date(); next.setDate(next.getDate() + (sch.frequency === "monthly" ? 30 : 7));

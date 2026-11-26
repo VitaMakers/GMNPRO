@@ -44,8 +44,18 @@ export default function RankingTool({
   credits: number;
 }) {
   const active = useActiveProfile();
-  const selected = active ?? locations[0]?.location_name ?? "";
-  const selectedTitle = locations.find((l) => l.location_name === selected)?.title ?? "perfil";
+  // Empresa de terceiros (sem ser administrador): escolhida pela busca por nome.
+  const [other, setOther] = useState<{ placeId: string; title: string; address: string } | null>(null);
+  const [otherMode, setOtherMode] = useState(false);
+  const [otherQuery, setOtherQuery] = useState("");
+  const [otherResults, setOtherResults] = useState<{ placeId: string; name: string; address: string }[]>([]);
+  const [otherBusy, setOtherBusy] = useState(false);
+  const [otherMsg, setOtherMsg] = useState("");
+  const ownSelected = active ?? locations[0]?.location_name ?? "";
+  const selected = otherMode ? (other ? `place:${other.placeId}` : "") : ownSelected;
+  const selectedTitle = otherMode
+    ? other?.title ?? "Escolha uma empresa"
+    : locations.find((l) => l.location_name === ownSelected)?.title ?? "perfil";
   const [keyword, setKeyword] = useState("");
   const [grid, setGrid] = useState<number>(7);
   const [spacing, setSpacing] = useState(1);
@@ -62,8 +72,38 @@ export default function RankingTool({
     if (locations[0]) initActiveProfile(locations[0].location_name);
   }, [locations]);
 
+  // Atalho vindo da Prospecção: /ranking?placeId=...&nome=...
+  useEffect(() => {
+    const q = new URLSearchParams(window.location.search);
+    const pid = q.get("placeId");
+    if (pid) {
+      setOther({ placeId: pid, title: q.get("nome") ?? "Empresa", address: "" });
+      setOtherMode(true);
+    }
+  }, []);
+
+  async function searchOther() {
+    const term = otherQuery.trim();
+    if (term.length < 3) return;
+    setOtherBusy(true);
+    setOtherMsg("");
+    setOtherResults([]);
+    try {
+      const res = await fetch(`/api/audit?q=${encodeURIComponent(term)}`);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setOtherMsg(data.message ?? "Não foi possível buscar agora."); return; }
+      const list = (data.results ?? []) as { placeId: string; name: string; address: string }[];
+      if (list.length === 0) setOtherMsg("Nenhuma empresa encontrada. Tente o nome com a cidade.");
+      setOtherResults(list);
+    } catch {
+      setOtherMsg("Falha de conexão. Tente de novo.");
+    } finally {
+      setOtherBusy(false);
+    }
+  }
+
   const loadHistory = useCallback(async () => {
-    if (!selected) return;
+    if (!selected) { setHistory([]); return; }
     try {
       const res = await fetch(`/api/ranking?location=${encodeURIComponent(selected)}`);
       const data = await res.json();
@@ -77,6 +117,7 @@ export default function RankingTool({
     setRun(null);
     setError("");
     loadHistory();
+    if (!selected) { setSchedFreq(null); return; }
     fetch(`/api/ranking/schedule?location=${encodeURIComponent(selected)}`)
       .then((r) => r.json())
       .then((d) => {
@@ -116,7 +157,7 @@ export default function RankingTool({
   }
 
   const need = gridCredits(grid);
-  const canRun = !running && credits >= need && keyword.trim().length > 0;
+  const canRun = !running && credits >= need && keyword.trim().length > 0 && !!selected;
 
   async function analyze() {
     if (!canRun) return;
@@ -157,6 +198,62 @@ export default function RankingTool({
           <p>Os dados são <strong>reais do Google Maps</strong> (via DataForSEO), posição por posição. Cada ponto = 1 crédito.</p>
         </div>
       </details>
+
+      {/* De quem é a análise: meus perfis ou qualquer empresa */}
+      <div className="rounded-2xl border border-border bg-white p-4 card-soft">
+        <div className="flex flex-wrap items-center gap-3">
+          <span className="text-sm font-semibold">Analisar:</span>
+          <div className="flex overflow-hidden rounded-lg border border-border">
+            <button type="button" onClick={() => setOtherMode(false)} className={`px-3 py-1.5 text-xs font-medium transition ${!otherMode ? "bg-brand text-white" : "hover:bg-surface-2"}`}>Meus perfis</button>
+            <button type="button" onClick={() => setOtherMode(true)} className={`px-3 py-1.5 text-xs font-medium transition ${otherMode ? "bg-brand text-white" : "hover:bg-surface-2"}`}>Outra empresa</button>
+          </div>
+          <span className="text-xs text-muted">
+            {otherMode ? "Qualquer empresa do Google Maps, mesmo sem você ser administrador." : "Perfil selecionado no topo da tela."}
+          </span>
+        </div>
+
+        {otherMode && (
+          <div className="mt-3">
+            {other ? (
+              <div className="flex flex-wrap items-center gap-3 rounded-xl border border-brand/30 bg-brand/5 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold">{other.title}</p>
+                  {other.address && <p className="truncate text-xs text-muted">{other.address}</p>}
+                </div>
+                <button type="button" onClick={() => { setOther(null); setOtherResults([]); }} className="ml-auto rounded-lg border border-border bg-white px-3 py-1.5 text-xs font-medium hover:bg-surface-2">Trocar empresa</button>
+              </div>
+            ) : (
+              <>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    value={otherQuery}
+                    onChange={(e) => setOtherQuery(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") searchOther(); }}
+                    placeholder="Nome da empresa + cidade (ex.: Guincho Silva Taubaté)"
+                    className="min-w-[240px] flex-1 rounded-xl border border-border bg-surface-2 px-3 py-2.5 text-sm outline-none focus:border-brand"
+                  />
+                  <button type="button" onClick={searchOther} disabled={otherBusy || otherQuery.trim().length < 3} className="rounded-xl bg-brand px-5 py-2.5 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-50">
+                    {otherBusy ? "Buscando…" : "Buscar empresa"}
+                  </button>
+                </div>
+                {otherMsg && <p className="mt-2 text-xs text-red-500">{otherMsg}</p>}
+                {otherResults.length > 0 && (
+                  <ul className="mt-2 divide-y divide-border/60 rounded-xl border border-border">
+                    {otherResults.map((c) => (
+                      <li key={c.placeId}>
+                        <button type="button" onClick={() => { setOther({ placeId: c.placeId, title: c.name, address: c.address }); setOtherResults([]); }} className="block w-full px-3 py-2 text-left transition hover:bg-surface-2">
+                          <span className="block text-sm font-medium">{c.name}</span>
+                          <span className="block text-xs text-muted">{c.address}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
+            )}
+          </div>
+        )}
+      </div>
 
       {/* Saldo */}
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-border bg-white p-4 card-soft">
