@@ -88,7 +88,6 @@ function Stars({ rating }: { rating: number }) {
 export default function PerfilGoogle(p: PerfilGoogleProps) {
   const C = 2 * Math.PI * 11;
   const score = p.score ?? null;
-  const statusTxt = score == null ? "" : score >= 80 ? "Tudo certo!" : score >= 50 ? "Quase lá" : "Precisa de atenção";
   const ringCol = score == null ? "#5f6368" : score >= 80 ? "#81c995" : score >= 50 ? "#fdd663" : "#f28b82";
   const pics = (p.media ?? []).filter((m) => m.thumbnailUrl).slice(0, 4);
   const ratingTxt = p.rating != null ? p.rating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
@@ -134,7 +133,6 @@ export default function PerfilGoogle(p: PerfilGoogleProps) {
                     <circle cx="15" cy="15" r="11" fill="none" stroke={ringCol} strokeWidth="5" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - score / 100)} transform="rotate(-90 15 15)" />
                   </svg>
                 </div>
-                <p className="mt-0.5 text-xs" style={{ color: TXT }}>{statusTxt}</p>
               </div>
             )}
           </div>
