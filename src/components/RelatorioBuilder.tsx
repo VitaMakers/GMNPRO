@@ -19,11 +19,12 @@ interface ReviewLatest { author: string; stars: number; comment: string; createT
 interface Perf {
   range?: { start: string; end: string };
   periodDays?: number;
-  kpis?: { impressions: Kpi; interactions: Kpi; website: Kpi; calls: Kpi; directions: Kpi; conversations: Kpi };
+  kpis?: { impressions: Kpi; impressionsSearch?: Kpi; impressionsMaps?: Kpi; interactions: Kpi; website: Kpi; calls: Kpi; directions: Kpi; conversations: Kpi };
   engagement?: { monthLabels: string[]; all: EngMetric; metrics: EngMetric[] };
   sources?: { label: string; value: number }[];
   keywords?: { keyword: string; value: number; approx: boolean }[];
   series?: { date: string; value: number }[];
+  daily?: { labels: string[]; viewsTotal: number[]; viewsSearch: number[]; viewsMaps: number[]; actTotal: number[]; actWebsite: number[]; actCalls: number[]; actRoutes: number[] };
   searches?: { total: number; changeYoY: number | null };
   reviews?: { average: number; total: number; latest?: ReviewLatest[] } | null;
 }
@@ -40,7 +41,7 @@ const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "se
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "perfilgoogle" | "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "palavras" | "clientes" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
+type SecKey = "perfilgoogle" | "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "desempdet" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "palavras" | "clientes" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
 const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
   { key: "perfilgoogle", label: "📇 Seu perfil no Google", subs: [
     { key: "painel", label: "Painel do gerenciador" },
@@ -60,6 +61,11 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
     { key: "acoes", label: "Ações dos clientes" },
     { key: "origem", label: "De onde vêm" },
     { key: "termos", label: "Termos de pesquisa" },
+  ] },
+  { key: "desempdet", label: "📊 Desempenho detalhado (Busca vs Maps + gráficos)", subs: [
+    { key: "kpis", label: "Números (pesquisa, maps, fotos…)" },
+    { key: "views", label: "Gráfico de visualizações diárias" },
+    { key: "acoes", label: "Gráfico de ações diárias" },
   ] },
   { key: "grafico", label: "📈 Evolução mensal (gráfico)", subs: [
     { key: "views", label: "Visualizações" },
@@ -700,6 +706,60 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
             </Sec>
           )}
 
+          {!loading && sec.desempdet && (
+            <Sec color={color} title={`Desempenho detalhado · ${periodo}`}>
+              {perf?.kpis ? (
+                <div className="space-y-4">
+                  {(sub["desempdet.kpis"] ?? true) && (
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                      <Kc v={fmtK(perf.kpis.impressions.current)} l="Total de visualizações" />
+                      <Kc v={fmtK(perf.kpis.impressionsSearch?.current ?? 0)} l="Visualizações de pesquisa" />
+                      <Kc v={fmtK(perf.kpis.impressionsMaps?.current ?? 0)} l="Visualizações no Maps" />
+                      <Kc v={perf.kpis.interactions.current.toLocaleString("pt-BR")} l="Total de interações" />
+                      <Kc v={perf.kpis.website.current.toLocaleString("pt-BR")} l="Cliques no site" />
+                      <Kc v={perf.kpis.calls.current.toLocaleString("pt-BR")} l="Ligações" />
+                      <Kc v={fmtK(media?.totalViews ?? 0)} l="Visualizações de fotos" />
+                      <Kc v={perf.kpis.directions.current.toLocaleString("pt-BR")} l="Solicitações de rotas" />
+                    </div>
+                  )}
+                  {perf.daily && (perf.daily.viewsTotal?.length ?? 0) > 1 && (
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      {(sub["desempdet.views"] ?? true) && (
+                        <div className="rounded-xl border border-border p-3">
+                          <p className="mb-1 text-xs font-semibold text-foreground">Visualizações diárias</p>
+                          <MultiChart
+                            lines={[
+                              { label: "Total", color: "#34a853", values: perf.daily.viewsTotal },
+                              { label: "Pesquisas", color: "#1a73e8", values: perf.daily.viewsSearch },
+                              { label: "Maps", color: "#24c1e0", values: perf.daily.viewsMaps },
+                            ]}
+                            leftLabel={perf.range ? perf.range.start.slice(8) + "/" + perf.range.start.slice(5, 7) : ""}
+                            rightLabel={perf.range ? perf.range.end.slice(8) + "/" + perf.range.end.slice(5, 7) : ""}
+                          />
+                        </div>
+                      )}
+                      {(sub["desempdet.acoes"] ?? true) && (
+                        <div className="rounded-xl border border-border p-3">
+                          <p className="mb-1 text-xs font-semibold text-foreground">Ações diárias</p>
+                          <MultiChart
+                            lines={[
+                              { label: "Total", color: "#34a853", values: perf.daily.actTotal },
+                              { label: "Site", color: "#1a73e8", values: perf.daily.actWebsite },
+                              { label: "Ligações", color: "#24c1e0", values: perf.daily.actCalls },
+                              { label: "Rotas", color: "#e8308a", values: perf.daily.actRoutes },
+                            ]}
+                            leftLabel={perf.range ? perf.range.start.slice(8) + "/" + perf.range.start.slice(5, 7) : ""}
+                            rightLabel={perf.range ? perf.range.end.slice(8) + "/" + perf.range.end.slice(5, 7) : ""}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : <Empty>Sem dados de desempenho detalhado no período.</Empty>}
+            </Sec>
+          )}
+
           {!loading && sec.grafico && (
             <Sec color={color} title="Evolução mensal">
               {perf?.series && perf.series.length > 0 ? (
@@ -1027,6 +1087,29 @@ function Chart({ labels, values, color }: { labels: string[]; values: number[]; 
   );
 }
 
+/** Gráfico de linhas múltiplas (diário) com legenda — estilo painel de analytics. */
+function MultiChart({ lines, leftLabel, rightLabel }: { lines: { label: string; color: string; values: number[] }[]; leftLabel?: string; rightLabel?: string }) {
+  const W = 320, H = 150, P = 8;
+  const max = Math.max(1, ...lines.flatMap((l) => l.values));
+  const n = Math.max(...lines.map((l) => l.values.length), 1);
+  const step = n > 1 ? (W - 2 * P) / (n - 1) : 0;
+  const toPts = (vals: number[]) => vals.map((v, i) => `${(P + i * step).toFixed(1)},${(H - P - (v / max) * (H - 2 * P)).toFixed(1)}`).join(" ");
+  return (
+    <div>
+      <div className="mb-1 flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-muted">
+        {lines.map((l) => (<span key={l.label} className="inline-flex items-center gap-1"><span className="inline-block h-2 w-2 rounded-full" style={{ background: l.color }} />{l.label}</span>))}
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" preserveAspectRatio="none" style={{ height: 150 }}>
+        {[1, 2, 3, 4].map((k) => (<line key={k} x1={0} y1={(H / 5) * k} x2={W} y2={(H / 5) * k} stroke="var(--line, #e7e9ee)" strokeWidth="1" />))}
+        {lines.map((l) => (<polyline key={l.label} points={toPts(l.values)} fill="none" stroke={l.color} strokeWidth="1.8" />))}
+      </svg>
+      {(leftLabel || rightLabel) && (
+        <div className="flex justify-between text-[9px] text-muted"><span>{leftLabel}</span><span>{rightLabel}</span></div>
+      )}
+    </div>
+  );
+}
+
 function Sec({ title, color, children }: { title: string; color: string; children: React.ReactNode }) {
   return (
     <section>
@@ -1038,6 +1121,15 @@ function Sec({ title, color, children }: { title: string; color: string; childre
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{children}</p>;
 }
+function Kc({ v, l }: { v: string; l: string }) {
+  return (
+    <div className="rounded-xl border border-border bg-surface-2/50 px-3 py-2.5">
+      <p className="font-display text-xl font-extrabold leading-none tabular-nums">{v}</p>
+      <p className="mt-1 text-[11px] text-muted">{l}</p>
+    </div>
+  );
+}
+
 function Kpi3({ v, l, c }: { v: string; l: string; c?: number | null }) {
   const up = c != null && c > 0, down = c != null && c < 0;
   return (

@@ -89,9 +89,16 @@ export async function GET(request: Request) {
     // Impressões: soma das 4 fontes por dia.
     const impDay = (d: Date) =>
       IMPRESSION_METRICS.reduce((s, m) => s + (data[m]?.get(dayKey(d)) ?? 0), 0);
+    // Separadas em Busca e Maps (desktop + mobile de cada).
+    const SEARCH_METRICS = ["BUSINESS_IMPRESSIONS_DESKTOP_SEARCH", "BUSINESS_IMPRESSIONS_MOBILE_SEARCH"] as const;
+    const MAPS_METRICS = ["BUSINESS_IMPRESSIONS_DESKTOP_MAPS", "BUSINESS_IMPRESSIONS_MOBILE_MAPS"] as const;
+    const searchDay = (d: Date) => SEARCH_METRICS.reduce((s, m) => s + (data[m]?.get(dayKey(d)) ?? 0), 0);
+    const mapsDay = (d: Date) => MAPS_METRICS.reduce((s, m) => s + (data[m]?.get(dayKey(d)) ?? 0), 0);
 
     const impCur = curDays.reduce((s, d) => s + impDay(d), 0);
     const impPrev = prevDays.reduce((s, d) => s + impDay(d), 0);
+    const searchCur = curDays.reduce((s, d) => s + searchDay(d), 0);
+    const mapsCur = curDays.reduce((s, d) => s + mapsDay(d), 0);
 
     const metric = (name: string) => ({
       current: sumWindow(data[name], curDays),
@@ -106,6 +113,8 @@ export async function GET(request: Request) {
 
     const kpis = {
       impressions: { current: impCur, previous: impPrev, change: pct(impCur, impPrev), changeYoY: pct(impCur, yoySum(IMPRESSION_METRICS)) },
+      impressionsSearch: { current: searchCur, change: null, changeYoY: pct(searchCur, yoySum(SEARCH_METRICS)) },
+      impressionsMaps: { current: mapsCur, change: null, changeYoY: pct(mapsCur, yoySum(MAPS_METRICS)) },
       interactions: { current: intCur, previous: intPrev, change: pct(intCur, intPrev), changeYoY: pct(intCur, yoySum(ACTION_METRICS)) },
       website: metric("WEBSITE_CLICKS"),
       calls: metric("CALL_CLICKS"),
@@ -153,6 +162,19 @@ export async function GET(request: Request) {
 
     const series = curDays.map((d) => ({ date: dayKey(d), value: impDay(d) }));
 
+    // Séries DIÁRIAS por canal — para os gráficos de linha do desempenho detalhado.
+    const dayVal = (name: string) => (d: Date) => data[name]?.get(dayKey(d)) ?? 0;
+    const daily = {
+      labels: curDays.map((d) => dayKey(d)),
+      viewsTotal: curDays.map(impDay),
+      viewsSearch: curDays.map(searchDay),
+      viewsMaps: curDays.map(mapsDay),
+      actTotal: curDays.map((d) => ACTION_METRICS.reduce((s, m) => s + (data[m]?.get(dayKey(d)) ?? 0), 0)),
+      actWebsite: curDays.map(dayVal("WEBSITE_CLICKS")),
+      actCalls: curDays.map(dayVal("CALL_CLICKS")),
+      actRoutes: curDays.map(dayVal("BUSINESS_DIRECTION_REQUESTS")),
+    };
+
     // Como as pessoas descobriram (ordem fixa para cores consistentes).
     const sources = [
       { key: "search_mobile", label: "Pesquisa Google – dispositivos móveis", value: sumWindow(data["BUSINESS_IMPRESSIONS_MOBILE_SEARCH"], curDays) },
@@ -182,6 +204,7 @@ export async function GET(request: Request) {
       kpis,
       engagement,
       series,
+      daily,
       sources,
       keywords,
       searches,
