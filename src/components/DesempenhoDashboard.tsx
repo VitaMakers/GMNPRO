@@ -211,14 +211,6 @@ export default function DesempenhoDashboard({
                 <p className="text-lg font-bold leading-tight text-white">Visualizações</p>
                 <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>Visão por dia</p>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold" style={{ color: "#0a2149" }}>
-                  <span className="inline-block h-0.5 w-4 rounded" style={{ background: "#0a2149" }} />Média 7 dias
-                </span>
-                <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold text-white" style={{ background: "linear-gradient(90deg, #14a79b, #22c7b8)" }}>
-                  Visualizações
-                </span>
-              </div>
             </div>
             <MetricChart data={report.series} label="Visualizações por dia" variant="bars" />
           </div>
