@@ -1,11 +1,25 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { tokenFromParam } from "@/lib/reportLink";
 import { createAdminClient } from "@/lib/supabase/server";
 import ReportView, { type ReportBranding, type ReportSnapshot } from "@/components/ReportView";
 import RelatorioBuilder, { type ShareConfig } from "@/components/RelatorioBuilder";
 
 export const dynamic = "force-dynamic";
-export const metadata: Metadata = { title: "Relatório do Perfil Google", robots: { index: false } };
+/** Título da aba com o nome da empresa (e da agência, se houver). */
+export async function generateMetadata({ params }: { params: Promise<{ token: string }> }): Promise<Metadata> {
+  const base: Metadata = { title: "Relatório do Perfil Google", robots: { index: false } };
+  try {
+    const { token: raw } = await params;
+    const { data } = await createAdminClient().from("shared_reports").select("snapshot, branding, access_code").eq("token", tokenFromParam(raw)).maybeSingle();
+    // Link protegido por código: não revela o nome antes do código.
+    if (!data || String(data.access_code ?? "").trim()) return base;
+    const biz = (data.snapshot as { title?: string } | null)?.title;
+    const agency = (data.branding as { name?: string | null } | null)?.name;
+    if (biz) return { ...base, title: `Relatório — ${biz}${agency ? ` · ${agency}` : ""}` };
+  } catch { /* usa o padrão */ }
+  return base;
+}
 
 export default async function RelatorioPage({
   params,
@@ -14,7 +28,8 @@ export default async function RelatorioPage({
   params: Promise<{ token: string }>;
   searchParams: Promise<{ code?: string }>;
 }) {
-  const { token } = await params;
+  const { token: rawParam } = await params;
+  const token = tokenFromParam(rawParam);
   const { code } = await searchParams;
   const admin = createAdminClient();
   const { data } = await admin
@@ -26,7 +41,7 @@ export default async function RelatorioPage({
 
   const needCode = !!(data.access_code && String(data.access_code).trim());
   if (needCode && (code ?? "").trim() !== String(data.access_code).trim()) {
-    return <CodeGate token={token} wrong={code != null} />;
+    return <CodeGate token={rawParam} wrong={code != null} />;
   }
 
   // Link novo (com a configuração do construtor): monta o MESMO relatório da

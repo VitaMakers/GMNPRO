@@ -3,6 +3,7 @@ import { randomBytes } from "crypto";
 import { createAdminClient } from "@/lib/supabase/server";
 import { emailConfigured, sendEmail, reportEmailHtml } from "@/lib/email";
 import { blockedUserIds } from "@/lib/subscriptionAccess";
+import { reportPath } from "@/lib/reportLink";
 
 export const dynamic = "force-dynamic";
 export const maxDuration = 300;
@@ -51,7 +52,7 @@ export async function GET(request: Request) {
       const token = randomBytes(9).toString("base64url");
       await admin.from("shared_reports").insert({ token, user_id: s.user_id, location_name: s.location_name, snapshot: snap, branding: branding ?? null });
       const label = freq === "biweekly" ? "quinzenal" : "mensal";
-      const html = reportEmailHtml(snap, `${base}/relatorio/${token}`, branding ?? null);
+      const html = reportEmailHtml(snap, `${base}${reportPath(token, (snap as { title?: string }).title)}`, branding ?? null);
       for (const to of recipients) {
         await sendEmail({ to, subject: `Relatório ${label} do perfil Google — ${snap.title}`, html });
       }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { reportPath } from "@/lib/reportLink";
 import { emailConfigured, sendEmail, reportEmailHtml } from "@/lib/email";
 
 export const dynamic = "force-dynamic";
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
   // Coluna `config` ainda não migrada (0032): grava no formato antigo.
   if (ins.error && config) await supabase.from("shared_reports").insert(row);
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
-  const url = `${base}/relatorio/${token}`;
+  const url = `${base}${reportPath(token, (snap as { title?: string }).title)}`;
 
   const html = reportEmailHtml({ ...snap, ranking: rk ?? null }, url, branding ?? null, b.note);
   const subject = `Relatório do perfil Google — ${snap.title}`;

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { randomBytes } from "crypto";
 import { createClient } from "@/lib/supabase/server";
+import { reportPath } from "@/lib/reportLink";
 
 export const dynamic = "force-dynamic";
 
@@ -37,5 +38,5 @@ export async function POST(request: Request) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
-  return NextResponse.json({ ok: true, token, url: `${base}/relatorio/${token}`, accessCode, live });
+  return NextResponse.json({ ok: true, token, url: `${base}${reportPath(token, (snap as { title?: string }).title)}`, accessCode, live });
 }
