@@ -5,6 +5,7 @@
 const ACCOUNT_MGMT = "https://mybusinessaccountmanagement.googleapis.com/v1";
 const BUSINESS_INFO = "https://mybusinessbusinessinformation.googleapis.com/v1";
 const LEGACY_V4 = "https://mybusiness.googleapis.com/v4";
+const QANDA = "https://mybusinessqanda.googleapis.com/v1";
 
 export interface GoogleAccount {
   name: string; // accounts/123
@@ -280,6 +281,48 @@ export async function listLocalPosts(
       thumbnailUrl: p.media?.[0]?.thumbnailUrl ?? p.media?.[0]?.googleUrl ?? null,
       ctaType: p.callToAction?.actionType ?? null,
       ctaUrl: p.callToAction?.url ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+export interface ProfileQuestion {
+  text: string;
+  authorName: string | null;
+  createTime: string | null;
+  totalAnswers: number;
+  topAnswer: string | null;
+}
+
+interface RawQuestion {
+  text?: string;
+  author?: { displayName?: string };
+  createTime?: string;
+  totalAnswerCount?: number;
+  topAnswers?: { text?: string; author?: { displayName?: string } }[];
+}
+
+/**
+ * Perguntas e respostas (Q&A) do perfil — seção "Clientes". Via API
+ * mybusinessqanda. Nem todo perfil tem Q&A; nunca lança (retorna []).
+ */
+export async function listQuestions(
+  accessToken: string,
+  accountLocation: string,
+): Promise<ProfileQuestion[]> {
+  const loc = locationResource(accountLocation);
+  try {
+    const data = await getJson<{ questions?: RawQuestion[] }>(
+      `${QANDA}/${loc}/questions?pageSize=20&answersPerQuestion=1&orderBy=updateTime%20desc`,
+      accessToken,
+    );
+    return (data.questions ?? []).map((q) => ({
+      text: q.text ?? "",
+      authorName: q.author?.displayName ?? null,
+      createTime: q.createTime ?? null,
+      totalAnswers: q.totalAnswerCount ?? (q.topAnswers?.length ?? 0),
+      topAnswer: q.topAnswers?.[0]?.text ?? null,
     }));
   } catch {
     return [];
