@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useActiveProfile, initActiveProfile, setActiveProfile } from "@/lib/profileStore";
 import { GRID_SIZES, gridCredits } from "@/lib/geogrid";
-import { rankingMetrics, RANKING_GLOSSARY, competitorTable } from "@/lib/rankingMetrics";
+import { rankingMetrics, RANKING_GLOSSARY, competitorTable, overallPosition } from "@/lib/rankingMetrics";
 import { rankColor } from "@/components/GridMap";
 
 const GridMap = dynamic(() => import("@/components/GridMap"), { ssr: false });
@@ -454,6 +454,7 @@ export default function RankingTool({
           {run && center ? (
             <>
               <GridMap points={run.points} center={center} title={selectedTitle} mode={mapMode} />
+              <OverallBanner run={run} title={selectedTitle} />
               <MetricsPanel points={run.points} gridSize={run.grid_size} top10={run.top10_pct ?? 0} />
 
               {/* Concorrentes: quem mais aparece no top dos pontos */}
@@ -533,7 +534,7 @@ function Competitors({ run, myTitle }: { run: Run; myTitle: string }) {
   // Garante que a linha "você" exista e esteja marcada, mesmo que o
   // match por place_id não tenha pegado o me.
   const me = rows.find((r) => r.isMe || r.title.toLowerCase() === myName);
-  const rivals = rows.filter((r) => r !== me).slice(0, 8);
+  const rivals = rows.filter((r) => r !== me).sort((a, b) => a.rank - b.rank).slice(0, 8);
   if (rows.length === 0) return null;
   const ordered = [me, ...rivals].filter(Boolean) as typeof rows;
   const maxSolv = Math.max(...ordered.map((r) => r.solv), 1);
@@ -544,9 +545,10 @@ function Competitors({ run, myTitle }: { run: Run; myTitle: string }) {
         Mesmas métricas para cada negócio ao longo da grade nesta palavra-chave. SoLV = % de pontos no top 3.
       </p>
       <div className="overflow-x-auto">
-        <table className="w-full min-w-[460px] text-left text-xs">
+        <table className="w-full min-w-[520px] text-left text-xs">
           <thead>
             <tr className="text-[10px] uppercase tracking-wide text-muted">
+              <th className="pb-1 pr-2 font-medium">Geral</th>
               <th className="pb-1 font-medium">Negócio</th>
               <th className="pb-1 text-center font-medium">SoLV</th>
               <th className="pb-1 text-center font-medium">ARP</th>
@@ -558,6 +560,7 @@ function Competitors({ run, myTitle }: { run: Run; myTitle: string }) {
           <tbody>
             {ordered.map((r) => (
               <tr key={r.key} className={`border-t border-border/50 ${r.isMe || r === me ? "font-semibold" : ""}`}>
+                <td className="py-1.5 pr-2 font-semibold">{r.rank}º</td>
                 <td className="py-1.5 pr-2">
                   <div className="flex items-center gap-1.5">
                     <span className="h-6 w-14 shrink-0 overflow-hidden rounded-full bg-surface-2">
@@ -671,6 +674,31 @@ function Legend({ c, t }: { c: string; t: string }) {
     <span className="flex items-center gap-1">
       <span className="h-2.5 w-2.5 rounded-full" style={{ background: c }} /> {t}
     </span>
+  );
+}
+
+/** Destaque: a posição geral da empresa para a palavra-chave (o número que resume a análise). */
+function OverallBanner({ run, title }: { run: Run; title: string }) {
+  const o = overallPosition(run.points);
+  if (!o) return null;
+  const col = rankColor(o.position);
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-4 rounded-2xl border border-border bg-white p-4">
+      <div className="grid h-20 w-20 shrink-0 place-items-center rounded-full text-2xl font-extrabold text-white" style={{ background: col }}>
+        {o.position}º
+      </div>
+      <div className="min-w-0 flex-1">
+        <p className="text-sm font-semibold">
+          Posição geral: {o.position}º de {o.total} empresas para &ldquo;{run.keyword}&rdquo;
+        </p>
+        <p className="mt-0.5 text-xs text-muted">
+          <strong className="text-foreground">{title}</strong>
+          {o.centerRank != null ? <> aparece em <strong className="text-foreground">{o.centerRank}º</strong> no ponto onde fica a empresa</> : <> não aparece no top 20 no ponto onde fica a empresa</>}
+          {o.outside > 0 ? <> e fica fora do top 20 em <strong className="text-foreground">{o.outside} de {o.points}</strong> pontos da região.</> : <> e aparece no top 20 em todos os {o.points} pontos.</>}
+        </p>
+        <p className="mt-1 text-[11px] text-muted">A posição geral compara a posição média na região inteira com a de cada empresa que apareceu nos resultados.{o.approx ? " Esta análise é antiga e guardou menos concorrentes por ponto — rode de novo para a posição exata." : ""}</p>
+      </div>
+    </div>
   );
 }
 
