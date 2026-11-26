@@ -211,6 +211,7 @@ export default function ProspeccaoTool({ credits: initialCredits, cost }: { cred
                         </td>
                         <td className="whitespace-nowrap py-2.5 text-xs">
                           {p.placeId && <Link href={`/auditoria?placeId=${encodeURIComponent(p.placeId)}`} className="font-medium text-brand hover:underline">Analisar perfil</Link>}
+                          {p.placeId && <Link href={`/ranking?placeId=${encodeURIComponent(p.placeId)}&nome=${encodeURIComponent(p.name)}`} className="ml-3 font-medium text-brand hover:underline">Ver ranking</Link>}
                           {p.mapsUrl && <a href={p.mapsUrl} target="_blank" rel="noreferrer" className="ml-3 text-muted hover:underline">Ver no Maps</a>}
                         </td>
                       </tr>

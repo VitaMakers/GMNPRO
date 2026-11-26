@@ -5,7 +5,7 @@ import { getAccess } from "@/lib/access";
 import { getValidAccessToken } from "@/lib/google/token";
 import { dataForSeoConfigured } from "@/lib/dataforseo";
 import { gridCredits, GRID_SIZES } from "@/lib/geogrid";
-import { executeRanking } from "@/lib/rankingRun";
+import { executeRanking, isPlaceLocation } from "@/lib/rankingRun";
 import { monthUsage } from "@/lib/rankingUsage";
 import { getCredits, spendCredits, refundCredits } from "@/lib/credits";
 
@@ -98,7 +98,8 @@ export async function POST(request: Request) {
     );
   }
   try {
-    const token = await getValidAccessToken(supabase, user.id);
+    // Empresa de terceiros (place:<id>) não usa a conexão com o Google do usuário.
+    const token = isPlaceLocation(location) ? null : await getValidAccessToken(supabase, user.id);
     const run = await executeRanking(supabase, user.id, token, { location, keyword, grid, spacingKm });
     const remaining = Math.max(0, credits - need);
 
@@ -107,7 +108,7 @@ export async function POST(request: Request) {
     await refundCredits(supabase, user.id, need);
     const msg = e instanceof Error ? e.message : "erro ao analisar";
     if (msg === "sem_coordenadas") {
-      return NextResponse.json({ error: "sem_coordenadas", detail: "O Google não retornou coordenadas para este perfil." }, { status: 422 });
+      return NextResponse.json({ error: "sem_coordenadas", detail: "Não foi possível localizar esta empresa no mapa. Tente buscar de novo pelo nome com a cidade." }, { status: 422 });
     }
     return NextResponse.json({ error: "falha", detail: msg }, { status: 502 });
   }
