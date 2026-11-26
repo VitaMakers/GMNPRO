@@ -9,8 +9,10 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
-  const { location } = (await request.json().catch(() => ({}))) as { location?: string };
+  const body = (await request.json().catch(() => ({}))) as { location?: string; accessCode?: string };
+  const location = body.location;
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
+  const accessCode = (body.accessCode ?? "").trim().slice(0, 40) || null;
 
   const [{ data: snap }, { data: branding }, { data: rk }] = await Promise.all([
     supabase.from("audit_snapshots").select("*").eq("user_id", user.id).eq("location_name", location).maybeSingle(),
@@ -23,10 +25,10 @@ export async function POST(request: Request) {
 
   const token = randomBytes(9).toString("base64url");
   const { error } = await supabase.from("shared_reports").insert({
-    token, user_id: user.id, location_name: location, snapshot, branding: branding ?? null,
+    token, user_id: user.id, location_name: location, snapshot, branding: branding ?? null, access_code: accessCode,
   });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
-  return NextResponse.json({ ok: true, token, url: `${base}/relatorio/${token}` });
+  return NextResponse.json({ ok: true, token, url: `${base}/relatorio/${token}`, accessCode });
 }

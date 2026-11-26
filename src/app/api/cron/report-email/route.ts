@@ -19,29 +19,42 @@ export async function GET(request: Request) {
   if (!authorized(request)) return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   if (!emailConfigured()) return NextResponse.json({ ok: false, reason: "email_not_configured" });
   const admin = createAdminClient();
-  const cutoff = new Date(Date.now() - 28 * 86_400_000).toISOString();
-
+  const now = Date.now();
+  // Seleciona com o corte mais frouxo (quinzenal ≈14d) e decide por linha
+  // conforme a frequência (mensal ≈28d). last_sent_at nulo sempre entra.
+  const biweeklyCutoff = new Date(now - 14 * 86_400_000).toISOString();
   const { data: subs } = await admin
     .from("report_subscriptions")
-    .select("user_id, location_name, email, last_sent_at")
+    .select("user_id, location_name, email, last_sent_at, frequency")
     .eq("monthly", true)
-    .or(`last_sent_at.is.null,last_sent_at.lt.${cutoff}`)
-    .limit(100);
+    .or(`last_sent_at.is.null,last_sent_at.lt.${biweeklyCutoff}`)
+    .limit(200);
 
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
   let sent = 0, skipped = 0, failed = 0;
   const blocked = await blockedUserIds(admin, (subs ?? []).map((s: { user_id: string }) => s.user_id));
   for (const s of subs ?? []) {
     if (blocked.has(s.user_id)) { skipped++; continue; }
+    // Mensal só dispara após ~28 dias; quinzenal após ~14 (já filtrado na query).
+    const freq = (s as { frequency?: string }).frequency ?? "monthly";
+    const lastMs = s.last_sent_at ? new Date(s.last_sent_at).getTime() : 0;
+    const minGap = freq === "biweekly" ? 14 : 28;
+    if (lastMs && now - lastMs < minGap * 86_400_000) { skipped++; continue; }
     const [{ data: snap }, { data: branding }] = await Promise.all([
       admin.from("audit_snapshots").select("*").eq("user_id", s.user_id).eq("location_name", s.location_name).maybeSingle(),
       admin.from("agency_branding").select("name, logo_url, color, phone, site").eq("user_id", s.user_id).maybeSingle(),
     ]);
     if (!snap) { skipped++; continue; }
+    const recipients = String(s.email ?? "").split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean);
+    if (recipients.length === 0) { skipped++; continue; }
     try {
       const token = randomBytes(9).toString("base64url");
       await admin.from("shared_reports").insert({ token, user_id: s.user_id, location_name: s.location_name, snapshot: snap, branding: branding ?? null });
-      await sendEmail({ to: s.email, subject: `Relatório mensal do perfil Google — ${snap.title}`, html: reportEmailHtml(snap, `${base}/relatorio/${token}`, branding ?? null) });
+      const label = freq === "biweekly" ? "quinzenal" : "mensal";
+      const html = reportEmailHtml(snap, `${base}/relatorio/${token}`, branding ?? null);
+      for (const to of recipients) {
+        await sendEmail({ to, subject: `Relatório ${label} do perfil Google — ${snap.title}`, html });
+      }
       await admin.from("report_subscriptions").update({ last_sent_at: new Date().toISOString() }).eq("user_id", s.user_id).eq("location_name", s.location_name);
       sent++;
     } catch { failed++; }

@@ -12,9 +12,14 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
   if (!emailConfigured()) return NextResponse.json({ error: "not_configured", detail: "RESEND_API_KEY não configurada no Vercel." }, { status: 503 });
 
-  const b = (await request.json().catch(() => ({}))) as { location?: string; to?: string; note?: string; monthly?: boolean };
-  const to = (b.to ?? "").trim();
-  if (!b.location || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) return NextResponse.json({ error: "dados_invalidos" }, { status: 400 });
+  const b = (await request.json().catch(() => ({}))) as { location?: string; to?: string; note?: string; monthly?: boolean; frequency?: string };
+  // Vários destinatários: separados por vírgula, ponto-e-vírgula ou quebra de linha.
+  const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+  const recipients = [...new Set((b.to ?? "").split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean))].slice(0, 10);
+  const invalid = recipients.filter((e) => !emailRe.test(e));
+  if (!b.location || recipients.length === 0 || invalid.length > 0) return NextResponse.json({ error: "dados_invalidos" }, { status: 400 });
+  // Frequência: 'once' (só agora), 'biweekly' (quinzenal) ou 'monthly' (mensal).
+  const frequency = b.frequency === "biweekly" ? "biweekly" : b.frequency === "monthly" || b.monthly ? "monthly" : "once";
 
   const [{ data: snap }, { data: branding }, { data: rk }] = await Promise.all([
     supabase.from("audit_snapshots").select("*").eq("user_id", user.id).eq("location_name", b.location).maybeSingle(),
@@ -30,24 +35,27 @@ export async function POST(request: Request) {
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
   const url = `${base}/relatorio/${token}`;
 
+  const html = reportEmailHtml({ ...snap, ranking: rk ?? null }, url, branding ?? null, b.note);
+  const subject = `Relatório do perfil Google — ${snap.title}`;
   try {
-    await sendEmail({
-      to,
-      subject: `Relatório do perfil Google — ${snap.title}`,
-      html: reportEmailHtml({ ...snap, ranking: rk ?? null }, url, branding ?? null, b.note),
-      replyTo: user.email ?? undefined,
-    });
+    for (const to of recipients) {
+      await sendEmail({ to, subject, html, replyTo: user.email ?? undefined });
+    }
   } catch (e) {
     return NextResponse.json({ error: "envio", detail: e instanceof Error ? e.message : "erro" }, { status: 502 });
   }
 
-  // Assinatura mensal (best-effort).
+  // Agendamento automático (best-effort). 'once' não cria assinatura.
   try {
-    await supabase.from("report_subscriptions").upsert(
-      { user_id: user.id, location_name: b.location, email: to, monthly: !!b.monthly, last_sent_at: new Date().toISOString() },
-      { onConflict: "user_id,location_name" },
-    );
+    if (frequency === "once") {
+      await supabase.from("report_subscriptions").delete().eq("user_id", user.id).eq("location_name", b.location);
+    } else {
+      await supabase.from("report_subscriptions").upsert(
+        { user_id: user.id, location_name: b.location, email: recipients.join(","), monthly: true, frequency, last_sent_at: new Date().toISOString() },
+        { onConflict: "user_id,location_name" },
+      );
+    }
   } catch { /* tabela ausente */ }
 
-  return NextResponse.json({ ok: true, url });
+  return NextResponse.json({ ok: true, url, sent: recipients.length, frequency });
 }
