@@ -9,7 +9,8 @@ interface Point {
 
 /**
  * variant "line" (padrão): linha com área.
- * variant "bars": barras com degradê + linha suave da média móvel de 7 dias.
+ * variant "bars": barras com degradê + linha suave da média móvel de 7 dias,
+ *   desenhado para ficar sobre um painel ESCURO (cores claras no eixo e na linha).
  */
 export default function MetricChart({ data, label, variant = "line" }: { data: Point[]; label: string; variant?: "line" | "bars" }) {
   const bars = variant === "bars";
@@ -57,7 +58,7 @@ export default function MetricChart({ data, label, variant = "line" }: { data: P
     }
     return d;
   })();
-  const barW = Math.max(2, Math.min(34, band * 0.62));
+  const barW = Math.max(2, Math.min(30, band * 0.56));
 
   // Rótulos de data (no máx. 5)
   const step = Math.max(1, Math.floor(data.length / 5));
@@ -85,8 +86,8 @@ export default function MetricChart({ data, label, variant = "line" }: { data: P
       >
         {gridVals.map((v, i) => (
           <g key={i}>
-            <line x1={padL} x2={W - padR} y1={y(v)} y2={y(v)} stroke="var(--border)" strokeWidth="1" />
-            <text x={padL - 8} y={y(v) + 4} textAnchor="end" fontSize="11" fill="var(--muted)">
+            <line x1={padL} x2={W - padR} y1={y(v)} y2={y(v)} stroke={bars ? "rgba(255,255,255,0.16)" : "var(--border)"} strokeWidth="1" />
+            <text x={padL - 8} y={y(v) + 4} textAnchor="end" fontSize="11" fill={bars ? "rgba(255,255,255,0.6)" : "var(--muted)"}>
               {Math.round(v)}
             </text>
           </g>
@@ -96,20 +97,26 @@ export default function MetricChart({ data, label, variant = "line" }: { data: P
           <>
             <defs>
               <linearGradient id="mc-bar" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="0%" stopColor="var(--brand)" />
-                <stop offset="100%" stopColor="var(--brand-2)" />
+                <stop offset="0%" stopColor="#2fe3d1" />
+                <stop offset="55%" stopColor="#14a79b" />
+                <stop offset="100%" stopColor="#0b5f78" />
               </linearGradient>
+              <filter id="mc-shadow" x="-30%" y="-10%" width="160%" height="130%">
+                <feDropShadow dx="0" dy="3" stdDeviation="3" floodColor="#000" floodOpacity="0.28" />
+              </filter>
             </defs>
-            {data.map((d, i) => {
-              const h = Math.max(d.value > 0 ? 2 : 0, padT + plotH - y(d.value));
-              return (
-                <rect key={i} x={x(i) - barW / 2} y={padT + plotH - h} width={barW} height={h} rx={Math.min(3, barW / 2)}
-                  fill="url(#mc-bar)" opacity={hover === null || hover === i ? 1 : 0.55} />
-              );
-            })}
-            <path d={smoothPath} fill="none" stroke="var(--foreground)" strokeWidth="1.6" strokeOpacity="0.85" />
+            <g filter="url(#mc-shadow)">
+              {data.map((d, i) => {
+                const h = Math.max(d.value > 0 ? 2 : 0, padT + plotH - y(d.value));
+                return (
+                  <rect key={i} x={x(i) - barW / 2} y={padT + plotH - h} width={barW} height={h} rx="1"
+                    fill="url(#mc-bar)" opacity={hover === null || hover === i ? 1 : 0.6} />
+                );
+              })}
+            </g>
+            <path d={smoothPath} fill="none" stroke="#ffffff" strokeWidth="1.3" strokeOpacity="0.95" />
             {data.length <= 45 && avg.map((v, i) => (
-              <circle key={i} cx={x(i)} cy={y(v)} r="2.2" fill="var(--background)" stroke="var(--foreground)" strokeWidth="1.2" />
+              <circle key={i} cx={x(i)} cy={y(v)} r="2" fill="#ffffff" />
             ))}
           </>
         ) : (
@@ -121,7 +128,7 @@ export default function MetricChart({ data, label, variant = "line" }: { data: P
 
         {data.map((d, i) =>
           i % step === 0 || i === data.length - 1 ? (
-            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill="var(--muted)">
+            <text key={i} x={x(i)} y={H - 8} textAnchor="middle" fontSize="11" fill={bars ? "rgba(255,255,255,0.6)" : "var(--muted)"}>
               {fmt(d.date)}
             </text>
           ) : null,
@@ -129,7 +136,7 @@ export default function MetricChart({ data, label, variant = "line" }: { data: P
 
         {hover !== null && (
           <g>
-            <line x1={x(hover)} x2={x(hover)} y1={padT} y2={padT + plotH} stroke="var(--border)" strokeWidth="1" />
+            <line x1={x(hover)} x2={x(hover)} y1={padT} y2={padT + plotH} stroke={bars ? "rgba(255,255,255,0.35)" : "var(--border)"} strokeWidth="1" />
             {!bars && <circle cx={x(hover)} cy={y(data[hover].value)} r="4" fill="var(--brand-2)" stroke="var(--background)" strokeWidth="2" />}
           </g>
         )}
@@ -146,12 +153,6 @@ export default function MetricChart({ data, label, variant = "line" }: { data: P
         </div>
       )}
 
-      {bars && (
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-x-5 gap-y-1 text-xs text-muted">
-          <span className="inline-flex items-center gap-1.5"><span className="inline-block h-3 w-2 rounded-sm" style={{ background: "linear-gradient(var(--brand), var(--brand-2))" }} />{label}</span>
-          <span className="inline-flex items-center gap-1.5"><span className="inline-block h-0.5 w-5 rounded" style={{ background: "var(--foreground)" }} />Média dos últimos 7 dias</span>
-        </div>
-      )}
     </div>
   );
 }

@@ -205,11 +205,19 @@ export default function DesempenhoDashboard({
           </div>
 
           {/* Gráfico de visualizações por dia */}
-          <div className="rounded-3xl border border-border bg-white p-6 card-soft">
-            <div className="mb-4 flex items-center justify-between">
+          <div className="rounded-3xl p-6 shadow-lg" style={{ background: "linear-gradient(135deg, #0a2149 0%, #0b3350 55%, #0c4a52 100%)" }}>
+            <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
               <div>
-                <p className="text-sm font-semibold">Visualizações por dia</p>
-                <p className="text-xs text-muted">Barras: visualizações de cada dia. Linha: média dos últimos 7 dias.</p>
+                <p className="text-lg font-bold leading-tight text-white">Visualizações</p>
+                <p className="text-xs" style={{ color: "rgba(255,255,255,0.6)" }}>Visão por dia</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-white px-4 py-1.5 text-xs font-semibold" style={{ color: "#0a2149" }}>
+                  <span className="inline-block h-0.5 w-4 rounded" style={{ background: "#0a2149" }} />Média 7 dias
+                </span>
+                <span className="inline-flex items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold text-white" style={{ background: "linear-gradient(90deg, #14a79b, #22c7b8)" }}>
+                  Visualizações
+                </span>
               </div>
             </div>
             <MetricChart data={report.series} label="Visualizações por dia" variant="bars" />
