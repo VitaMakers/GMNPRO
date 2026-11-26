@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { rankingMetrics, RANKING_GLOSSARY } from "@/lib/rankingMetrics";
 
 type Loc = { location_name: string; title: string | null };
 type Branding = { name?: string; logo_url?: string; color?: string; phone?: string; site?: string } | null;
@@ -25,7 +26,7 @@ interface Perf {
 }
 interface Stars { average: number; total: number; sampled: number; counts: { stars: number; count: number }[] }
 interface AI { summary: string; praises: string[]; complaints: string[] }
-interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; points?: unknown }
+interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; points?: { rank: number | null }[] }
 
 const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
 const fmtK = (n: number) =>
@@ -68,7 +69,8 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
   ] },
   { key: "rank", label: "🗺️ Ranking no Maps", subs: [
     { key: "mapa", label: "Mapa (grade)" },
-    { key: "metricas", label: "Posição / top 3 / top 10" },
+    { key: "metricas", label: "Métricas ARP / ATRP / SoLV" },
+    { key: "glossario", label: "Glossário das métricas" },
   ] },
   { key: "obs", label: "🔎 Observações da agência (você escreve)", editable: "O que você observou neste período, análise, insights…", subs: [] },
   { key: "plano", label: "🚀 Próximos passos (você escreve)", editable: "Um por linha: o que será feito no próximo mês…", subs: [] },
@@ -569,13 +571,27 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
               {rank ? (
                 <div className="flex flex-wrap items-center gap-6">
                   {sOn("rank", "mapa") && <GeoGrid run={rank} />}
-                  {sOn("rank", "metricas") && (
-                    <div className="text-sm">
-                      <p className="text-muted">Busca: <strong className="text-foreground">{rank.keyword}</strong> · grade {rank.grid_size}×{rank.grid_size}</p>
-                      <p className="mt-1 text-muted">Posição média: <strong className="text-foreground">{rank.avg_rank ?? "—"}</strong></p>
-                      <p className="text-muted">No top 3: <strong className="text-foreground">{rank.top3_pct ?? 0}%</strong> · no top 10: <strong className="text-foreground">{rank.top10_pct ?? 0}%</strong></p>
-                    </div>
-                  )}
+                  {sOn("rank", "metricas") && (() => {
+                    const m = rankingMetrics(rank.points);
+                    return (
+                      <div className="text-sm">
+                        <p className="text-muted">Busca: <strong className="text-foreground">{rank.keyword}</strong> · grade {rank.grid_size}×{rank.grid_size}</p>
+                        <div className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1 sm:grid-cols-4">
+                          <div><p className="text-lg font-bold leading-none" style={{ color }}>{m.arp != null ? m.arp.toLocaleString("pt-BR") : "—"}</p><p className="text-[11px] text-muted">ARP · pos. média</p></div>
+                          <div><p className="text-lg font-bold leading-none" style={{ color }}>{m.atrp != null ? m.atrp.toLocaleString("pt-BR") : "—"}</p><p className="text-[11px] text-muted">ATRP · pos. total</p></div>
+                          <div><p className="text-lg font-bold leading-none" style={{ color }}>{m.solv}%</p><p className="text-[11px] text-muted">SoLV · top 3</p></div>
+                          <div><p className="text-lg font-bold leading-none" style={{ color }}>{rank.top10_pct ?? 0}%</p><p className="text-[11px] text-muted">Top 10</p></div>
+                        </div>
+                        {sub["rank.glossario"] !== false && (
+                          <dl className="mt-3 space-y-1 border-t border-border pt-2 text-[10px] text-muted">
+                            {RANKING_GLOSSARY.map((g) => (
+                              <div key={g.sigla}><dt className="inline font-semibold text-foreground">{g.sigla} — {g.nome}: </dt><dd className="inline">{g.desc}</dd></div>
+                            ))}
+                          </dl>
+                        )}
+                      </div>
+                    );
+                  })()}
                 </div>
               ) : <Empty>Rode uma Análise de Ranking para este perfil para incluir o mapa.</Empty>}
             </Sec>
