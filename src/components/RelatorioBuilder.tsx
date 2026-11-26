@@ -40,8 +40,12 @@ const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "se
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "palavras" | "clientes" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
+type SecKey = "perfilgoogle" | "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "palavras" | "clientes" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
 const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
+  { key: "perfilgoogle", label: "📇 Seu perfil no Google", subs: [
+    { key: "painel", label: "Painel do gerenciador" },
+    { key: "visaogeral", label: "Visão geral pública" },
+  ] },
   { key: "resumoExec", label: "📝 Resumo executivo (você escreve)", editable: "Escreva uma abertura: o panorama do mês para o cliente…", subs: [] },
   { key: "capa", label: "🏢 Ficha da empresa", subs: [] },
   { key: "forca", label: "💪 Força do perfil", subs: [
@@ -500,6 +504,81 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
         <div className="space-y-5 p-6">
           {loading && <p className="text-sm text-muted">Carregando dados do Google…</p>}
           {!loading && !anyOn && <p className="text-sm text-muted">Selecione ao menos uma seção.</p>}
+
+          {!loading && sec.perfilgoogle && (strength?.profile || stars || perf) && (() => {
+            const p = strength?.profile;
+            const bizName = p?.title ?? strength?.title ?? activeTitle;
+            const inter = perf?.kpis?.interactions?.current;
+            const score = strength?.score;
+            const rating = p?.rating ?? stars?.average ?? perf?.reviews?.average ?? null;
+            const reviews = p?.reviewCount ?? stars?.total ?? perf?.reviews?.total ?? null;
+            const statusTxt = score == null ? "" : score >= 80 ? "Tudo certo!" : score >= 50 ? "Quase lá" : "Precisa de atenção";
+            const C = 2 * Math.PI * 12;
+            const ACTIONS: [string, string][] = [["✏️", "Editar perfil"], ["⭐", "Avaliações"], ["🖼️", "Fotos"], ["📝", "Posts"], ["📈", "Desempenho"], ["📣", "Anunciar"], ["🛍️", "Produtos"], ["🧾", "Serviços"], ["📅", "Agend."], ["💬", "Solicitar"]];
+            return (
+              <div className="space-y-4">
+                {sub["perfilgoogle.painel"] !== false && (
+                  <div className="rounded-2xl p-5" style={{ background: "#1f1f20", color: "#e8eaed" }}>
+                    <div className="flex items-center gap-3">
+                      {p?.photoUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.photoUrl} alt="" className="h-12 w-12 shrink-0 rounded-full object-cover" />
+                      ) : (
+                        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full text-lg" style={{ background: "#3c4043" }}>🏢</div>
+                      )}
+                      <div className="min-w-0">
+                        <p className="truncate text-lg font-medium">{bizName}</p>
+                        {inter != null && <p className="text-sm" style={{ color: "#8ab4f8" }}>▮▮ {inter.toLocaleString("pt-BR")} interações com clientes</p>}
+                      </div>
+                      {score != null && (
+                        <div className="ml-auto flex items-center gap-2">
+                          <div className="text-right">
+                            <p className="text-sm leading-tight">Força do perfil</p>
+                            <p className="text-xs" style={{ color: "#9aa0a6" }}>{statusTxt}</p>
+                          </div>
+                          <svg viewBox="0 0 30 30" width="28" height="28">
+                            <circle cx="15" cy="15" r="12" fill="none" stroke="#3c4043" strokeWidth="4" />
+                            <circle cx="15" cy="15" r="12" fill="none" stroke={score >= 50 ? "#34a853" : "#f59e0b"} strokeWidth="4" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - score / 100)} transform="rotate(-90 15 15)" />
+                          </svg>
+                        </div>
+                      )}
+                    </div>
+                    <div className="mt-4 grid grid-cols-5 gap-y-3 sm:grid-cols-10">
+                      {ACTIONS.map(([ic, t]) => (
+                        <div key={t} className="text-center">
+                          <div className="mx-auto mb-1 grid h-9 w-9 place-items-center rounded-full text-base" style={{ color: "#8ab4f8", background: "#2a2b2e" }}>{ic}</div>
+                          <p className="truncate text-[10px]" style={{ color: "#c7cace" }}>{t}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {sub["perfilgoogle.visaogeral"] !== false && (
+                  <div className="rounded-2xl border border-border p-5">
+                    <p className="font-display text-xl font-bold text-foreground">{bizName}{p?.verified ? " ✔" : ""}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted">
+                      {rating != null && <span className="font-semibold text-foreground">{rating.toFixed(1)} <span style={{ color: "#f5b400" }}>★★★★★</span></span>}
+                      {reviews != null && <span>{reviews.toLocaleString("pt-BR")} avaliações</span>}
+                      {p?.category && <span>· {p.category}</span>}
+                    </div>
+                    {media && media.items.filter((m) => m.thumbnailUrl).length > 0 && (
+                      <div className="mt-3 grid grid-cols-6 gap-2">
+                        {media.items.filter((m) => m.thumbnailUrl).slice(0, 6).map((m, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={m.thumbnailUrl!} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                        ))}
+                      </div>
+                    )}
+                    {p?.address && <p className="mt-3 text-sm text-muted">📍 {p.address}</p>}
+                    {(p?.phone || p?.website) && (
+                      <p className="mt-1 text-sm text-muted">{[p?.phone && `📞 ${p.phone}`, p?.website && `🌐 ${p.website.replace(/^https?:\/\//, "")}`].filter(Boolean).join("  ·  ")}</p>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {!loading && sec.resumoExec && txt.resumoExec?.trim() && (
             <Sec color={color} title="Resumo executivo">
