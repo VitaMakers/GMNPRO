@@ -128,6 +128,16 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const [posts, setPosts] = useState<PostItem[]>([]);
   const [services, setServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  // Compartilhar / enviar
+  const [shareCode, setShareCode] = useState("");
+  const [shareUrl, setShareUrl] = useState("");
+  const [shareBusy, setShareBusy] = useState(false);
+  const [shareMsg, setShareMsg] = useState("");
+  const [emailTo, setEmailTo] = useState("");
+  const [emailFreq, setEmailFreq] = useState<"once" | "biweekly" | "monthly">("once");
+  const [emailNote, setEmailNote] = useState("");
+  const [emailBusy, setEmailBusy] = useState(false);
+  const [emailMsg, setEmailMsg] = useState("");
 
   const load = useCallback(async () => {
     if (!loc) return;
@@ -217,6 +227,59 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
     } finally {
       setUploading(false);
       if (fileRef.current) fileRef.current.value = "";
+    }
+  }
+
+  async function doShare() {
+    if (!loc) return;
+    setShareBusy(true);
+    setShareMsg("");
+    setShareUrl("");
+    try {
+      const res = await fetch("/api/report/share", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: loc, accessCode: shareCode.trim() || undefined }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setShareMsg(data.detail || (data.error === "sem_analise" ? "Rode a Análise Completa deste perfil primeiro." : "Não foi possível gerar o link."));
+        return;
+      }
+      setShareUrl(data.url);
+    } catch {
+      setShareMsg("Falha ao gerar o link.");
+    } finally {
+      setShareBusy(false);
+    }
+  }
+
+  async function doEmail() {
+    if (!loc) return;
+    setEmailBusy(true);
+    setEmailMsg("");
+    try {
+      const res = await fetch("/api/report/email", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ location: loc, to: emailTo, note: emailNote.trim() || undefined, frequency: emailFreq }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setEmailMsg(
+          data.error === "not_configured" ? "Envio de e-mail não configurado (RESEND_API_KEY)."
+            : data.error === "sem_analise" ? "Rode a Análise Completa deste perfil primeiro."
+              : data.error === "dados_invalidos" ? "Confira os e-mails informados."
+                : data.detail || "Não foi possível enviar.",
+        );
+        return;
+      }
+      const freqTxt = data.frequency === "biweekly" ? " · agendado quinzenal" : data.frequency === "monthly" ? " · agendado mensal" : "";
+      setEmailMsg(`Enviado para ${data.sent} destinatário(s)${freqTxt}.`);
+    } catch {
+      setEmailMsg("Falha ao enviar.");
+    } finally {
+      setEmailBusy(false);
     }
   }
 
@@ -336,6 +399,70 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
               Baixar PDF
             </button>
             <p className="mt-2 text-[11px] text-muted">Abre a impressão — escolha &ldquo;Salvar como PDF&rdquo;.</p>
+          </div>
+        </div>
+
+        {/* Compartilhar e enviar */}
+        <div className="rounded-3xl border border-border bg-white p-5 card-soft">
+          <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Compartilhar e enviar</p>
+          <p className="mb-3 text-[11px] text-muted">Gere um link para o cliente ou envie o relatório por e-mail.</p>
+
+          {/* Link do cliente */}
+          <label className="text-xs font-medium text-muted">Código de acesso (opcional)</label>
+          <input
+            value={shareCode}
+            onChange={(e) => setShareCode(e.target.value)}
+            placeholder="ex.: 4821 — deixe vazio para link aberto"
+            className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+          />
+          <button onClick={doShare} disabled={shareBusy || !loc} className="mt-2 w-full rounded-lg bg-brand px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+            {shareBusy ? "Gerando…" : "Gerar link do cliente"}
+          </button>
+          {shareUrl && (
+            <div className="mt-2 rounded-lg border border-border bg-surface-2 p-2">
+              <p className="break-all text-[11px] text-foreground">{shareUrl}</p>
+              <div className="mt-1 flex items-center gap-3">
+                <button onClick={() => { navigator.clipboard?.writeText(shareUrl); setShareMsg("Link copiado!"); }} className="text-[11px] font-medium text-brand hover:underline">Copiar link</button>
+                <a href={shareUrl} target="_blank" rel="noreferrer" className="text-[11px] font-medium text-brand hover:underline">Abrir</a>
+                {shareCode.trim() && <span className="text-[11px] text-muted">código: <strong className="text-foreground">{shareCode.trim()}</strong></span>}
+              </div>
+            </div>
+          )}
+          {shareMsg && <p className="mt-1 text-[11px] text-brand-2">{shareMsg}</p>}
+
+          {/* E-mail */}
+          <div className="mt-4 border-t border-border/60 pt-3">
+            <label className="text-xs font-medium text-muted">Enviar por e-mail (vários separados por vírgula)</label>
+            <input
+              value={emailTo}
+              onChange={(e) => setEmailTo(e.target.value)}
+              placeholder="cliente@empresa.com, financeiro@empresa.com"
+              className="mt-1 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <textarea
+              value={emailNote}
+              onChange={(e) => setEmailNote(e.target.value)}
+              placeholder="Mensagem (opcional) que vai no corpo do e-mail…"
+              rows={2}
+              className="mt-2 w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand"
+            />
+            <div className="mt-2 flex items-center gap-2">
+              <span className="text-xs text-muted">Frequência:</span>
+              {([["once", "Só agora"], ["biweekly", "Quinzenal"], ["monthly", "Mensal"]] as const).map(([v, l]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => setEmailFreq(v)}
+                  className={`rounded-lg border px-2.5 py-1 text-[11px] font-medium transition ${emailFreq === v ? "border-brand bg-brand text-white" : "border-border hover:bg-surface-2"}`}
+                >
+                  {l}
+                </button>
+              ))}
+            </div>
+            <button onClick={doEmail} disabled={emailBusy || !loc} className="mt-2 w-full rounded-lg bg-brand-2 px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60">
+              {emailBusy ? "Enviando…" : emailFreq === "once" ? "Enviar agora" : "Enviar e agendar"}
+            </button>
+            {emailMsg && <p className="mt-1 text-[11px] text-brand-2">{emailMsg}</p>}
           </div>
         </div>
       </div>
