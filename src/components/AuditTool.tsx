@@ -115,7 +115,7 @@ export default function AuditTool() {
     if (!query.trim()) return;
     setLoading(true);
     try {
-      const res = await fetch(`/api/audit?q=${encodeURIComponent(query)}`);
+      const res = await fetch(`/api/audit?q=${encodeURIComponent(query)}${geo ? `&lat=${geo.lat}&lng=${geo.lng}` : ""}`);
       if (res.status === 503) {
         setNotConfigured(true);
         return;
