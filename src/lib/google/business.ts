@@ -235,3 +235,90 @@ export async function createLocalPost(
   if (!res.ok) throw new Error(`createLocalPost ${res.status}: ${await res.text()}`);
   return res.json();
 }
+
+export interface LocalPostSummary {
+  summary: string;
+  createTime: string | null;
+  topicType: string | null; // STANDARD | EVENT | OFFER | ALERT
+  state: string | null; // LIVE | REJECTED | ...
+  searchUrl: string | null;
+  thumbnailUrl: string | null;
+  ctaType: string | null;
+  ctaUrl: string | null;
+}
+
+interface RawLocalPost {
+  summary?: string;
+  createTime?: string;
+  topicType?: string;
+  state?: string;
+  searchUrl?: string;
+  media?: { googleUrl?: string; thumbnailUrl?: string }[];
+  callToAction?: { actionType?: string; url?: string };
+}
+
+/**
+ * Lista as postagens (localPosts) já publicadas no perfil, via API v4.
+ * `accountLocation` no formato accounts/{acc}/locations/{loc}.
+ * Devolve só o que o relatório precisa; nunca lança (retorna []).
+ */
+export async function listLocalPosts(
+  accessToken: string,
+  accountLocation: string,
+): Promise<LocalPostSummary[]> {
+  try {
+    const data = await getJson<{ localPosts?: RawLocalPost[] }>(
+      `${LEGACY_V4}/${accountLocation}/localPosts?pageSize=50`,
+      accessToken,
+    );
+    return (data.localPosts ?? []).map((p) => ({
+      summary: p.summary ?? "",
+      createTime: p.createTime ?? null,
+      topicType: p.topicType ?? null,
+      state: p.state ?? null,
+      searchUrl: p.searchUrl ?? null,
+      thumbnailUrl: p.media?.[0]?.thumbnailUrl ?? p.media?.[0]?.googleUrl ?? null,
+      ctaType: p.callToAction?.actionType ?? null,
+      ctaUrl: p.callToAction?.url ?? null,
+    }));
+  } catch {
+    return [];
+  }
+}
+
+interface RawServiceItem {
+  freeFormServiceItem?: { label?: { displayName?: string; description?: string } };
+  structuredServiceItem?: { description?: string };
+  price?: { units?: string; currencyCode?: string };
+}
+
+/**
+ * Lê a lista de serviços do perfil (serviceItems da Business Information
+ * API). Nem todo perfil/segmento expõe serviços; nunca lança (retorna []).
+ */
+export async function getServiceItems(
+  accessToken: string,
+  accountLocation: string,
+): Promise<string[]> {
+  const loc = locationResource(accountLocation);
+  try {
+    const data = await getJson<{ serviceItems?: RawServiceItem[] }>(
+      `${BUSINESS_INFO}/${loc}?readMask=serviceItems`,
+      accessToken,
+    );
+    const names = (data.serviceItems ?? [])
+      .map(
+        (s) =>
+          s.freeFormServiceItem?.label?.displayName ??
+          s.freeFormServiceItem?.label?.description ??
+          s.structuredServiceItem?.description ??
+          "",
+      )
+      .map((n) => n.trim())
+      .filter(Boolean);
+    // Remove duplicados preservando ordem.
+    return [...new Set(names)];
+  } catch {
+    return [];
+  }
+}
