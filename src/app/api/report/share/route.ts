@@ -9,10 +9,12 @@ export async function POST(request: Request) {
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
-  const body = (await request.json().catch(() => ({}))) as { location?: string; accessCode?: string };
+  const body = (await request.json().catch(() => ({}))) as { location?: string; accessCode?: string; config?: unknown };
   const location = body.location;
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
   const accessCode = (body.accessCode ?? "").trim().slice(0, 40) || null;
+  // Configuração do construtor (seções, textos, período): com ela o link abre AO VIVO.
+  const config = body.config && typeof body.config === "object" && JSON.stringify(body.config).length < 60_000 ? body.config : null;
 
   const [{ data: snap }, { data: branding }, { data: rk }] = await Promise.all([
     supabase.from("audit_snapshots").select("*").eq("user_id", user.id).eq("location_name", location).maybeSingle(),
@@ -24,11 +26,16 @@ export async function POST(request: Request) {
   const snapshot = { ...snap, ranking: rk ?? null };
 
   const token = randomBytes(9).toString("base64url");
-  const { error } = await supabase.from("shared_reports").insert({
-    token, user_id: user.id, location_name: location, snapshot, branding: branding ?? null, access_code: accessCode,
-  });
+  const base_row = { token, user_id: user.id, location_name: location, snapshot, branding: branding ?? null, access_code: accessCode };
+  let { error } = await supabase.from("shared_reports").insert({ ...base_row, config });
+  // Coluna `config` ainda não migrada (0032): cria o link no formato antigo (cópia salva).
+  let live = !!config && !error;
+  if (error && config) {
+    ({ error } = await supabase.from("shared_reports").insert(base_row));
+    live = false;
+  }
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
-  return NextResponse.json({ ok: true, token, url: `${base}/relatorio/${token}`, accessCode });
+  return NextResponse.json({ ok: true, token, url: `${base}/relatorio/${token}`, accessCode, live });
 }
