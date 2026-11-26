@@ -27,6 +27,8 @@ interface MapsItem {
   cid?: string;
   rating?: { value?: number; votes_count?: number };
   address?: string;
+  latitude?: number;
+  longitude?: number;
 }
 
 interface MapsResponse {
@@ -46,6 +48,8 @@ export interface TopItem {
   reviews: number | null;
   me: boolean;
   placeId: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 export interface MapsTarget {
@@ -116,6 +120,8 @@ export async function mapsRankAt(
     reviews: i.rating?.votes_count ?? null,
     me: matches(i, target),
     placeId: i.place_id ?? null,
+    lat: typeof i.latitude === "number" ? i.latitude : null,
+    lng: typeof i.longitude === "number" ? i.longitude : null,
   }));
   return { rank: hit?.rank_group ?? null, top };
 }

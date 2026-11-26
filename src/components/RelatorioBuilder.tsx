@@ -2,7 +2,10 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
+import dynamic from "next/dynamic";
 import { rankingMetrics, RANKING_GLOSSARY, competitorTable } from "@/lib/rankingMetrics";
+
+const ReportMaps = dynamic(() => import("@/components/ReportMaps"), { ssr: false });
 
 type Loc = { location_name: string; title: string | null };
 type Branding = { name?: string; logo_url?: string; color?: string; phone?: string; site?: string } | null;
@@ -26,7 +29,7 @@ interface Perf {
 }
 interface Stars { average: number; total: number; sampled: number; counts: { stars: number; count: number }[] }
 interface AI { summary: string; praises: string[]; complaints: string[] }
-interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; points?: { rank: number | null; top?: { title: string; rank: number; rating?: number | null; reviews?: number | null; me?: boolean; placeId?: string | null }[] }[] }
+interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; center_lat?: number; center_lng?: number; points?: { rank: number | null; lat?: number | null; lng?: number | null; top?: { title: string; rank: number; rating?: number | null; reviews?: number | null; me?: boolean; placeId?: string | null; lat?: number | null; lng?: number | null }[] }[] }
 interface MediaItem { thumbnailUrl: string | null; createTime: string | null; isVideo: boolean; views: number }
 interface MediaData { total: number; photoCount: number; videoCount: number; totalViews: number; items: MediaItem[] }
 interface PostItem { summary: string; createTime: string | null; topicType: string | null; searchUrl: string | null; thumbnailUrl: string | null; ctaType: string | null }
@@ -78,7 +81,8 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
     { key: "melhorar", label: "O que melhorar" },
   ] },
   { key: "rank", label: "🗺️ Ranking no Maps", subs: [
-    { key: "mapa", label: "Mapa (grade)" },
+    { key: "mapasreais", label: "Mapas reais (locais + calor satélite)" },
+    { key: "mapa", label: "Mapa em grade (quadradinhos)" },
     { key: "metricas", label: "Métricas ARP / ATRP / SoLV" },
     { key: "glossario", label: "Glossário das métricas" },
   ] },
@@ -816,7 +820,16 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
           {!loading && sec.rank && (
             <Sec color={color} title="Ranking no Google Maps (geo-grid)">
               {rank ? (
-                <div className="flex flex-wrap items-center gap-6">
+                <div className="space-y-5">
+                  {sOn("rank", "mapasreais") && rank.center_lat != null && rank.center_lng != null && (rank.points?.length ?? 0) > 0 && (
+                    <ReportMaps
+                      center={{ lat: rank.center_lat, lng: rank.center_lng }}
+                      title={strength?.profile?.title ?? strength?.title ?? name}
+                      keyword={rank.keyword}
+                      points={rank.points ?? []}
+                    />
+                  )}
+                  <div className="flex flex-wrap items-center gap-6">
                   {sOn("rank", "mapa") && <GeoGrid run={rank} />}
                   {sOn("rank", "metricas") && (() => {
                     const m = rankingMetrics(rank.points);
@@ -839,6 +852,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                       </div>
                     );
                   })()}
+                  </div>
                 </div>
               ) : <Empty>Rode uma Análise de Ranking para este perfil para incluir o mapa.</Empty>}
             </Sec>
