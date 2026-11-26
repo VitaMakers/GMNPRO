@@ -127,6 +127,7 @@ export default function AppSidebar({
     ...(isAgency
       ? [
           { href: "/ranking", label: "Análise de Ranking", Icon: IRanking },
+          { href: "/prospeccao", label: "Prospecção", Icon: IAuditoria },
           { href: "/locais", label: "Gestão de Locais", Icon: ILocais },
           { href: "/equipe", label: "Equipe", Icon: IEquipe },
         ]

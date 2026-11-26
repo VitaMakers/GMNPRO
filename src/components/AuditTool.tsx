@@ -76,6 +76,14 @@ export default function AuditTool() {
     };
   }, [query, geo, report]);
 
+  // Atalho vindo da Prospecção (/auditoria?placeId=...): já abre a análise
+  // dessa empresa, sem precisar buscar de novo.
+  useEffect(() => {
+    const pid = new URLSearchParams(window.location.search).get("placeId");
+    if (pid) runAudit(pid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   function useMyLocation() {
     if (!navigator.geolocation) {
       setError("Seu navegador não permite usar a localização. Você pode digitar a cidade ou rua na busca.");

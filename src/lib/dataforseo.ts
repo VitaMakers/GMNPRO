@@ -209,3 +209,72 @@ export async function mapsTop(keyword: string, lat: number, lng: number, target:
   const hit = items.find((i) => i.me);
   return { items, myRank: hit?.rank ?? null };
 }
+
+// ────────────────────────────────────────────────────────────────────────
+// Prospecção: lista de empresas do Google Maps para um termo + cidade
+// ────────────────────────────────────────────────────────────────────────
+
+export interface Prospect {
+  rank: number;
+  name: string;
+  category: string | null;
+  address: string | null;
+  phone: string | null;
+  website: string | null;
+  rating: number | null;
+  reviews: number | null;
+  claimed: boolean | null; // perfil reivindicado pelo dono (quando o Google informa)
+  placeId: string | null;
+  mapsUrl: string | null;
+}
+
+/** Créditos consumidos por busca de prospecção (até PROSPECT_DEPTH empresas). */
+export const PROSPECT_CREDITS = 10;
+export const PROSPECT_DEPTH = 100;
+
+/**
+ * Busca empresas no Google Maps para "termo em cidade" (ex.: "imobiliária em
+ * Taubaté"), em todo o Brasil. Só dados públicos da ficha: nome, endereço,
+ * telefone, site, nota e nº de avaliações. E-mail não existe no Google Maps.
+ */
+export async function mapsProspects(query: string, depth = PROSPECT_DEPTH): Promise<Prospect[]> {
+  const res = await fetch(`${BASE}/serp/google/maps/live/advanced`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify([{ keyword: query, location_code: 2076, language_code: "pt", depth }]),
+  });
+  if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
+  type Raw = MapsItem & { phone?: string; url?: string; category?: string; is_claimed?: boolean };
+  const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; result?: { items?: Raw[] }[] }[] };
+  const task = data.tasks?.[0];
+  if (!task) throw new Error("DataForSEO erro");
+  if (task.status_code && task.status_code >= 40000) {
+    // "No Search Results": não é erro — só não achou nada.
+    if (/no search result|no result/i.test(task.status_message ?? "")) return [];
+    throw new Error(task.status_message ?? "DataForSEO erro");
+  }
+  const seen = new Set<string>();
+  const out: Prospect[] = [];
+  for (const i of task.result?.[0]?.items ?? []) {
+    if (i.type !== "maps_search" || !i.title) continue; // ignora anúncios
+    const key = i.place_id || i.cid || `${i.title}|${i.address ?? ""}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push({
+      rank: out.length + 1,
+      name: i.title,
+      category: i.category ?? null,
+      address: i.address ?? null,
+      phone: i.phone ?? null,
+      website: i.url ?? null,
+      rating: i.rating?.value ?? null,
+      reviews: i.rating?.votes_count ?? null,
+      claimed: typeof i.is_claimed === "boolean" ? i.is_claimed : null,
+      placeId: i.place_id ?? null,
+      mapsUrl: i.place_id
+        ? `https://www.google.com/maps/place/?q=place_id:${i.place_id}`
+        : i.cid ? `https://www.google.com/maps?cid=${i.cid}` : null,
+    });
+  }
+  return out;
+}

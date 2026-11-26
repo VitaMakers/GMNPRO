@@ -191,6 +191,14 @@ export default function AppHeader({
                   Ranking
                 </Link>
                 <Link
+                  href="/prospeccao"
+                  className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
+                    pathname === "/prospeccao" ? "bg-brand/10 text-brand-2" : "text-muted"
+                  }`}
+                >
+                  Prospecção
+                </Link>
+                <Link
                   href="/locais"
                   className={`shrink-0 rounded-lg px-3 py-1.5 font-medium transition hover:bg-surface hover:text-foreground ${
                     pathname === "/locais" ? "bg-brand/10 text-brand-2" : "text-muted"
