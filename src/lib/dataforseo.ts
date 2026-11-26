@@ -246,6 +246,7 @@ export async function mapsProspects(query: string, depth = PROSPECT_DEPTH): Prom
   if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
   type Raw = MapsItem & { phone?: string; url?: string; category?: string; is_claimed?: boolean };
   const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; result?: { items?: Raw[] }[] }[] };
+  logDfsCost(`prospeccao (maps, depth ${depth})`, data);
   const task = data.tasks?.[0];
   if (!task) throw new Error("DataForSEO erro");
   if (task.status_code && task.status_code >= 40000) {
@@ -277,4 +278,103 @@ export async function mapsProspects(query: string, depth = PROSPECT_DEPTH): Prom
     });
   }
   return out;
+}
+
+// ────────────────────────────────────────────────────────────────────────
+// Custo real + ficha de uma empresa (alternativa à Google Places API)
+// ────────────────────────────────────────────────────────────────────────
+
+/** Registra no log o valor que o DataForSEO cobrou pela chamada (campo `cost`, em US$). */
+export function logDfsCost(label: string, data: unknown): void {
+  try {
+    const d = data as { cost?: number; tasks?: { cost?: number }[] };
+    const cost = typeof d.cost === "number" ? d.cost : d.tasks?.[0]?.cost;
+    if (typeof cost === "number") console.log(`[dataforseo-custo] ${label}: US$ ${cost}`);
+  } catch { /* só log */ }
+}
+
+export interface BusinessInfo {
+  name: string;
+  address?: string;
+  category?: string;
+  additionalCategories?: string[];
+  phone?: string;
+  website?: string;
+  rating?: number;
+  reviewCount?: number;
+  description?: string;
+  totalPhotos?: number;
+  mainImage?: string;
+  weekdayDescriptions?: string[];
+  openNow?: boolean;
+  lat?: number;
+  lng?: number;
+  claimed?: boolean;
+  priceLevel?: string;
+}
+
+const DIAS: [string, string][] = [
+  ["monday", "segunda-feira"], ["tuesday", "terça-feira"], ["wednesday", "quarta-feira"], ["thursday", "quinta-feira"],
+  ["friday", "sexta-feira"], ["saturday", "sábado"], ["sunday", "domingo"],
+];
+
+/**
+ * Ficha pública de UMA empresa pelo place_id (Business Data → My Business
+ * Info, ao vivo). Usada pela Pré-análise quando a cota grátis do Google
+ * Places do mês já foi consumida. Devolve null se não encontrar.
+ */
+export async function businessInfo(placeId: string): Promise<BusinessInfo | null> {
+  const res = await fetch(`${BASE}/business_data/google/my_business_info/live`, {
+    method: "POST",
+    headers: { Authorization: authHeader(), "Content-Type": "application/json" },
+    body: JSON.stringify([{ keyword: `place_id:${placeId}`, location_code: 2076, language_code: "pt" }]),
+  });
+  if (!res.ok) throw new Error(`DataForSEO ${res.status}: ${await res.text()}`);
+  type T = { hour?: number; minute?: number };
+  type Item = {
+    title?: string; description?: string; category?: string; additional_categories?: string[]; address?: string;
+    phone?: string; url?: string; rating?: { value?: number; votes_count?: number }; total_photos?: number; main_image?: string;
+    latitude?: number; longitude?: number; is_claimed?: boolean; price_level?: string;
+    work_time?: { work_hours?: { timetable?: Record<string, { open?: T; close?: T }[] | null>; current_status?: string } };
+  };
+  const data = (await res.json()) as { tasks?: { status_code?: number; status_message?: string; cost?: number; result?: { items?: Item[] }[] }[] };
+  logDfsCost("pre-analise (my_business_info)", data);
+  const task = data.tasks?.[0];
+  if (!task) throw new Error("DataForSEO erro");
+  if (task.status_code && task.status_code >= 40000) {
+    if (/no search result|no result/i.test(task.status_message ?? "")) return null;
+    throw new Error(task.status_message ?? "DataForSEO erro");
+  }
+  const i = task.result?.[0]?.items?.[0];
+  if (!i?.title) return null;
+
+  const hhmm = (t?: T) => `${String(t?.hour ?? 0).padStart(2, "0")}:${String(t?.minute ?? 0).padStart(2, "0")}`;
+  const tt = i.work_time?.work_hours?.timetable;
+  const weekdayDescriptions = tt
+    ? DIAS.map(([k, label]) => {
+        const slots = tt[k];
+        return `${label}: ${slots && slots.length ? slots.map((s) => `${hhmm(s.open)}–${hhmm(s.close)}`).join(", ") : "Fechado"}`;
+      })
+    : undefined;
+  const st = i.work_time?.work_hours?.current_status;
+
+  return {
+    name: i.title,
+    address: i.address ?? undefined,
+    category: i.category ?? undefined,
+    additionalCategories: i.additional_categories ?? undefined,
+    phone: i.phone ?? undefined,
+    website: i.url ?? undefined,
+    rating: i.rating?.value ?? undefined,
+    reviewCount: i.rating?.votes_count ?? undefined,
+    description: i.description ?? undefined,
+    totalPhotos: typeof i.total_photos === "number" ? i.total_photos : undefined,
+    mainImage: i.main_image ?? undefined,
+    weekdayDescriptions,
+    openNow: st ? /open/i.test(st) && !/close/i.test(st) : undefined,
+    lat: typeof i.latitude === "number" ? i.latitude : undefined,
+    lng: typeof i.longitude === "number" ? i.longitude : undefined,
+    claimed: typeof i.is_claimed === "boolean" ? i.is_claimed : undefined,
+    priceLevel: i.price_level ?? undefined,
+  };
 }
