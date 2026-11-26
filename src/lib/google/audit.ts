@@ -158,6 +158,30 @@ async function listReviews(
 
 export type AutoResult = Record<string, { done: boolean; detail?: string; status?: "bom" | "razoavel" | "fraco" }>;
 
+/** Resume o horário de funcionamento ("Aberto 24 horas" ou "Seg–Sex 08:00–18:00 · Sáb 08:00–12:00"). */
+function summarizeHours(periods: unknown[]): string | null {
+  type T = { hours?: number; minutes?: number };
+  type P = { openDay?: string; openTime?: T; closeTime?: T };
+  const ps = periods as P[];
+  if (!ps.length) return null;
+  const is24 = (p: P) => (p.openTime?.hours ?? 0) === 0 && (p.openTime?.minutes ?? 0) === 0 && (p.closeTime?.hours ?? 0) === 24;
+  if (new Set(ps.map((p) => p.openDay)).size === 7 && ps.every(is24)) return "Aberto 24 horas";
+  const fmt = (t?: T) => `${String(t?.hours ?? 0).padStart(2, "0")}:${String(t?.minutes ?? 0).padStart(2, "0")}`;
+  const ORDER = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"];
+  const AB = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
+  const perDay = ORDER.map((d) => ps.filter((p) => p.openDay === d).map((p) => (is24(p) ? "24 horas" : `${fmt(p.openTime)}–${fmt(p.closeTime)}`)).join(", "));
+  const groups: string[] = [];
+  let i = 0;
+  while (i < 7) {
+    if (!perDay[i]) { i++; continue; }
+    let j = i;
+    while (j + 1 < 7 && perDay[j + 1] === perDay[i]) j++;
+    groups.push(`${i === j ? AB[i] : `${AB[i]}–${AB[j]}`} ${perDay[i]}`);
+    i = j + 1;
+  }
+  return groups.length ? groups.join(" · ") : null;
+}
+
 /** Lê o perfil e devolve, por item do checklist, se está feito (e um detalhe). */
 export interface AuditProfile {
   title: string;
@@ -178,6 +202,7 @@ export interface AuditProfile {
   open: boolean;
   foundingDate: string | null;
   hoursCount: number;
+  hoursSummary: string | null;
   photoCount: number;
   postCount: number;
 }
@@ -207,6 +232,7 @@ export async function runProfileAudit(
     open: true,
     foundingDate: null,
     hoursCount: 0,
+    hoursSummary: null,
     photoCount: 0,
     postCount: 0,
   };
@@ -234,6 +260,7 @@ export async function runProfileAudit(
     auto.endereco = { done: hasAddr };
     const hoursCount = d.regularHours?.periods?.length ?? 0;
     profile.hoursCount = hoursCount;
+    profile.hoursSummary = summarizeHours(d.regularHours?.periods ?? []);
     auto.horarios = { done: hoursCount > 0 };
     profile.phone = d.phoneNumbers?.primaryPhone ?? "";
     auto.telefone = { done: !!d.phoneNumbers?.primaryPhone, detail: d.phoneNumbers?.primaryPhone };
