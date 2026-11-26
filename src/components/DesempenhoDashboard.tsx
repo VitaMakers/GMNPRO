@@ -209,10 +209,10 @@ export default function DesempenhoDashboard({
             <div className="mb-4 flex items-center justify-between">
               <div>
                 <p className="text-sm font-semibold">Visualizações por dia</p>
-                <p className="text-xs text-muted">Evolução no período, com projeção do Google.</p>
+                <p className="text-xs text-muted">Barras: visualizações de cada dia. Linha: média dos últimos 7 dias.</p>
               </div>
             </div>
-            <MetricChart data={report.series} label="Visualizações por dia" />
+            <MetricChart data={report.series} label="Visualizações por dia" variant="bars" />
           </div>
 
           {/* 3 cards: origem · resumo de visualizações · termos */}
