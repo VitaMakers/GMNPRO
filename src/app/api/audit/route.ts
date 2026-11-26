@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
 import { createClient, createAdminClient } from "@/lib/supabase/server";
-import { businessInfo, dataForSeoConfigured, type BusinessInfo } from "@/lib/dataforseo";
+import { businessInfo, dataForSeoConfigured, mapsProspects, type BusinessInfo } from "@/lib/dataforseo";
 import { getAccess } from "@/lib/access";
 import { preAnaliseStatus, countPreAnalise } from "@/lib/preanalise";
 
@@ -167,10 +167,10 @@ function fromBusinessInfo(b: BusinessInfo, placeId: string): PlaceData {
  * do teto mensal (cota grátis); depois disso — ou se o Google recusar a
  * chamada — DataForSEO. Sem DataForSEO configurado, continua no Google.
  */
-async function loadPlace(placeId: string, key: string): Promise<{ place: PlaceData; source: "google" | "dataforseo" }> {
+async function loadPlace(placeId: string, key: string | undefined): Promise<{ place: PlaceData; source: "google" | "dataforseo" }> {
   const canFallback = dataForSeoConfigured();
   const overCap = canFallback && (await preAnalisesThisMonth()) >= PLACES_MONTHLY_CAP;
-  if (!overCap) {
+  if (!overCap && key) {
     try {
       return { place: toPlaceData(await placeDetails(placeId, key), placeId), source: "google" };
     } catch (e) {
@@ -189,9 +189,10 @@ export async function GET(request: Request) {
   const q = searchParams.get("q")?.trim() ?? "";
   const placeId = searchParams.get("placeId")?.trim();
 
-  if (!key) {
+  // Funciona com o Google Places, com o DataForSEO ou com os dois.
+  if (!key && !dataForSeoConfigured()) {
     return NextResponse.json(
-      { error: "not_configured", message: "A chave da Google Places API ainda não foi configurada." },
+      { error: "not_configured", message: "A busca de empresas ainda não foi configurada." },
       { status: 503 },
     );
   }
@@ -200,23 +201,32 @@ export async function GET(request: Request) {
   }
 
   try {
-    // Fase 1: buscar candidatos
+    // Exige login nas duas fases: as consultas têm custo.
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return NextResponse.json({ error: "nao_autenticado", message: "Entre na sua conta para analisar." }, { status: 401 });
+
+    // Fase 1: buscar candidatos pelo nome — Google Places; se ele recusar
+    // (sem faturamento, cota, chave) ou não houver chave, DataForSEO.
     if (q && !placeId) {
-      const places = await searchPlaces(q, key);
+      if (key) {
+        try {
+          const places = await searchPlaces(q, key);
+          return NextResponse.json({
+            results: places.map((p) => ({ placeId: p.id, name: p.displayName?.text ?? "", address: p.formattedAddress ?? "" })),
+          });
+        } catch (e) {
+          if (!dataForSeoConfigured()) throw e;
+          console.error("[pre-analise] busca no Google Places falhou; usando DataForSEO:", e instanceof Error ? e.message : e);
+        }
+      }
+      const found = await mapsProspects(q, 20);
       return NextResponse.json({
-        results: places.map((p) => ({
-          placeId: p.id,
-          name: p.displayName?.text ?? "",
-          address: p.formattedAddress ?? "",
-        })),
+        results: found.filter((f) => f.placeId).map((f) => ({ placeId: f.placeId as string, name: f.name, address: f.address ?? "" })),
       });
     }
 
     // Fase 2: auditar o lugar escolhido — conta no limite mensal de pré-análises.
-    const supabase = await createClient();
-    const { data: { user } } = await supabase.auth.getUser();
-    // Exige login: cada pré-análise tem custo e precisa contar no limite.
-    if (!user) return NextResponse.json({ error: "nao_autenticado", message: "Entre na sua conta para analisar." }, { status: 401 });
     const access = await getAccess(supabase, user.id, user.email);
     const pa = await preAnaliseStatus(supabase, user.id, access);
     if (!pa.allowed) {
