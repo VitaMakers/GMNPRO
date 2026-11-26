@@ -105,7 +105,19 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
 const ALL_SUBS: Record<string, boolean> = {};
 SECTIONS.forEach((s) => s.subs.forEach((x) => { ALL_SUBS[`${s.key}.${x.key}`] = true; }));
 
-export default function RelatorioBuilder({ locations, initialBranding }: { locations: Loc[]; initialBranding: Branding }) {
+/** Configuração salva junto do link compartilhado (modo somente-leitura, ao vivo). */
+export interface ShareConfig {
+  sec?: Record<string, boolean>;
+  sub?: Record<string, boolean>;
+  txt?: Record<string, string>;
+  period?: "30" | "60" | "90" | "180" | "custom";
+  cStart?: string;
+  cEnd?: string;
+  ai?: AI | null;
+}
+
+export default function RelatorioBuilder({ locations, initialBranding, share }: { locations: Loc[]; initialBranding: Branding; share?: { token: string; code?: string; config: ShareConfig } }) {
+  const cfg = share?.config;
   const [loc, setLoc] = useState(locations[0]?.location_name ?? "");
   const activeTitle = locations.find((l) => l.location_name === loc)?.title ?? "seu perfil";
 
@@ -114,9 +126,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const _defEnd = `${_now.getFullYear()}-${String(_now.getMonth() + 1).padStart(2, "0")}`;
   const _six = new Date(_now.getFullYear(), _now.getMonth() - 5, 1);
   const _defStart = `${_six.getFullYear()}-${String(_six.getMonth() + 1).padStart(2, "0")}`;
-  const [period, setPeriod] = useState<"30" | "60" | "90" | "180" | "custom">("180");
-  const [cStart, setCStart] = useState(_defStart);
-  const [cEnd, setCEnd] = useState(_defEnd);
+  const [period, setPeriod] = useState<"30" | "60" | "90" | "180" | "custom">(cfg?.period ?? "180");
+  const [cStart, setCStart] = useState(cfg?.cStart ?? _defStart);
+  const [cEnd, setCEnd] = useState(cfg?.cEnd ?? _defEnd);
 
   // Marca
   const [name, setName] = useState(initialBranding?.name ?? "");
@@ -130,10 +142,10 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const fileRef = useRef<HTMLInputElement>(null);
 
   // Seções
-  const [sec, setSec] = useState<Record<SecKey, boolean>>(() => Object.fromEntries(SECTIONS.map((s) => [s.key, true])) as Record<SecKey, boolean>);
-  const [sub, setSub] = useState<Record<string, boolean>>({ ...ALL_SUBS });
+  const [sec, setSec] = useState<Record<SecKey, boolean>>(() => Object.fromEntries(SECTIONS.map((s) => [s.key, cfg?.sec ? cfg.sec[s.key] !== false : true])) as Record<SecKey, boolean>);
+  const [sub, setSub] = useState<Record<string, boolean>>({ ...ALL_SUBS, ...(cfg?.sub ?? {}) });
   const [expanded, setExpanded] = useState<SecKey | null>(null);
-  const [txt, setTxt] = useState<Record<string, string>>({});
+  const [txt, setTxt] = useState<Record<string, string>>(cfg?.txt ?? {});
   const sOn = (s: SecKey, k: string) => sec[s] && (sub[`${s}.${k}`] ?? true);
 
   // Dados
@@ -180,12 +192,14 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
     } else {
       pfQs = `&period=${period}`; // 30 / 60 / 90 dias
     }
-    const q = encodeURIComponent(loc);
+    // No link compartilhado, as rotas validam o token (e o código) em vez da sessão.
+    const q = encodeURIComponent(loc) + (share ? `&share=${encodeURIComponent(share.token)}${share.code ? `&code=${encodeURIComponent(share.code)}` : ""}` : "");
     const [st, pf, sc, ia2, rk, hs, md, ps, sv, kw, qq] = await Promise.all([
       fetch(`/api/google/profile-strength?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/performance?location=${q}${pfQs}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/review-breakdown?location=${q}`).then((r) => r.json()).catch(() => null),
-      fetch(`/api/google/review-ai?location=${q}`).then((r) => r.json()).catch(() => null),
+      // Resumo com IA: no link compartilhado usa o texto salvo (não gera de novo a cada visita).
+      share ? Promise.resolve(cfg?.ai ? { ok: true, ...cfg.ai } : null) : fetch(`/api/google/review-ai?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/ranking?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/score-history?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/list-media?location=${q}`).then((r) => r.json()).catch(() => null),
@@ -255,6 +269,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
     }
   }
 
+  const shareConfig = (): ShareConfig => ({ sec, sub, txt, period, cStart, cEnd, ai: ai ? { summary: ai.summary, praises: ai.praises, complaints: ai.complaints } : null });
+
   async function doShare() {
     if (!loc) return;
     setShareBusy(true);
@@ -264,7 +280,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
       const res = await fetch("/api/report/share", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location: loc, accessCode: shareCode.trim() || undefined }),
+        body: JSON.stringify({ location: loc, accessCode: shareCode.trim() || undefined, config: shareConfig() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -287,7 +303,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
       const res = await fetch("/api/report/email", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ location: loc, to: emailTo, note: emailNote.trim() || undefined, frequency: emailFreq }),
+        body: JSON.stringify({ location: loc, to: emailTo, note: emailNote.trim() || undefined, frequency: emailFreq, config: shareConfig() }),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -317,9 +333,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const anyOn = Object.values(sec).some(Boolean);
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[340px_1fr] lg:items-start">
+    <div className={share ? "mx-auto max-w-4xl" : "grid gap-5 lg:grid-cols-[340px_1fr] lg:items-start"}>
       {/* ---------- Painel (não imprime) ---------- */}
-      <div className="space-y-4 print:hidden">
+      <div className={`space-y-4 print:hidden ${share ? "hidden" : ""}`}>
         <div className="rounded-3xl border border-border bg-white p-5 card-soft">
           <p className="mb-1 text-xs font-bold uppercase tracking-wide text-muted">Perfil do relatório</p>
           <select value={loc} onChange={(e) => setLoc(e.target.value)} className="w-full rounded-lg border border-border bg-surface-2 px-3 py-2 text-sm outline-none focus:border-brand">
@@ -524,8 +540,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                 verified={p?.verified}
                 interactions={perf?.kpis?.interactions?.current ?? null}
                 score={strength?.score ?? null}
-                rating={p?.rating ?? stars?.average ?? perf?.reviews?.average ?? null}
-                reviews={p?.reviewCount ?? stars?.total ?? perf?.reviews?.total ?? null}
+                rating={stars?.average ?? perf?.reviews?.average ?? p?.rating ?? null}
+                reviews={stars?.total ?? perf?.reviews?.total ?? p?.reviewCount ?? null}
                 category={p?.category}
                 open={p?.open}
                 hoursSummary={p?.hoursSummary ?? null}

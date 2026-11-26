@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
+import { reportAuth } from "@/lib/reportAuth";
 import { getAccess } from "@/lib/access";
 import { getValidAccessToken } from "@/lib/google/token";
 import { dataForSeoConfigured } from "@/lib/dataforseo";
@@ -13,11 +14,9 @@ export const maxDuration = 300;
 
 /** Histórico de análises do perfil. */
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
+  const auth = await reportAuth(request);
+  if ("error" in auth) return auth.error;
+  const { supabase, userId } = auth;
 
   const { searchParams } = new URL(request.url);
   const location = searchParams.get("location");
@@ -26,7 +25,7 @@ export async function GET(request: Request) {
   const { data, error } = await supabase
     .from("ranking_runs")
     .select("id, keyword, grid_size, spacing_km, center_lat, center_lng, points, avg_rank, top3_pct, top10_pct, credits_used, created_at")
-    .eq("user_id", user.id)
+    .eq("user_id", userId)
     .eq("location_name", location)
     .order("created_at", { ascending: false })
     .limit(10);

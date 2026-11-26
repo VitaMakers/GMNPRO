@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { reportAuth } from "@/lib/reportAuth";
 import { getValidAccessToken } from "@/lib/google/token";
 import {
   ACTION_METRICS,
@@ -27,11 +27,9 @@ function pct(cur: number, prev: number): number | null {
 }
 
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
+  const auth = await reportAuth(request);
+  if ("error" in auth) return auth.error;
+  const { supabase, userId } = auth;
 
   const { searchParams } = new URL(request.url);
   const location = searchParams.get("location");
@@ -68,7 +66,7 @@ export async function GET(request: Request) {
   for (let d = new Date(prevStart); d <= prevEnd; d.setUTCDate(d.getUTCDate() + 1)) prevDays.push(new Date(d));
 
   try {
-    const accessToken = await getValidAccessToken(supabase, user.id);
+    const accessToken = await getValidAccessToken(supabase, userId);
     const metrics = [...IMPRESSION_METRICS, ...ACTION_METRICS];
     const data = await fetchDailyMetrics(accessToken, location, metrics, prevStart, end);
 

@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { reportAuth } from "@/lib/reportAuth";
 import { getValidAccessToken } from "@/lib/google/token";
 import { fetchReviewDistribution } from "@/lib/google/reviews";
 
@@ -12,17 +12,15 @@ export const maxDuration = 60;
  * expõe o histograma pronto). Carregado sob demanda quando a aba abre.
  */
 export async function GET(request: Request) {
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
+  const auth = await reportAuth(request);
+  if ("error" in auth) return auth.error;
+  const { supabase, userId } = auth;
 
   const location = new URL(request.url).searchParams.get("location");
   if (!location) return NextResponse.json({ error: "sem_local" }, { status: 400 });
 
   try {
-    const token = await getValidAccessToken(supabase, user.id);
+    const token = await getValidAccessToken(supabase, userId);
     const dist = await fetchReviewDistribution(token, location);
     return NextResponse.json({ ok: true, ...dist });
   } catch (e) {

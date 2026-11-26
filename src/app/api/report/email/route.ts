@@ -12,7 +12,7 @@ export async function POST(request: Request) {
   if (!user) return NextResponse.json({ error: "nao_autenticado" }, { status: 401 });
   if (!emailConfigured()) return NextResponse.json({ error: "not_configured", detail: "RESEND_API_KEY não configurada no Vercel." }, { status: 503 });
 
-  const b = (await request.json().catch(() => ({}))) as { location?: string; to?: string; note?: string; monthly?: boolean; frequency?: string };
+  const b = (await request.json().catch(() => ({}))) as { location?: string; to?: string; note?: string; monthly?: boolean; frequency?: string; config?: unknown };
   // Vários destinatários: separados por vírgula, ponto-e-vírgula ou quebra de linha.
   const emailRe = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
   const recipients = [...new Set((b.to ?? "").split(/[\s,;]+/).map((e) => e.trim()).filter(Boolean))].slice(0, 10);
@@ -31,7 +31,11 @@ export async function POST(request: Request) {
   const snapshot = { ...snap, ranking: rk ?? null };
 
   const token = randomBytes(9).toString("base64url");
-  await supabase.from("shared_reports").insert({ token, user_id: user.id, location_name: b.location, snapshot, branding: branding ?? null });
+  const config = b.config && typeof b.config === "object" && JSON.stringify(b.config).length < 60_000 ? b.config : null;
+  const row = { token, user_id: user.id, location_name: b.location, snapshot, branding: branding ?? null };
+  const ins = await supabase.from("shared_reports").insert({ ...row, config });
+  // Coluna `config` ainda não migrada (0032): grava no formato antigo.
+  if (ins.error && config) await supabase.from("shared_reports").insert(row);
   const base = process.env.APP_BASE_URL ?? new URL(request.url).origin;
   const url = `${base}/relatorio/${token}`;
 

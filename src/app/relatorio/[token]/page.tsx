@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { createAdminClient } from "@/lib/supabase/server";
 import ReportView, { type ReportBranding, type ReportSnapshot } from "@/components/ReportView";
+import RelatorioBuilder, { type ShareConfig } from "@/components/RelatorioBuilder";
 
 export const dynamic = "force-dynamic";
 export const metadata: Metadata = { title: "Relatório do Perfil Google", robots: { index: false } };
@@ -18,7 +19,7 @@ export default async function RelatorioPage({
   const admin = createAdminClient();
   const { data } = await admin
     .from("shared_reports")
-    .select("snapshot, branding, created_at, access_code")
+    .select("snapshot, branding, created_at, access_code, config, location_name")
     .eq("token", token)
     .maybeSingle();
   if (!data) notFound();
@@ -28,6 +29,23 @@ export default async function RelatorioPage({
     return <CodeGate token={token} wrong={code != null} />;
   }
 
+  // Link novo (com a configuração do construtor): monta o MESMO relatório da
+  // agência, buscando os dados atuais do Google a cada abertura.
+  if (data.config && data.location_name) {
+    const snap = data.snapshot as { title?: string } | null;
+    const b = data.branding as { name?: string | null; logo_url?: string | null; color?: string | null; phone?: string | null; site?: string | null } | null;
+    return (
+      <main className="mx-auto max-w-5xl px-4 py-6 print:max-w-none print:px-0 print:py-0">
+        <RelatorioBuilder
+          locations={[{ location_name: data.location_name as string, title: snap?.title ?? null }]}
+          initialBranding={b ? { name: b.name ?? undefined, logo_url: b.logo_url ?? undefined, color: b.color ?? undefined, phone: b.phone ?? undefined, site: b.site ?? undefined } : null}
+          share={{ token, code: needCode ? (code ?? "").trim() : undefined, config: data.config as ShareConfig }}
+        />
+      </main>
+    );
+  }
+
+  // Link antigo (sem configuração): mostra a cópia salva.
   return (
     <ReportView
       snapshot={data.snapshot as ReportSnapshot}
