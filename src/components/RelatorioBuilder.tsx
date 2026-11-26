@@ -27,12 +27,15 @@ interface Perf {
 interface Stars { average: number; total: number; sampled: number; counts: { stars: number; count: number }[] }
 interface AI { summary: string; praises: string[]; complaints: string[] }
 interface RankRun { keyword: string; grid_size: number; avg_rank: number | null; top3_pct: number | null; top10_pct: number | null; points?: { rank: number | null; top?: { title: string; rank: number; rating?: number | null; reviews?: number | null; me?: boolean; placeId?: string | null }[] }[] }
+interface MediaItem { thumbnailUrl: string | null; createTime: string | null; isVideo: boolean; views: number }
+interface MediaData { total: number; photoCount: number; videoCount: number; totalViews: number; items: MediaItem[] }
+interface PostItem { summary: string; createTime: string | null; topicType: string | null; searchUrl: string | null; thumbnailUrl: string | null; ctaType: string | null }
 
 const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "set.", "out.", "nov.", "dez."];
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
+type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "midia" | "posts" | "servicos" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "concorrentes" | "obs" | "plano";
 const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
   { key: "resumoExec", label: "📝 Resumo executivo (você escreve)", editable: "Escreva uma abertura: o panorama do mês para o cliente…", subs: [] },
   { key: "capa", label: "🏢 Ficha da empresa", subs: [] },
@@ -57,6 +60,9 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
     { key: "nota", label: "Nota + total" },
     { key: "dist", label: "Distribuição por estrela" },
   ] },
+  { key: "midia", label: "🖼️ Fotos e vídeos do perfil", subs: [] },
+  { key: "posts", label: "📣 Postagens (Google Posts)", subs: [] },
+  { key: "servicos", label: "🛠️ Serviços do perfil", subs: [] },
   { key: "reviewsRec", label: "💬 Avaliações recentes", subs: [] },
   { key: "ia", label: "🤖 Resumo com IA", subs: [
     { key: "resumo", label: "Parágrafo-resumo" },
@@ -118,6 +124,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const [ai, setAi] = useState<AI | null>(null);
   const [rank, setRank] = useState<RankRun | null>(null);
   const [hist, setHist] = useState<{ score: number; analyzed_at: string }[]>([]);
+  const [media, setMedia] = useState<MediaData | null>(null);
+  const [posts, setPosts] = useState<PostItem[]>([]);
+  const [services, setServices] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -141,13 +150,16 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
       pfQs = `&period=${period}`; // 30 / 60 / 90 dias
     }
     const q = encodeURIComponent(loc);
-    const [st, pf, sc, ia2, rk, hs] = await Promise.all([
+    const [st, pf, sc, ia2, rk, hs, md, ps, sv] = await Promise.all([
       fetch(`/api/google/profile-strength?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/performance?location=${q}${pfQs}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/review-breakdown?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/review-ai?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/ranking?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/score-history?location=${q}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/google/list-media?location=${q}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/google/list-posts?location=${q}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/google/list-services?location=${q}`).then((r) => r.json()).catch(() => null),
     ]);
     setStrength(st && st.score !== undefined ? st : null);
     setPerf(pf && pf.ok ? pf : null);
@@ -155,6 +167,9 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
     setAi(ia2 && ia2.ok ? ia2 : null);
     setRank(rk && Array.isArray(rk.runs) && rk.runs[0] ? rk.runs[0] : null);
     setHist(hs && Array.isArray(hs.history) ? hs.history : []);
+    setMedia(md && md.ok ? md : null);
+    setPosts(ps && ps.ok && Array.isArray(ps.items) ? ps.items : []);
+    setServices(sv && sv.ok && Array.isArray(sv.items) ? sv.items : []);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc, period, cStart, cEnd]);
@@ -477,6 +492,63 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                   )}
                 </div>
               ) : <Empty>Sem série para o gráfico neste período.</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.midia && (
+            <Sec color={color} title="Fotos e vídeos do perfil">
+              {media && media.total > 0 ? (
+                <div>
+                  <div className="mb-3 flex flex-wrap gap-6 text-sm">
+                    <span className="text-muted"><strong className="text-foreground">{media.photoCount}</strong> fotos</span>
+                    <span className="text-muted"><strong className="text-foreground">{media.videoCount}</strong> vídeos</span>
+                    <span className="text-muted"><strong className="text-foreground">{fmtK(media.totalViews)}</strong> visualizações</span>
+                  </div>
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6">
+                    {media.items.filter((m) => m.thumbnailUrl).slice(0, 12).map((m, i) => (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img key={i} src={m.thumbnailUrl!} alt="" className="aspect-square w-full rounded-lg object-cover" />
+                    ))}
+                  </div>
+                </div>
+              ) : <Empty>Nenhuma foto ou vídeo encontrado no perfil (ou acesso de mídia indisponível).</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.posts && (
+            <Sec color={color} title="Postagens (Google Posts)">
+              {posts.length > 0 ? (
+                <div className="space-y-3">
+                  <p className="text-xs text-muted"><strong className="text-foreground">{posts.length}</strong> postagens publicadas</p>
+                  {posts.slice(0, 6).map((p, i) => (
+                    <div key={i} className="flex gap-3 border-t border-border pt-3 first:border-0 first:pt-0">
+                      {p.thumbnailUrl && (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={p.thumbnailUrl} alt="" className="h-14 w-14 shrink-0 rounded-lg object-cover" />
+                      )}
+                      <div className="min-w-0">
+                        <p className="line-clamp-2 text-sm text-foreground">{p.summary || <span className="text-muted">(sem texto)</span>}</p>
+                        <p className="mt-0.5 text-[11px] text-muted">
+                          {p.topicType && p.topicType !== "STANDARD" ? `${p.topicType} · ` : ""}
+                          {p.createTime ? new Date(p.createTime).toLocaleDateString("pt-BR") : ""}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : <Empty>Nenhuma postagem (Google Post) encontrada neste perfil.</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.servicos && (
+            <Sec color={color} title="Serviços do perfil">
+              {services.length > 0 ? (
+                <div className="flex flex-wrap gap-1.5">
+                  {services.map((s, i) => (
+                    <span key={i} className="rounded-full border border-border bg-surface-2 px-2.5 py-1 text-xs text-foreground">{s}</span>
+                  ))}
+                </div>
+              ) : <Empty>Nenhum serviço cadastrado no perfil (ou o segmento não expõe serviços).</Empty>}
             </Sec>
           )}
 
