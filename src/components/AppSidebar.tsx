@@ -55,6 +55,16 @@ function IAuditoria({ className }: IconProps) {
     </svg>
   );
 }
+/** Prospecção: alvo (mira) — diferente da lupa da Pré-análise. */
+function IProspeccao({ className }: IconProps) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" className={className}>
+      <circle cx="12" cy="12" r="8" />
+      <circle cx="12" cy="12" r="3.5" />
+      <path d="M12 2v3M12 19v3M2 12h3M19 12h3" />
+    </svg>
+  );
+}
 function IEquipe({ className }: IconProps) {
   return (<svg viewBox="0 0 24 24" className={className} fill="none" stroke="currentColor" strokeWidth="1.8"><circle cx="9" cy="8" r="3" /><path d="M3 20a6 6 0 0112 0" /><circle cx="17" cy="9" r="2.3" /><path d="M16 20a5 5 0 015-3.5" /></svg>);
 }
@@ -127,7 +137,7 @@ export default function AppSidebar({
     ...(isAgency
       ? [
           { href: "/ranking", label: "Análise de Ranking", Icon: IRanking },
-          { href: "/prospeccao", label: "Prospecção", Icon: IAuditoria },
+          { href: "/prospeccao", label: "Prospecção", Icon: IProspeccao },
           { href: "/locais", label: "Gestão de Locais", Icon: ILocais },
           { href: "/equipe", label: "Equipe", Icon: IEquipe },
         ]
