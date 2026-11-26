@@ -39,7 +39,7 @@ export function loadLeaflet(): Promise<unknown> {
 
 const HEAT_JS = "https://unpkg.com/leaflet.heat@0.2.0/dist/leaflet-heat.js";
 let heatPromise: Promise<void> | null = null;
-function loadHeat(): Promise<void> {
+export function loadHeat(): Promise<void> {
   const w = window as unknown as { L?: { heatLayer?: unknown } };
   if (w.L?.heatLayer) return Promise.resolve();
   if (heatPromise) return heatPromise;
