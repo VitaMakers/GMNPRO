@@ -40,13 +40,44 @@ export async function getCredits(supabase: SupabaseClient, userId: string, acces
   }
 }
 
+/**
+ * Debita créditos de forma ATÔMICA: a gravação só vale se o saldo ainda for o
+ * que acabamos de ler (trava otimista). Assim, pedidos simultâneos não
+ * conseguem gastar o mesmo saldo duas vezes. Devolve false se não houver saldo.
+ */
 export async function spendCredits(supabase: SupabaseClient, userId: string, amount: number): Promise<boolean> {
-  const { data } = await supabase.from("subscriptions").select("credits").eq("user_id", userId).maybeSingle();
-  const current = (data as { credits?: number } | null)?.credits ?? 0;
-  if (current < amount) return false;
-  const { error } = await supabase
-    .from("subscriptions")
-    .update({ credits: current - amount })
-    .eq("user_id", userId);
-  return !error;
+  if (amount <= 0) return true;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data } = await supabase.from("subscriptions").select("credits").eq("user_id", userId).maybeSingle();
+    const current = (data as { credits?: number } | null)?.credits ?? 0;
+    if (current < amount) return false;
+    const { data: done, error } = await supabase
+      .from("subscriptions")
+      .update({ credits: current - amount })
+      .eq("user_id", userId)
+      .eq("credits", current)
+      .select("user_id");
+    if (error) return false;
+    if (Array.isArray(done) && done.length === 1) return true;
+    // Outro pedido mexeu no saldo no meio do caminho: lê de novo e tenta outra vez.
+  }
+  return false;
+}
+
+/** Devolve créditos (estorno) quando a operação cobrada falhou ou não trouxe resultado. */
+export async function refundCredits(supabase: SupabaseClient, userId: string, amount: number): Promise<void> {
+  if (amount <= 0) return;
+  for (let attempt = 0; attempt < 5; attempt++) {
+    const { data } = await supabase.from("subscriptions").select("credits").eq("user_id", userId).maybeSingle();
+    const current = (data as { credits?: number } | null)?.credits ?? 0;
+    const { data: done, error } = await supabase
+      .from("subscriptions")
+      .update({ credits: current + amount })
+      .eq("user_id", userId)
+      .eq("credits", current)
+      .select("user_id");
+    if (error) break;
+    if (Array.isArray(done) && done.length === 1) return;
+  }
+  console.error(`[creditos] estorno de ${amount} crédito(s) não aplicado para ${userId}`);
 }

@@ -55,6 +55,9 @@ export async function GET(request: Request) {
   }
 
   const periodDays = Math.round((end.getTime() - start.getTime()) / 86400000) + 1;
+  if (!Number.isFinite(periodDays) || periodDays < 1 || periodDays > 560) {
+    return NextResponse.json({ error: "periodo_invalido" }, { status: 400 });
+  }
   const prevEnd = new Date(start);
   prevEnd.setUTCDate(prevEnd.getUTCDate() - 1);
   const prevStart = new Date(prevEnd);

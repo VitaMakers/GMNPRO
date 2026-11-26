@@ -10,7 +10,7 @@
     },
     {
       "path": "/api/cron/report-email",
-      "schedule": "0 11 1 * *"
+      "schedule": "0 11 * * *"
     },
     {
       "path": "/api/cron/ranking",

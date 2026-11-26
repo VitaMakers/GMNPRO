@@ -21,10 +21,11 @@ export async function reportAuth(
     const admin = createAdminClient();
     const { data: row } = await admin
       .from("shared_reports")
-      .select("user_id, location_name, access_code")
+      .select("user_id, location_name, access_code, config")
       .eq("token", share)
       .maybeSingle();
-    if (!row) return { error: NextResponse.json({ error: "link_invalido" }, { status: 404 }) };
+    // Links antigos (sem configuração) mostram só a cópia salva: não liberam leitura ao vivo.
+    if (!row || !row.config) return { error: NextResponse.json({ error: "link_invalido" }, { status: 404 }) };
     const need = String(row.access_code ?? "").trim();
     if (need && (params.get("code") ?? "").trim() !== need) {
       return { error: NextResponse.json({ error: "codigo_invalido" }, { status: 403 }) };
