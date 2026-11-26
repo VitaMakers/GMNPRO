@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { auditPlace, type PlaceData } from "@/lib/audit";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createAdminClient } from "@/lib/supabase/server";
+import { businessInfo, dataForSeoConfigured, type BusinessInfo } from "@/lib/dataforseo";
 import { getAccess } from "@/lib/access";
 import { preAnaliseStatus, countPreAnalise } from "@/lib/preanalise";
 
@@ -115,6 +116,73 @@ function toPlaceData(d: PlacesDetails, placeId: string): PlaceData {
   };
 }
 
+/**
+ * Teto mensal de consultas de detalhes na Google Places API (somando todas as
+ * contas). Fica abaixo da cota grátis do Google; passou disso, a Pré-análise
+ * busca a ficha no DataForSEO até virar o mês. Ajustável por variável de
+ * ambiente PLACES_FREE_MONTHLY_CAP.
+ */
+const PLACES_MONTHLY_CAP = Math.max(0, Number(process.env.PLACES_FREE_MONTHLY_CAP ?? 800) || 0);
+
+/** Quantas pré-análises já rodaram neste mês, em todas as contas. */
+async function preAnalisesThisMonth(): Promise<number> {
+  try {
+    const ym = new Date().toISOString().slice(0, 7);
+    const { data } = await createAdminClient().from("ai_usage").select("count").eq("location_name", "_preanalise").eq("kind", "preanalise").eq("ym", ym);
+    return ((data as { count?: number }[] | null) ?? []).reduce((s, r) => s + (r.count ?? 0), 0);
+  } catch {
+    return 0; // sem contagem: segue no Google (comportamento anterior)
+  }
+}
+
+function fromBusinessInfo(b: BusinessInfo, placeId: string): PlaceData {
+  return {
+    placeId,
+    name: b.name,
+    address: b.address,
+    primaryType: b.category,
+    types: b.additionalCategories,
+    phone: b.phone,
+    website: b.website,
+    rating: b.rating,
+    reviewCount: b.reviewCount,
+    hasHours: !!b.weekdayDescriptions?.length,
+    weekdayDescriptions: b.weekdayDescriptions,
+    openNow: b.openNow,
+    // A Places API devolve no máximo 10 fotos; limita igual para a nota da
+    // pré-análise não mudar conforme a fonte dos dados.
+    photoCount: Math.min(b.totalPhotos ?? 0, 10),
+    photoUrl: b.mainImage,
+    description: b.description,
+    googleMapsUri: `https://www.google.com/maps/place/?q=place_id:${placeId}`,
+    searchUri: `https://search.google.com/local/reviews?placeid=${placeId}`,
+    priceLevel: b.priceLevel,
+    lat: b.lat,
+    lng: b.lng,
+  };
+}
+
+/**
+ * Ficha da empresa para a pré-análise: Google Places enquanto estiver dentro
+ * do teto mensal (cota grátis); depois disso — ou se o Google recusar a
+ * chamada — DataForSEO. Sem DataForSEO configurado, continua no Google.
+ */
+async function loadPlace(placeId: string, key: string): Promise<{ place: PlaceData; source: "google" | "dataforseo" }> {
+  const canFallback = dataForSeoConfigured();
+  const overCap = canFallback && (await preAnalisesThisMonth()) >= PLACES_MONTHLY_CAP;
+  if (!overCap) {
+    try {
+      return { place: toPlaceData(await placeDetails(placeId, key), placeId), source: "google" };
+    } catch (e) {
+      if (!canFallback) throw e;
+      console.error("[pre-analise] Google Places falhou; usando DataForSEO:", e instanceof Error ? e.message : e);
+    }
+  }
+  const info = await businessInfo(placeId);
+  if (!info) throw new Error("Não encontramos os dados públicos desta empresa agora. Tente de novo em instantes.");
+  return { place: fromBusinessInfo(info, placeId), source: "dataforseo" };
+}
+
 export async function GET(request: Request) {
   const key = process.env.GOOGLE_PLACES_API_KEY;
   const { searchParams } = new URL(request.url);
@@ -147,19 +215,17 @@ export async function GET(request: Request) {
     // Fase 2: auditar o lugar escolhido — conta no limite mensal de pré-análises.
     const supabase = await createClient();
     const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      const access = await getAccess(supabase, user.id, user.email);
-      const pa = await preAnaliseStatus(supabase, user.id, access);
-      if (!pa.allowed) {
-        return NextResponse.json({ error: "limite", message: `Você atingiu o limite de ${pa.limit} pré-análises neste mês.` }, { status: 429 });
-      }
-      const details = await placeDetails(placeId!, key);
-      const report = auditPlace(toPlaceData(details, placeId!));
-      await countPreAnalise(supabase, user.id);
-      return NextResponse.json({ report });
+    // Exige login: cada pré-análise tem custo e precisa contar no limite.
+    if (!user) return NextResponse.json({ error: "nao_autenticado", message: "Entre na sua conta para analisar." }, { status: 401 });
+    const access = await getAccess(supabase, user.id, user.email);
+    const pa = await preAnaliseStatus(supabase, user.id, access);
+    if (!pa.allowed) {
+      return NextResponse.json({ error: "limite", message: `Você atingiu o limite de ${pa.limit} pré-análises neste mês.` }, { status: 429 });
     }
-    const details = await placeDetails(placeId!, key);
-    const report = auditPlace(toPlaceData(details, placeId!));
+    const { place, source } = await loadPlace(placeId!, key);
+    const report = auditPlace(place);
+    await countPreAnalise(supabase, user.id);
+    console.log(`[pre-analise] fonte=${source}`);
     return NextResponse.json({ report });
   } catch (e) {
     return NextResponse.json(
