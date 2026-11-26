@@ -31,7 +31,7 @@ const MES = ["jan.", "fev.", "mar.", "abr.", "mai.", "jun.", "jul.", "ago.", "se
 const fmtK = (n: number) =>
   n >= 1_000_000 ? (n / 1e6).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mi" : n >= 1000 ? (n / 1000).toLocaleString("pt-BR", { maximumFractionDigits: 1 }) + " mil" : n.toLocaleString("pt-BR");
 
-type SecKey = "resumoExec" | "capa" | "forca" | "desemp" | "grafico" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "obs" | "plano";
+type SecKey = "resumoExec" | "capa" | "forca" | "evolucao" | "desemp" | "grafico" | "aval" | "reviewsRec" | "ia" | "checklist" | "rank" | "obs" | "plano";
 const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: string; label: string }[] }[] = [
   { key: "resumoExec", label: "📝 Resumo executivo (você escreve)", editable: "Escreva uma abertura: o panorama do mês para o cliente…", subs: [] },
   { key: "capa", label: "🏢 Ficha da empresa", subs: [] },
@@ -39,6 +39,7 @@ const SECTIONS: { key: SecKey; label: string; editable?: string; subs: { key: st
     { key: "anel", label: "Nota (anel %)" },
     { key: "resumo", label: "Resumo (bons / a melhorar / faltando)" },
   ] },
+  { key: "evolucao", label: "📉 Evolução da nota (histórico)", subs: [] },
   { key: "desemp", label: "📊 Desempenho", subs: [
     { key: "views", label: "Visualizações" },
     { key: "inter", label: "Interações" },
@@ -113,6 +114,7 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
   const [stars, setStars] = useState<Stars | null>(null);
   const [ai, setAi] = useState<AI | null>(null);
   const [rank, setRank] = useState<RankRun | null>(null);
+  const [hist, setHist] = useState<{ score: number; analyzed_at: string }[]>([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -136,18 +138,20 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
       pfQs = `&period=${period}`; // 30 / 60 / 90 dias
     }
     const q = encodeURIComponent(loc);
-    const [st, pf, sc, ia2, rk] = await Promise.all([
+    const [st, pf, sc, ia2, rk, hs] = await Promise.all([
       fetch(`/api/google/profile-strength?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/performance?location=${q}${pfQs}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/review-breakdown?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/google/review-ai?location=${q}`).then((r) => r.json()).catch(() => null),
       fetch(`/api/ranking?location=${q}`).then((r) => r.json()).catch(() => null),
+      fetch(`/api/score-history?location=${q}`).then((r) => r.json()).catch(() => null),
     ]);
     setStrength(st && st.score !== undefined ? st : null);
     setPerf(pf && pf.ok ? pf : null);
     setStars(sc && sc.ok ? sc : null);
     setAi(ia2 && ia2.ok ? ia2 : null);
     setRank(rk && Array.isArray(rk.runs) && rk.runs[0] ? rk.runs[0] : null);
+    setHist(hs && Array.isArray(hs.history) ? hs.history : []);
     setLoading(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loc, period, cStart, cEnd]);
@@ -374,6 +378,31 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
                   {sOn("forca", "resumo") && <p className="text-sm text-muted"><strong className="text-foreground">{strength.bom}</strong> bons · <strong className="text-foreground">{strength.razoavel}</strong> a melhorar · <strong className="text-foreground">{strength.fraco}</strong> faltando</p>}
                 </div>
               ) : <Empty>Rode a Análise Completa deste perfil para incluir a nota.</Empty>}
+            </Sec>
+          )}
+
+          {!loading && sec.evolucao && (
+            <Sec color={color} title="Evolução da nota">
+              {hist.length >= 2 ? (() => {
+                const fmtD = (d: string) => {
+                  const dt = new Date(d);
+                  return `${String(dt.getDate()).padStart(2, "0")}/${String(dt.getMonth() + 1).padStart(2, "0")}`;
+                };
+                const first = hist[0].score;
+                const last = hist[hist.length - 1].score;
+                const delta = last - first;
+                return (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap items-baseline gap-x-6 gap-y-1">
+                      <span className="text-3xl font-bold" style={{ color }}>{last}%</span>
+                      <span className="text-sm text-muted">
+                        {delta === 0 ? "estável" : delta > 0 ? `▲ +${delta} pts` : `▼ ${delta} pts`} desde {fmtD(hist[0].analyzed_at)}
+                      </span>
+                    </div>
+                    <Chart labels={hist.map((h) => fmtD(h.analyzed_at))} values={hist.map((h) => h.score)} color={color} />
+                  </div>
+                );
+              })() : <Empty>Rode a Análise Completa pelo menos 2 vezes para mostrar a evolução da nota ao longo do tempo.</Empty>}
             </Sec>
           )}
 
