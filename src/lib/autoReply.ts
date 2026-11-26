@@ -9,7 +9,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { getValidAccessToken } from "./google/token";
 import { listReviewsFull, postReviewReply } from "./google/reviews";
-import { generateReply, type Provider } from "./ai";
+import { generateReply, systemProvider, type Provider } from "./ai";
 import { decryptSecret } from "./crypto";
 import { blockedUserIds } from "./subscriptionAccess";
 
@@ -112,31 +112,45 @@ export async function runAutoReplies(
 
       let count = 0;
       let lastDoneMs: number | null = null;
+      let firstFailedMs: number | null = null; // mais antiga que falhou nesta rodada
+      const ctxOf = (r: (typeof novas)[number]) => ({
+        businessName: s.business_name || loc?.title || "nossa empresa",
+        keywords: s.keywords ?? "",
+        tone: s.tone ?? "",
+        signature: s.signature ?? "",
+        reviewerName: r.reviewer,
+        rating: r.rating,
+        reviewText: r.comment,
+        examples: Array.isArray(s.examples) ? s.examples : [],
+        bannedWords: s.banned_words ?? "",
+        avoid: recentReplies,
+      });
+      // Mesma regra da resposta manual: a IA escolhida pelo cliente só vale se
+      // ele cadastrou a PRÓPRIA chave; sem chave, usa a padrão do sistema (Groq).
+      const chosen: Provider = clientKey && s.provider ? (s.provider as Provider) : systemProvider();
       for (const r of novas) {
         if (count >= MAX_PER_PROFILE) break;
         try {
-          const text = await generateReply(
-            (s.provider ?? "groq") as Provider,
-            {
-              businessName: s.business_name || loc?.title || "nossa empresa",
-              keywords: s.keywords ?? "",
-              tone: s.tone ?? "",
-              signature: s.signature ?? "",
-              reviewerName: r.reviewer,
-              rating: r.rating,
-              reviewText: r.comment,
-              examples: Array.isArray(s.examples) ? s.examples : [],
-              bannedWords: s.banned_words ?? "",
-              avoid: recentReplies,
-            },
-            clientKey,
-          );
+          let text: string;
+          try {
+            text = await generateReply(chosen, ctxOf(r), clientKey);
+          } catch (e) {
+            // A IA escolhida falhou (chave do cliente inválida/sem saldo, limite,
+            // provedor fora do ar): cai para a Groq do sistema em vez de desistir.
+            if (chosen === "groq" && !clientKey) throw e;
+            console.error(`[auto-reply] ${chosen} falhou em ${s.location_name}; usando Groq:`, e instanceof Error ? e.message : e);
+            text = await generateReply("groq", ctxOf(r));
+          }
           await postReviewReply(token, r.name, text);
           replied++;
           count++;
           lastDoneMs = new Date(r.createTime!).getTime();
-        } catch {
-          /* pula esta avaliação (tenta de novo na próxima rodada) */
+        } catch (e) {
+          // Falhou: guarda a data para a linha de corte NÃO passar por cima dela
+          // (senão a avaliação nunca mais seria respondida).
+          console.error(`[auto-reply] falha ao responder em ${s.location_name}:`, e instanceof Error ? e.message : e);
+          const ms = new Date(r.createTime!).getTime();
+          if (firstFailedMs == null || ms < firstFailedMs) firstFailedMs = ms;
         }
       }
 
@@ -144,14 +158,23 @@ export async function runAutoReplies(
       // avança só até a última respondida, para a próxima rodada continuar daí
       // sem pular nenhuma.
       const hitCap = count >= MAX_PER_PROFILE && novas.length > count;
-      const nextBoundary = hitCap && lastDoneMs ? new Date(lastDoneMs + 1).toISOString() : nowIso;
+      let nextBoundary = hitCap && lastDoneMs ? new Date(lastDoneMs + 1).toISOString() : nowIso;
+      // Houve falha: recua a linha de corte até a avaliação que falhou, para
+      // tentar de novo na próxima rodada. Limite de 48h para não insistir para
+      // sempre numa avaliação que nunca vai passar. (As já respondidas não
+      // repetem: são filtradas por `replied`.)
+      if (firstFailedMs != null) {
+        const retryFrom = Math.max(firstFailedMs, Date.now() - 48 * 3_600_000);
+        if (retryFrom < new Date(nextBoundary).getTime()) nextBoundary = new Date(retryFrom).toISOString();
+      }
       await admin
         .from("review_settings")
         .update({ auto_reply_last_run: nextBoundary })
         .eq("user_id", s.user_id)
         .eq("location_name", s.location_name);
-    } catch {
+    } catch (e) {
       /* pula este perfil (não avança a linha de corte: tenta de novo depois) */
+      console.error(`[auto-reply] perfil ${s.location_name} falhou:`, e instanceof Error ? e.message : e);
     }
   }
 
