@@ -11,7 +11,6 @@ import { loadLeaflet } from "@/components/LocationsMap";
  * Google não fornece (ex.: horários de pico) não é exibido.
  */
 
-const BG = "#25272f"; // fundo dos painéis
 const CARD = "#2f3139"; // cartões internos
 const TXT = "#e8eaed";
 const SUB = "#bdc1c6";
@@ -38,22 +37,6 @@ export interface PerfilGoogleProps {
   showVisao?: boolean;
 }
 
-const I = ({ children }: { children: React.ReactNode }) => (
-  <svg viewBox="0 0 24 24" width="30" height="30" fill="none" stroke={BLUE} strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">{children}</svg>
-);
-const ACTIONS: { t: string; icon: React.ReactNode }[] = [
-  { t: "Editar perfil", icon: <I><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13.5 6.5l4 4" /></I> },
-  { t: "Ler avaliações", icon: <I><path d="M4 4h16v12H8l-4 4V4z" /><path d="M12 6.8l1 2.1 2.3.2-1.7 1.5.5 2.2-2.1-1.2-2.1 1.2.5-2.2-1.7-1.5 2.3-.2z" /></I> },
-  { t: "Fotos", icon: <I><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M4 16l4.5-5 3.5 4 2.5-3 5.5 6" /></I> },
-  { t: "Posts", icon: <I><path d="M14 5H5v14h12v-8" /><path d="M8 10h5M8 13h6M8 16h4" /><path d="M18 3v6M15 6h6" /></I> },
-  { t: "Desempenho", icon: <I><path d="M4 17l5-5 3 3 4-5 4 3" /><path d="M6 5v2M5 6h2M18 4v2M17 5h2" /></I> },
-  { t: "Anunciar", icon: <I><path d="M4 16l5-5 4 4 7-8" /><path d="M15 7h5v5" /></I> },
-  { t: "Editar produtos", icon: <I><path d="M6 8h12v12H6z" /><path d="M9 8V6.5a3 3 0 0 1 6 0V8" /></I> },
-  { t: "Editar serviços", icon: <I><rect x="4" y="5" width="16" height="14" rx="1.5" /><path d="M8 9h.5M11 9h5M8 12h.5M11 12h5M8 15h.5M11 15h5" /></I> },
-  { t: "Agendamentos", icon: <I><rect x="5" y="6" width="14" height="14" rx="1.5" /><path d="M5 10h14M9 4v4M15 4v4" /><rect x="13" y="14" width="3" height="3" fill={BLUE} stroke="none" /></I> },
-  { t: "Solicitar avaliações", icon: <I><path d="M4 4h16v12H8l-4 4V4z" /><path d="M9.5 12.5v-2l4.5-4.5 2 2-4.5 4.5h-2z" /></I> },
-];
-
 function MiniMap({ lat, lng }: { lat: number; lng: number }) {
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -63,8 +46,10 @@ function MiniMap({ lat, lng }: { lat: number; lng: number }) {
       .then((L: any) => {
         if (cancelled || !ref.current) return;
         map = L.map(ref.current, { zoomControl: false, attributionControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, touchZoom: false, keyboard: false });
-        L.tileLayer("https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png", { maxZoom: 19, subdomains: "abcd" }).addTo(map);
-        L.control.attribution({ prefix: false }).addAttribution("© OpenStreetMap · CARTO").addTo(map);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19 }).addTo(map);
+        const pane = map.getPane("tilePane");
+        if (pane) pane.style.filter = "invert(1) hue-rotate(180deg) brightness(0.9) contrast(0.9)";
+        L.control.attribution({ prefix: false }).addAttribution("© OpenStreetMap").addTo(map);
         const pin = L.divIcon({
           className: "",
           html: `<svg width="30" height="40" viewBox="0 0 28 36" style="filter:drop-shadow(0 2px 3px rgba(0,0,0,.6))"><path d="M14 0C6.3 0 0 6.3 0 14c0 9.8 12.6 21.1 13.1 21.6.5.5 1.3.5 1.8 0C15.4 35.1 28 23.8 28 14 28 6.3 21.7 0 14 0z" fill="#ea4335"/><circle cx="14" cy="14" r="5" fill="#7f1d1d"/></svg>`,
@@ -88,7 +73,7 @@ function Stars({ rating }: { rating: number }) {
 export default function PerfilGoogle(p: PerfilGoogleProps) {
   const C = 2 * Math.PI * 11;
   const score = p.score ?? null;
-  const ringCol = score == null ? "#5f6368" : score >= 80 ? "#81c995" : score >= 50 ? "#fdd663" : "#f28b82";
+  const ringCol = score == null ? "#9aa0a6" : score >= 80 ? "#34a853" : score >= 50 ? "#f9ab00" : "#ea4335";
   const pics = (p.media ?? []).filter((m) => m.thumbnailUrl).slice(0, 4);
   const ratingTxt = p.rating != null ? p.rating.toLocaleString("pt-BR", { minimumFractionDigits: 1, maximumFractionDigits: 1 }) : null;
 
@@ -103,23 +88,23 @@ export default function PerfilGoogle(p: PerfilGoogleProps) {
     <div className="space-y-4">
       {/* ---------- Painel do gerenciador ---------- */}
       {p.showPainel !== false && (
-        <div className="rounded-3xl px-6 py-5" style={{ background: BG, color: TXT, ...exact }}>
+        <div className="rounded-3xl border px-6 py-5" style={{ background: "#ffffff", borderColor: "#e5e7eb", color: "#1f2430", ...exact }}>
           <div className="flex items-center gap-4">
             <div className="relative shrink-0">
               {p.photoUrl ? (
                 <img src={p.photoUrl} alt="" className="h-14 w-14 rounded-full object-cover" />
               ) : (
-                <div className="grid h-14 w-14 place-items-center rounded-full text-xl" style={{ background: CARD }}>🏢</div>
+                <div className="grid h-14 w-14 place-items-center rounded-full text-xl" style={{ background: "#eef0f3" }}>🏢</div>
               )}
               {p.verified && (
-                <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: "#4285f4", border: `2px solid ${BG}` }}>✓</span>
+                <span className="absolute -bottom-0.5 -right-0.5 grid h-5 w-5 place-items-center rounded-full text-[10px] font-bold text-white" style={{ background: "#4285f4", border: "2px solid #ffffff" }}>✓</span>
               )}
             </div>
             <div className="min-w-0">
-              <p className="text-[22px] leading-tight" style={{ color: TXT }}>Sua empresa no Google</p>
+              <p className="text-[22px] leading-tight" style={{ color: "#1f2430" }}>Sua empresa no Google</p>
               {p.interactions != null && (
-                <p className="mt-0.5 flex items-center gap-1.5 text-sm" style={{ color: BLUE }}>
-                  <svg viewBox="0 0 16 16" width="14" height="14" fill={SUB}><rect x="2" y="8" width="3" height="6" /><rect x="6.5" y="4" width="3" height="10" /><rect x="11" y="10" width="3" height="4" /></svg>
+                <p className="mt-0.5 flex items-center gap-1.5 text-sm" style={{ color: "#1a73e8" }}>
+                  <svg viewBox="0 0 16 16" width="14" height="14" fill="#5f6368"><rect x="2" y="8" width="3" height="6" /><rect x="6.5" y="4" width="3" height="10" /><rect x="11" y="10" width="3" height="4" /></svg>
                   {p.interactions.toLocaleString("pt-BR")} interações com clientes
                 </p>
               )}
@@ -127,22 +112,14 @@ export default function PerfilGoogle(p: PerfilGoogleProps) {
             {score != null && (
               <div className="ml-auto shrink-0 text-right">
                 <div className="flex items-center justify-end gap-2.5">
-                  <span className="text-[15px]" style={{ color: TXT }}>Força do perfil</span>
+                  <span className="text-[15px]" style={{ color: "#1f2430" }}>Força do perfil</span>
                   <svg viewBox="0 0 30 30" width="30" height="30">
-                    <circle cx="15" cy="15" r="11" fill="none" stroke="#3c4043" strokeWidth="5" />
+                    <circle cx="15" cy="15" r="11" fill="none" stroke="#e5e7eb" strokeWidth="5" />
                     <circle cx="15" cy="15" r="11" fill="none" stroke={ringCol} strokeWidth="5" strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - score / 100)} transform="rotate(-90 15 15)" />
                   </svg>
                 </div>
               </div>
             )}
-          </div>
-          <div className="mt-6 grid grid-cols-3 gap-x-2 gap-y-6 sm:grid-cols-6">
-            {ACTIONS.map((a) => (
-              <div key={a.t} className="min-w-0 text-center">
-                <div className="mx-auto mb-1.5 grid h-8 place-items-center">{a.icon}</div>
-                <p className="truncate text-[13px] font-medium" style={{ color: TXT }}>{a.t}</p>
-              </div>
-            ))}
           </div>
         </div>
       )}
