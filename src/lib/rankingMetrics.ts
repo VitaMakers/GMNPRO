@@ -74,6 +74,8 @@ export interface CompetitorRow {
   best: number; // melhor posição vista
   rating: number | null;
   reviews: number | null;
+  atrp: number; // posição média na grade inteira (onde não aparece conta 21)
+  rank: number; // posição geral entre as empresas da busca (1 = melhor ATRP)
 }
 
 function keyNorm(s: string): string {
@@ -85,7 +87,7 @@ function keyNorm(s: string): string {
  * cada um, as mesmas métricas do perfil (ARP, SoLV, cobertura) ao longo da
  * grade inteira. Inclui o próprio perfil (isMe) para comparação direta.
  * Ordenado por SoLV desc. Só reflete negócios capturados no top de cada
- * ponto (hoje top 10) — rivais que nunca entram no top não aparecem.
+ * ponto (top 20; rodadas antigas, top 10) — rivais que nunca entram no top não aparecem.
  */
 export function competitorTable(points: PointWithTop[] | undefined | null): CompetitorRow[] {
   const pts = Array.isArray(points) ? points : [];
@@ -123,8 +125,46 @@ export function competitorTable(points: PointWithTop[] | undefined | null): Comp
     best: v.best === 99 ? 0 : v.best,
     rating: v.rating,
     reviews: v.reviews,
+    atrp: Math.round(((v.sum + (total - v.appearances) * NOT_FOUND_RANK) / total) * 10) / 10,
+    rank: 0,
   }));
+  // Posição geral: ordena pela posição média na grade inteira (ATRP).
+  [...rows].sort((a, b) => a.atrp - b.atrp || b.solv - a.solv).forEach((r, i) => { r.rank = i + 1; });
   return rows.sort((a, b) => b.solv - a.solv || b.appearances - a.appearances || (a.arp ?? 99) - (b.arp ?? 99));
+}
+
+export interface OverallPosition {
+  position: number; // posição geral da empresa analisada
+  total: number; // quantas empresas entraram na comparação
+  centerRank: number | null; // posição no ponto da própria empresa (centro da grade)
+  outside: number; // pontos em que ficou fora do top 20
+  points: number;
+  approx: boolean; // rodada antiga (só top 10 dos concorrentes): posição aproximada
+}
+
+/**
+ * "De um modo geral, em que posição a empresa aparece?" — compara a posição
+ * média na grade inteira (ATRP) da empresa analisada com a de todas as
+ * empresas vistas nos resultados. Rodadas antigas guardavam menos
+ * concorrentes por ponto, então nelas a posição é uma aproximação.
+ */
+export function overallPosition(points: PointWithTop[] | undefined | null): OverallPosition | null {
+  const pts = Array.isArray(points) ? points : [];
+  if (pts.length === 0) return null;
+  const mine = rankingMetrics(pts).atrp;
+  if (mine == null) return null;
+  const rivals = competitorTable(pts).filter((r) => !r.isMe);
+  const better = rivals.filter((r) => r.atrp < mine).length;
+  const side = Math.round(Math.sqrt(pts.length));
+  const center = side * side === pts.length && side % 2 === 1 ? pts[Math.floor(pts.length / 2)] : null;
+  return {
+    position: better + 1,
+    total: rivals.length + 1,
+    centerRank: center ? center.rank : null,
+    outside: pts.filter((p) => p.rank == null).length,
+    points: pts.length,
+    approx: pts.every((p) => (p.top?.length ?? 0) <= 10),
+  };
 }
 
 /** Textos do glossário, reusados na página de ranking e no relatório. */

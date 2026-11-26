@@ -111,9 +111,9 @@ export async function mapsRankAt(
   }
   const items = (task.result?.[0]?.items ?? []).filter((i) => i.type === "maps_search");
   const hit = items.find((i) => matches(i, target));
-  // Guardamos o top 10 de cada ponto (com place_id) para montar a
-  // comparação de concorrentes ao longo da grade (ARP/SoLV por rival).
-  const top = items.slice(0, 10).map((i) => ({
+  // Guardamos o top 20 de cada ponto (com place_id) para montar a
+  // comparação de concorrentes e a POSIÇÃO GERAL ao longo da grade.
+  const top = items.slice(0, 20).map((i) => ({
     title: i.title ?? "",
     rank: i.rank_group ?? 0,
     rating: i.rating?.value ?? null,
