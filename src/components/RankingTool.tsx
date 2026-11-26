@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useActiveProfile, initActiveProfile } from "@/lib/profileStore";
 import { GRID_SIZES, gridCredits } from "@/lib/geogrid";
+import { rankingMetrics, RANKING_GLOSSARY } from "@/lib/rankingMetrics";
 import { rankColor } from "@/components/GridMap";
 
 const GridMap = dynamic(() => import("@/components/GridMap"), { ssr: false });
@@ -268,12 +269,7 @@ export default function RankingTool({
           {run && center ? (
             <>
               <GridMap points={run.points} center={center} title={selectedTitle} />
-              <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Stat label="Posição média" value={run.avg_rank != null ? run.avg_rank.toLocaleString("pt-BR") : "—"} />
-                <Stat label="Top 3" value={`${run.top3_pct ?? 0}%`} color={rankColor(1)} />
-                <Stat label="Top 10" value={`${run.top10_pct ?? 0}%`} color={rankColor(5)} />
-                <Stat label="Pontos" value={`${run.grid_size}×${run.grid_size}`} />
-              </div>
+              <MetricsPanel points={run.points} gridSize={run.grid_size} top10={run.top10_pct ?? 0} />
 
               {/* Concorrentes: quem mais aparece no top dos pontos */}
               <Competitors run={run} myTitle={selectedTitle} />
@@ -472,6 +468,41 @@ function Legend({ c, t }: { c: string; t: string }) {
     <span className="flex items-center gap-1">
       <span className="h-2.5 w-2.5 rounded-full" style={{ background: c }} /> {t}
     </span>
+  );
+}
+
+function MetricsPanel({ points, gridSize, top10 }: { points: Run["points"]; gridSize: number; top10: number }) {
+  const [open, setOpen] = useState(false);
+  const m = rankingMetrics(points);
+  return (
+    <>
+      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <Stat label="ARP · Posição média" value={m.arp != null ? m.arp.toLocaleString("pt-BR") : "—"} />
+        <Stat label="ATRP · Posição total" value={m.atrp != null ? m.atrp.toLocaleString("pt-BR") : "—"} />
+        <Stat label="SoLV · Top 3" value={`${m.solv}%`} color={rankColor(1)} />
+        <Stat label="Top 10" value={`${top10}%`} color={rankColor(5)} />
+      </div>
+      <p className="mt-1.5 text-center text-[11px] text-muted">
+        Grade {gridSize}×{gridSize} · apareceu em <strong className="text-foreground">{m.found}</strong> de {m.total} pontos no top 20 ({m.foundPct}%)
+      </p>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className="mx-auto mt-2 block text-[11px] font-medium text-brand hover:underline"
+      >
+        {open ? "Ocultar explicação das métricas" : "O que significam ARP, ATRP e SoLV?"}
+      </button>
+      {open && (
+        <dl className="mt-2 space-y-2 rounded-2xl border border-border bg-surface-2/50 p-3 text-[11px]">
+          {RANKING_GLOSSARY.map((g) => (
+            <div key={g.sigla}>
+              <dt className="font-semibold text-foreground">{g.sigla} — {g.nome}</dt>
+              <dd className="text-muted">{g.desc}</dd>
+            </div>
+          ))}
+        </dl>
+      )}
+    </>
   );
 }
 
