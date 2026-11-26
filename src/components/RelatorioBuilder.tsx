@@ -931,13 +931,8 @@ export default function RelatorioBuilder({ locations, initialBranding }: { locat
               {strength?.items && strength.items.length > 0 ? (
                 <div className="space-y-3">
                   {sOn("checklist", "completo") && (
-                    <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
-                      {strength.items.map((it) => (
-                        <div key={it.id} className="flex items-center gap-2 text-xs">
-                          <span className="h-2 w-2 shrink-0 rounded-full" style={{ background: it.status === "bom" ? "#22C7B8" : it.status === "razoavel" ? "#f59e0b" : "#f87171" }} />
-                          <span className="flex-1 truncate text-muted">{it.label}</span>
-                        </div>
-                      ))}
+                    <div className="space-y-2.5">
+                      {strength.items.map((it) => (<HcCard key={it.id} item={it} />))}
                     </div>
                   )}
                   {sOn("checklist", "melhorar") && (() => {
@@ -1121,6 +1116,32 @@ function Sec({ title, color, children }: { title: string; color: string; childre
 function Empty({ children }: { children: React.ReactNode }) {
   return <p className="rounded-xl bg-surface-2 p-3 text-xs text-muted">{children}</p>;
 }
+function HcCard({ item }: { item: ChkItem }) {
+  const pos = item.status === "bom" ? 90 : item.status === "razoavel" ? 50 : 15;
+  const icon = item.status === "bom" ? "✓" : item.status === "fraco" ? "✕" : "!";
+  const col = item.status === "bom" ? "#0e9f6e" : item.status === "fraco" ? "#e02424" : "#f59e0b";
+  const word = item.status === "bom" ? "Bom" : item.status === "razoavel" ? "Razoável" : "Fraco";
+  return (
+    <div className="rounded-2xl border border-border p-4">
+      <div className="flex items-center gap-2.5">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full text-[12px] font-bold text-white" style={{ background: col }}>{icon}</span>
+        <span className="text-sm font-semibold text-foreground">{item.label}</span>
+        <span className="ml-auto text-xs font-semibold" style={{ color: col }}>{word}</span>
+      </div>
+      {(item.detail || (item.status !== "bom" && item.tip)) && (
+        <p className="mt-2 text-xs text-muted">
+          {item.detail && <strong className="text-foreground">{item.detail}. </strong>}
+          {item.status !== "bom" && item.tip}
+        </p>
+      )}
+      <div className="relative mt-2.5 h-2 rounded-full" style={{ background: "linear-gradient(90deg,#f87171 0 33%,#fbbf24 33% 66%,#34d399 66% 100%)" }}>
+        <span className="absolute h-3.5 w-[3px] rounded" style={{ top: "-3px", left: `${pos}%`, background: "#1f2430", transform: "translateX(-50%)" }} />
+      </div>
+      <div className="mt-1 flex justify-between text-[9px] uppercase tracking-wide text-muted"><span>Fraco</span><span>Razoável</span><span>Bom</span></div>
+    </div>
+  );
+}
+
 function Kc({ v, l }: { v: string; l: string }) {
   return (
     <div className="rounded-xl border border-border bg-surface-2/50 px-3 py-2.5">
