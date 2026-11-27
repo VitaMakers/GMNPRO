@@ -27,11 +27,13 @@ export default function GridMap({
   center,
   title,
   mode = "pins",
+  preview = false,
 }: {
   points: GridMapPoint[];
   center: { lat: number; lng: number };
   title?: string;
   mode?: "pins" | "heat";
+  preview?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<any>(null);
@@ -55,6 +57,24 @@ export default function GridMap({
       if (heatRef.current) { map.removeLayer(heatRef.current); heatRef.current = null; }
 
       const bounds: [number, number][] = [];
+
+      if (preview) {
+        // Pré-visualização: só os pontinhos pretos da grade (sem posição/rank).
+        for (const p of points) {
+          const dot = L.divIcon({
+            className: "",
+            html: `<div style="width:12px;height:12px;border-radius:9999px;background:#111827;border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4)"></div>`,
+            iconSize: [12, 12],
+            iconAnchor: [6, 6],
+          });
+          L.marker([p.lat, p.lng], { icon: dot, interactive: false }).addTo(map);
+          bounds.push([p.lat, p.lng]);
+        }
+        if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
+        else map.setView([center.lat, center.lng], 14);
+        setTimeout(() => map.invalidateSize(), 100);
+        return;
+      }
 
       if (mode === "heat") {
         await loadHeat();
@@ -123,7 +143,7 @@ export default function GridMap({
     return () => {
       cancelled = true;
     };
-  }, [points, center, title, mode]);
+  }, [points, center, title, mode, preview]);
 
   useEffect(() => () => { mapRef.current?.remove(); mapRef.current = null; }, []);
 
