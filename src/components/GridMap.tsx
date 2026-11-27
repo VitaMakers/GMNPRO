@@ -59,15 +59,15 @@ export default function GridMap({
       const bounds: [number, number][] = [];
 
       if (preview) {
-        // Pré-visualização: só os pontinhos pretos da grade (sem posição/rank).
+        // Pré-visualização: pinos vermelhos da grade (sem posição/rank).
+        const pinIcon = L.divIcon({
+          className: "",
+          html: `<svg width="22" height="30" viewBox="0 0 28 36" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,.4))"><path d="M14 0C6.3 0 0 6.3 0 14c0 9.8 12.6 21.1 13.1 21.6.5.5 1.3.5 1.8 0C15.4 35.1 28 23.8 28 14 28 6.3 21.7 0 14 0z" fill="#dc2626"/><circle cx="14" cy="14" r="5" fill="#fff"/></svg>`,
+          iconSize: [22, 30],
+          iconAnchor: [11, 30],
+        });
         for (const p of points) {
-          const dot = L.divIcon({
-            className: "",
-            html: `<div style="width:12px;height:12px;border-radius:9999px;background:#111827;border:2px solid #fff;box-shadow:0 1px 2px rgba(0,0,0,.4)"></div>`,
-            iconSize: [12, 12],
-            iconAnchor: [6, 6],
-          });
-          L.marker([p.lat, p.lng], { icon: dot, interactive: false }).addTo(map);
+          L.marker([p.lat, p.lng], { icon: pinIcon, interactive: false }).addTo(map);
           bounds.push([p.lat, p.lng]);
         }
         if (bounds.length > 1) map.fitBounds(bounds, { padding: [30, 30] });
