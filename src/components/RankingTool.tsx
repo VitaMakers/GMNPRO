@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
 import { useActiveProfile, initActiveProfile, setActiveProfile } from "@/lib/profileStore";
-import { GRID_SIZES, gridCredits } from "@/lib/geogrid";
+import { GRID_SIZES, gridCredits, buildGrid } from "@/lib/geogrid";
 import { rankingMetrics, RANKING_GLOSSARY, competitorTable, overallPosition } from "@/lib/rankingMetrics";
 import { rankColor } from "@/components/GridMap";
 
@@ -69,6 +69,9 @@ export default function RankingTool({
   const [schedFreq, setSchedFreq] = useState<string | null>(null);
   const [schedBusy, setSchedBusy] = useState(false);
   const [mapMode, setMapMode] = useState<"pins" | "heat">("pins");
+  // Pré-visualização da grade (pontos pretos) antes de analisar — sem gastar crédito.
+  const [previewCenter, setPreviewCenter] = useState<{ lat: number; lng: number } | null>(null);
+  const [previewBusy, setPreviewBusy] = useState(false);
 
   useEffect(() => {
     if (locations[0]) initActiveProfile(locations[0].location_name);
@@ -117,6 +120,26 @@ export default function RankingTool({
       setHistory([]);
     }
   }, [selected]);
+
+  // Busca o centro da empresa para a pré-visualização da grade (não cobra crédito).
+  useEffect(() => {
+    setPreviewCenter(null);
+    if (!selected) return;
+    let cancel = false;
+    setPreviewBusy(true);
+    fetch(`/api/ranking/center?location=${encodeURIComponent(selected)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { if (!cancel && d && typeof d.lat === "number" && typeof d.lng === "number") setPreviewCenter({ lat: d.lat, lng: d.lng }); })
+      .catch(() => undefined)
+      .finally(() => { if (!cancel) setPreviewBusy(false); });
+    return () => { cancel = true; };
+  }, [selected]);
+
+  // Pontos da pré-visualização, recalculados ao mudar grade/distância.
+  const previewPoints = useMemo(
+    () => (previewCenter ? buildGrid(previewCenter.lat, previewCenter.lng, grid, spacing).map((p) => ({ lat: p.lat, lng: p.lng, rank: null })) : []),
+    [previewCenter, grid, spacing],
+  );
 
   useEffect(() => {
     setRun(null);
@@ -418,9 +441,10 @@ export default function RankingTool({
         <div className="rounded-3xl border border-border bg-white p-5 card-soft">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
             <p className="text-sm font-semibold">
-              Mapa de ranqueamento{run ? ` · "${run.keyword}"` : ""}
+              {run ? `Mapa de ranqueamento · "${run.keyword}"` : previewCenter ? "Pré-visualização da grade" : "Mapa de ranqueamento"}
             </p>
             <div className="flex items-center gap-3 text-[11px] text-muted">
+              {!run && previewCenter && <span>Ajuste grade e distância antes de analisar</span>}
               {run && (
                 <div className="flex overflow-hidden rounded-lg border border-border">
                   {(["pins", "heat"] as const).map((mo) => (
@@ -435,7 +459,7 @@ export default function RankingTool({
                   ))}
                 </div>
               )}
-              {mapMode === "pins" ? (
+              {run && (mapMode === "pins" ? (
                 <>
                   <Legend c={rankColor(1)} t="1–3" />
                   <Legend c={rankColor(5)} t="4–10" />
@@ -447,7 +471,7 @@ export default function RankingTool({
                   <span className="h-2.5 w-8 rounded-full" style={{ background: "linear-gradient(90deg,#dc2626,#f59e0b,#059669)" }} />
                   pior → melhor
                 </span>
-              )}
+              ))}
             </div>
           </div>
 
@@ -480,11 +504,21 @@ export default function RankingTool({
                 <span className="text-[11px] text-muted">{schedFreq ? `Ativo (${schedFreq === "weekly" ? "toda semana" : "todo mês"}) — usa ${Math.min(run.grid_size, 7) ** 2} créditos por rodada (grade até 7×7).` : "Acompanhamento usa grade até 7×7 para proteger o saldo. Só roda em plano pago com crédito."}</span>
               </div>
             </>
+          ) : previewCenter ? (
+            <>
+              <GridMap points={previewPoints} center={previewCenter} mode="pins" preview />
+              <p className="mt-3 rounded-xl bg-surface-2 px-3 py-2 text-xs text-muted">
+                São os <strong className="text-foreground">{need} pontos</strong> que serão medidos, cobrindo{" "}
+                <strong className="text-foreground">~{((grid - 1) * spacing).toLocaleString("pt-BR")} km</strong> de lado ao redor da empresa.
+                Ajuste a grade e a distância até ficar do tamanho que você quer — isto é só uma prévia e{" "}
+                <strong className="text-foreground">não gasta créditos</strong>. Ao clicar em Analisar, cada ponto usa 1 crédito.
+              </p>
+            </>
           ) : (
             <div className="grid h-[420px] place-items-center rounded-2xl border border-dashed border-border bg-surface-2 text-center text-sm text-muted">
               <div>
-                <p className="font-medium text-foreground">Nenhuma análise ainda</p>
-                <p className="mt-1">Digite a palavra-chave e clique em Analisar — ou abra uma análise do histórico.</p>
+                <p className="font-medium text-foreground">{previewBusy ? "Carregando pré-visualização…" : "Nenhuma análise ainda"}</p>
+                <p className="mt-1">{previewBusy ? "Buscando a localização da empresa para desenhar a grade." : "Escolha a empresa e a palavra-chave. A prévia da grade aparece aqui antes de analisar."}</p>
               </div>
             </div>
           )}
