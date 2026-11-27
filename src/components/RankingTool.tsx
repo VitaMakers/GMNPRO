@@ -45,10 +45,10 @@ export default function RankingTool({
 }) {
   const active = useActiveProfile();
   // Empresa de terceiros (sem ser administrador): escolhida pela busca por nome.
-  const [other, setOther] = useState<{ placeId: string; title: string; address: string } | null>(null);
+  const [other, setOther] = useState<{ placeId: string; title: string; address: string; lat?: number | null; lng?: number | null } | null>(null);
   const [otherMode, setOtherMode] = useState(false);
   const [otherQuery, setOtherQuery] = useState("");
-  const [otherResults, setOtherResults] = useState<{ placeId: string; name: string; address: string }[]>([]);
+  const [otherResults, setOtherResults] = useState<{ placeId: string; name: string; address: string; lat?: number | null; lng?: number | null }[]>([]);
   const [otherBusy, setOtherBusy] = useState(false);
   const [otherMsg, setOtherMsg] = useState("");
   // Filtro (lupa) da lista de perfis próprios.
@@ -100,7 +100,7 @@ export default function RankingTool({
       const res = await fetch(`/api/audit?q=${encodeURIComponent(term)}`);
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setOtherMsg(data.message ?? "Não foi possível buscar agora."); return; }
-      const list = (data.results ?? []) as { placeId: string; name: string; address: string }[];
+      const list = (data.results ?? []) as { placeId: string; name: string; address: string; lat?: number | null; lng?: number | null }[];
       if (list.length === 0) setOtherMsg("Nenhuma empresa encontrada. Tente o nome com a cidade.");
       setOtherResults(list);
     } catch {
@@ -125,6 +125,11 @@ export default function RankingTool({
   useEffect(() => {
     setPreviewCenter(null);
     if (!selected) return;
+    // Empresa de terceiros já veio com coordenada na busca por nome: usa direto, sem custo.
+    if (otherMode && other && typeof other.lat === "number" && typeof other.lng === "number") {
+      setPreviewCenter({ lat: other.lat, lng: other.lng });
+      return;
+    }
     let cancel = false;
     setPreviewBusy(true);
     fetch(`/api/ranking/center?location=${encodeURIComponent(selected)}`)
@@ -133,7 +138,7 @@ export default function RankingTool({
       .catch(() => undefined)
       .finally(() => { if (!cancel) setPreviewBusy(false); });
     return () => { cancel = true; };
-  }, [selected]);
+  }, [selected, otherMode, other]);
 
   // Pontos da pré-visualização, recalculados ao mudar grade/distância.
   const previewPoints = useMemo(
@@ -322,7 +327,7 @@ export default function RankingTool({
                     <ul className="mt-1 divide-y divide-border/60 rounded-xl border border-border">
                       {otherResults.map((c) => (
                         <li key={c.placeId}>
-                          <button type="button" onClick={() => { setOther({ placeId: c.placeId, title: c.name, address: c.address }); setOtherResults([]); }} className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2">
+                          <button type="button" onClick={() => { setOther({ placeId: c.placeId, title: c.name, address: c.address, lat: c.lat, lng: c.lng }); setOtherResults([]); }} className="flex w-full items-center gap-3 px-3 py-2 text-left transition hover:bg-surface-2">
                             <span className="min-w-0 flex-1">
                               <span className="block truncate text-sm font-medium">{c.name}</span>
                               <span className="block truncate text-xs text-muted">{c.address}</span>

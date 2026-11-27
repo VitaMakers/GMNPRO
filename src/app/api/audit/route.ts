@@ -11,6 +11,7 @@ const PLACES_BASE = "https://places.googleapis.com/v1";
 interface PlacesSearchPlace {
   id: string;
   displayName?: { text: string };
+  location?: { latitude?: number; longitude?: number };
   formattedAddress?: string;
 }
 
@@ -41,7 +42,7 @@ async function searchPlaces(query: string, key: string) {
       "Content-Type": "application/json",
       "X-Goog-Api-Key": key,
       "X-Goog-FieldMask":
-        "places.id,places.displayName,places.formattedAddress",
+        "places.id,places.displayName,places.formattedAddress,places.location",
     },
     body: JSON.stringify({
       textQuery: query,
@@ -216,7 +217,7 @@ export async function GET(request: Request) {
         try {
           const places = await searchPlaces(q, key);
           return NextResponse.json({
-            results: places.map((p) => ({ placeId: p.id, name: p.displayName?.text ?? "", address: p.formattedAddress ?? "" })),
+            results: places.map((p) => ({ placeId: p.id, name: p.displayName?.text ?? "", address: p.formattedAddress ?? "", lat: p.location?.latitude ?? null, lng: p.location?.longitude ?? null })),
           });
         } catch (e) {
           if (!dataForSeoConfigured()) throw e;
@@ -238,7 +239,7 @@ export async function GET(request: Request) {
       }
       const found = await mapsProspects(q, 20, at);
       return NextResponse.json({
-        results: found.filter((f) => f.placeId).map((f) => ({ placeId: f.placeId as string, name: f.name, address: f.address ?? "" })),
+        results: found.filter((f) => f.placeId).map((f) => ({ placeId: f.placeId as string, name: f.name, address: f.address ?? "", lat: f.lat, lng: f.lng })),
       });
     }
 
