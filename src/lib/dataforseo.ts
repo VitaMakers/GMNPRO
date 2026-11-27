@@ -226,6 +226,8 @@ export interface Prospect {
   claimed: boolean | null; // perfil reivindicado pelo dono (quando o Google informa)
   placeId: string | null;
   mapsUrl: string | null;
+  lat: number | null;
+  lng: number | null;
 }
 
 /** Créditos consumidos por busca de prospecção (até PROSPECT_DEPTH empresas). */
@@ -282,6 +284,8 @@ export async function mapsProspects(query: string, depth = PROSPECT_DEPTH, at?: 
       reviews: i.rating?.votes_count ?? null,
       claimed: typeof i.is_claimed === "boolean" ? i.is_claimed : null,
       placeId: i.place_id ?? null,
+      lat: typeof i.latitude === "number" ? i.latitude : null,
+      lng: typeof i.longitude === "number" ? i.longitude : null,
       mapsUrl: i.place_id
         ? `https://www.google.com/maps/place/?q=place_id:${i.place_id}`
         : i.cid ? `https://www.google.com/maps?cid=${i.cid}` : null,
